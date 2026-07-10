@@ -1,0 +1,97 @@
+.wrapper {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  /* タブ0件時も .tab と同じ高さを維持 */
+  min-height: calc(1px + 0.375rem * 2 + 1.125rem);
+  background: var(--color-slate-200);
+}
+
+.bar {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.bar::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 12rem;
+  width: 12rem;
+  padding: 0.375rem 0.5rem 0.375rem 0.75rem;
+  border-top: 1px solid var(--color-slate-300);
+  border-right: 1px solid var(--color-slate-300);
+  background: var(--color-slate-200);
+  color: var(--color-slate-500);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  background: var(--color-slate-300);
+  color: var(--color-slate-600);
+}
+
+.active {
+  background: var(--color-surface-main);
+  color: var(--color-cyan-600);
+  border-top-color: var(--color-cyan-600);
+}
+
+.active:hover {
+  background: var(--color-surface-main);
+  color: var(--color-cyan-600);
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.8125rem;
+}
+
+.close {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  opacity: 0;
+}
+
+.active .close,
+.tab:hover .close {
+  opacity: 1;
+}
+
+.addButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  align-self: stretch;
+  width: 2.5rem;
+  padding: 0;
+  border: none;
+  border-top: 1px solid var(--color-slate-300);
+  border-left: 1px solid var(--color-slate-300);
+  background: var(--color-slate-200);
+  color: var(--color-slate-600);
+  cursor: pointer;
+}
+
+.addButton:hover {
+  background: var(--color-slate-300);
+  color: var(--color-slate-900);
+}

@@ -1,0 +1,32 @@
+---
+description: UI/UX は兄弟プロジェクト db-gui のデザインを参照する
+alwaysApply: true
+---
+
+# db-gui デザイン参照
+
+wt-manager の UI は `c:\Users\tanabe\Documents\db-gui` をデザインの単一参照元とする。
+
+## デザイントークン
+
+- カラーパレット・フォントサイズは `frontend/src/index.css` の CSS 変数を使う（db-gui と同一）
+- 新しい色やサイズを追加する場合は、まず db-gui 側に同等のトークンがあるか確認する
+
+## コンポーネントパターン
+
+新規 UI を作る際は db-gui の対応コンポーネントを先に確認する:
+
+| 用途 | db-gui 参照 |
+|------|-------------|
+| タブバー | `frontend/src/components/tabs/TabBar.tsx` |
+| ツールバー | `frontend/src/components/toolbar/WorkspaceToolbar.tsx` |
+| レイアウト | `frontend/src/components/layout/MainLayout.tsx` |
+| ボタン | `frontend/src/components/ui/Button.tsx` |
+| Wails 抽象化 | `frontend/src/lib/wails.ts` |
+| 設定永続化 | `internal/config/config.go` |
+
+## 実装方針
+
+- 見た目・インタラクション（ホバー、スクロール、タブの active 状態など）は db-gui に合わせる
+- 依存関係は wt-manager に必要な分だけ移植する（過剰なコピーは避ける）
+- ポートは 5174（db-gui との競合回避）

@@ -1,0 +1,15 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  color: var(--color-blue-600);
+}
+
+.placeholder {
+  display: block;
+  width: 0.875rem;
+  height: 0.875rem;
+}

@@ -1,0 +1,29 @@
+.bar {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 3rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface-header);
+  border-bottom: 1px solid var(--color-slate-200);
+}
+
+.leading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.divider {
+  width: 1px;
+  height: 1.75rem;
+  background: var(--color-slate-300);
+  flex-shrink: 0;
+}
+
+.toolGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+}

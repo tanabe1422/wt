@@ -1,0 +1,98 @@
+.primary {
+  border: none;
+  border-radius: 0.375rem;
+  background: var(--color-blue-600);
+  color: var(--color-white);
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.4375rem 0.75rem;
+  cursor: pointer;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--color-blue-700);
+}
+
+.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ghost {
+  border: none;
+  border-radius: 0.375rem;
+  background: var(--color-slate-200);
+  color: var(--color-slate-900);
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.4375rem 0.75rem;
+  cursor: pointer;
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--color-slate-300);
+}
+
+.ghost:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.danger {
+  border: none;
+  border-radius: 0.375rem;
+  background: var(--color-red-100);
+  color: var(--color-red-700);
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.4375rem 0.75rem;
+  cursor: pointer;
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--color-red-200);
+}
+
+.danger:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.plain {
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 0;
+}
+
+.plain:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.menuItem {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--color-slate-800);
+  padding: 0.375rem 0.75rem;
+  cursor: pointer;
+}
+
+.menuItem:hover:not(:disabled) {
+  background: var(--overlay-slate-50);
+}
+
+.menuItem:disabled {
+  opacity: 1;
+  color: var(--color-slate-400);
+  cursor: default;
+}

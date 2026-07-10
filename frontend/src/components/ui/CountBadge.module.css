@@ -1,0 +1,23 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.0625rem;
+  flex-shrink: 0;
+  min-width: 1.125rem;
+  padding: 0.0625rem 0.3125rem;
+  border-radius: 0.25rem;
+  background: var(--color-slate-700);
+  color: var(--color-white);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  user-select: none;
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}

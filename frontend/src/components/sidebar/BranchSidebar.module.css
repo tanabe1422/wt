@@ -1,0 +1,30 @@
+.panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.empty,
+.hint,
+.error,
+.emptyInline {
+  margin: 0;
+  padding: 0.75rem;
+  font-size: var(--font-size-compact);
+  color: var(--color-slate-500);
+}
+
+.emptyInline {
+  padding: 0.375rem 0.75rem 0.375rem 1.875rem;
+}
+
+.error {
+  color: var(--color-red-600);
+}

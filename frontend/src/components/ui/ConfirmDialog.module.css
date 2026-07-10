@@ -1,0 +1,135 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 200;
+}
+
+.dialog {
+  width: min(420px, 100%);
+  background: var(--color-white);
+  border-radius: var(--dialog-radius);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
+  overflow: hidden;
+}
+
+.body {
+  padding: 1.25rem 1.25rem 0.5rem;
+}
+
+.title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--color-slate-900);
+}
+
+.message {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-slate-600);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.warning {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-red-700);
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--color-slate-300);
+  border-radius: 0.375rem;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--color-slate-900);
+  background: var(--color-white);
+}
+
+.input:focus {
+  outline: 2px solid var(--color-slate-400);
+  outline-offset: 1px;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.875rem;
+  font-size: 0.8125rem;
+  color: var(--color-slate-700);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox {
+  width: 0.875rem;
+  height: 0.875rem;
+  accent-color: var(--color-blue-600);
+  cursor: pointer;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.875rem;
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-slate-800);
+  cursor: pointer;
+  user-select: none;
+}
+
+.choiceInput {
+  margin-top: 0.125rem;
+  accent-color: var(--color-blue-600);
+  cursor: pointer;
+}
+
+.choiceBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.choiceLabel {
+  font-weight: 500;
+}
+
+.choiceDescription {
+  font-size: 0.75rem;
+  color: var(--color-slate-500);
+}
+
+.hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-slate-500);
+}
+
+.fieldLabel {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-slate-600);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem 1.25rem;
+}

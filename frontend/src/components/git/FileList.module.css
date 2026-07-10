@@ -1,0 +1,96 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.empty {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: var(--font-size-git-file);
+  color: var(--color-slate-500);
+}
+
+.row {
+  display: flex;
+  align-items: stretch;
+  min-height: var(--git-file-row-min-height);
+  border-bottom: 1px solid var(--color-slate-200);
+}
+
+.row:hover {
+  background: var(--color-slate-50);
+}
+
+.selected {
+  background: var(--color-blue-50);
+}
+
+.focused {
+  outline: 1px solid var(--color-blue-300);
+  outline-offset: -1px;
+}
+
+.fileButton {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.375rem 0.5rem 0.375rem 0.75rem;
+  text-align: left;
+}
+
+.status {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--git-icon-badge-size);
+  height: var(--git-icon-badge-size);
+}
+
+.path {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  font-size: var(--font-size-git-file);
+  line-height: 1;
+  color: var(--color-slate-800);
+}
+
+.pathText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.dirMarker {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  margin-left: 0.25rem;
+  color: var(--color-amber-500);
+  transform: translateY(0.08em);
+}
+
+.dirMarker svg {
+  width: 1em;
+  height: 1em;
+  display: block;
+}
+
+.action {
+  flex-shrink: 0;
+  align-self: center;
+  width: var(--git-row-action-size);
+  height: var(--git-row-action-size);
+  margin-right: 0.375rem;
+  font-size: 0.875rem;
+  line-height: 1;
+  color: var(--color-slate-600);
+}

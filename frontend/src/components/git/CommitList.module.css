@@ -1,0 +1,94 @@
+.list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.row {
+  display: grid;
+  align-items: center;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid var(--color-slate-200);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.row:hover {
+  background: var(--color-slate-50);
+}
+
+.row.selected:hover {
+  background: transparent;
+}
+
+.message,
+.labels,
+.date,
+.author,
+.sha {
+  padding: 0.125rem 0.5rem;
+  min-width: 0;
+}
+
+.message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-git-file);
+  line-height: 1.2;
+  color: var(--color-slate-800);
+}
+
+.labels {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  overflow: hidden;
+}
+
+.label {
+  flex: none;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0 0.375rem;
+  border: 1px solid currentColor;
+  border-radius: 0.1875rem;
+  font-size: var(--font-size-git-diff);
+  color: var(--color-cyan-600);
+}
+
+.labelMore {
+  flex: none;
+  padding: 0 0.375rem;
+  border: 1px solid currentColor;
+  border-radius: 0.1875rem;
+  font-size: var(--font-size-git-diff);
+  color: var(--color-slate-500);
+}
+
+.date,
+.author {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-git-file);
+  line-height: 1.2;
+  color: var(--color-slate-600);
+}
+
+.sha {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, monospace;
+  font-size: var(--font-size-git-file);
+  line-height: 1.2;
+  color: var(--color-slate-500);
+}

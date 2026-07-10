@@ -1,0 +1,7 @@
+.wrap {
+  flex-shrink: 0;
+}
+
+.wrap svg {
+  display: block;
+}

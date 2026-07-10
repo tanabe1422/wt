@@ -1,0 +1,54 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--color-slate-100);
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  padding: 2rem;
+  text-align: center;
+}
+
+.empty,
+.repoContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--color-slate-900);
+}
+
+.repoPath {
+  margin: 0;
+  font-size: var(--font-size-compact);
+  color: var(--color-slate-600);
+  word-break: break-all;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-size-compact);
+  color: var(--color-slate-500);
+}
+
+.error {
+  margin: 1rem 0 0;
+  font-size: var(--font-size-compact);
+  color: var(--color-red-600);
+}

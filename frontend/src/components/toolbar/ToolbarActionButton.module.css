@@ -1,0 +1,52 @@
+.button {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-width: 3.5rem;
+  padding: 0.375rem 0.5rem 0.125rem;
+  border: 1px solid transparent;
+  border-radius: var(--dialog-radius);
+  font: inherit;
+  color: var(--color-slate-700);
+  background: transparent;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-slate-900) 6%, transparent);
+  border-color: var(--color-slate-200);
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.button.active .icon,
+.button.active .label {
+  color: var(--color-cyan-600);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-slate-600);
+}
+
+.label {
+  font-size: var(--font-size-grid-header);
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+.badge {
+  position: absolute;
+  top: 0.3125rem;
+  right: 0.25rem;
+  transform: translate(35%, -45%);
+  pointer-events: none;
+}
