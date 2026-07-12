@@ -16,6 +16,8 @@ frontend/dist/
 
 # Frontend
 frontend/node_modules/
+frontend/storybook-static/
+frontend/package.json.md5
 *.local
 
 # IDE
@@ -33,6 +35,6 @@ Thumbs.db
 .env.*
 
 # Local sample git repo for manual UI testing (gitignored).
-# Not part of the wt-manager Go module — if you create it, include a go.mod
-# (module sample-repo) so `go build ./...` / `go test ./...` skip it.
+# Avoid .go files under it — otherwise `go build ./...` compiles them as
+# part of wt-manager (conflict-marker demos will fail the build).
 /sample-repo/
