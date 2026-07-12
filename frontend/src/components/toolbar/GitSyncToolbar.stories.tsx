@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 
+import { SidebarProvider } from '../layout/CollapsibleSidebar'
+import { ToastProvider } from '../../hooks/useToast'
 import { GitSyncToolbar } from './GitSyncToolbar'
 import type { MainView } from './MainViewToolbarTabs'
 
@@ -11,7 +13,13 @@ function InteractiveToolbar(
 ) {
   const { initialView = 'files', ...rest } = props
   const [mainView, setMainView] = useState<MainView>(initialView)
-  return <GitSyncToolbar {...rest} mainView={mainView} onMainViewChange={setMainView} />
+  return (
+    <ToastProvider>
+      <SidebarProvider>
+        <GitSyncToolbar {...rest} mainView={mainView} onMainViewChange={setMainView} />
+      </SidebarProvider>
+    </ToastProvider>
+  )
 }
 
 const meta = {
@@ -23,12 +31,15 @@ const meta = {
     currentBranch: 'feature/hoge',
     aheadCount: 0,
     behindCount: 0,
+    hasUpstream: true,
     mainView: 'files' as const,
     onMainViewChange: () => {},
+    onOpenSettings: () => console.info('[story] open settings'),
   },
   argTypes: {
     aheadCount: { control: { type: 'number', min: 0 } },
     behindCount: { control: { type: 'number', min: 0 } },
+    hasUpstream: { control: 'boolean' },
     mainView: {
       control: 'select',
       options: ['files', 'history'] satisfies MainView[],
@@ -48,7 +59,7 @@ const meta = {
       >
         <Story />
         <div style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--color-slate-500)' }}>
-          メインコンテンツ領域（モック API で Fetch / Pull / Push が動作します）
+          メインコンテンツ領域（モック API で Fetch / Pull / Push / Fetch+prune が動作します）
         </div>
       </div>
     ),
@@ -85,6 +96,16 @@ export const BehindOnly: Story = {
   },
 }
 
+export const NoUpstream: Story = {
+  name: 'upstream 未設定',
+  args: {
+    hasUpstream: false,
+    currentBranch: 'feature/new-local',
+    aheadCount: 0,
+    behindCount: 0,
+  },
+}
+
 export const LargeCounts: Story = {
   args: {
     aheadCount: 99,
@@ -101,6 +122,14 @@ export const Disabled: Story = {
 export const NoWorktree: Story = {
   args: {
     worktreePath: '',
+  },
+}
+
+export const SettingsOnly: Story = {
+  name: '設定ボタンのみ',
+  args: {
+    worktreePath: '',
+    settingsOnly: true,
   },
 }
 

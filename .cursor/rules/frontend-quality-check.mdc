@@ -1,0 +1,45 @@
+---
+description: 機能実装・フロント/Go 変更後は go test・tsc -b・pnpm test で必ず検証する
+alwaysApply: true
+---
+
+# 品質ゲート
+
+コードや `FEATURES.md` の機能実装を完了と言う前に、次を **すべて exit 0** で通す。
+
+## 必須コマンド（リポジトリルート）
+
+```bash
+go test ./...
+cd frontend && pnpm exec tsc -b && pnpm test
+```
+
+Go / Wails バインド変更時は追加:
+
+```bash
+go build ./...
+```
+
+## フロント固有
+
+- `tsc --noEmit` だけでは不十分。`tsc -b`（`package.json` の `build` と同じ）を使う
+- Storybook（`*.stories.tsx`）も `tsconfig.app.json` の `include: ["src"]` に入るため型エラーになる
+- Vitest 通過だけでは `wails build` / `pnpm build` は通らない
+
+## Storybook の型
+
+`component: SomeComponent` で必須 props がある場合、各 Story に `args` が必要。
+
+避け方:
+
+- デモ用ラッパーを `component` にする（`SettingsDialog.stories` の `InteractiveSettings` と同じ）
+- または meta にデフォルト `args` を置く
+- カスタム `render` だけなら `satisfies Meta`（component なし）でも可
+
+## FEATURES 実装サイクル
+
+`FEATURES.md` の 1 項目を実装したサイクルでは、上記ゲート通過後に該当行を `[x]`（または部分実装の注記）へ更新してから完了とする。工程の詳細は `.cursor/skills/features-impl-cycle/SKILL.md`。
+
+## 完了条件
+
+エージェントは「完了」と言う前に、必須コマンドが exit 0 であることを確認する。

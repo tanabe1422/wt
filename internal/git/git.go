@@ -36,6 +36,24 @@ func runGit(dir string, args ...string) (string, error) {
 	return runGitWithExitOK(dir, 0, args...)
 }
 
+// runGitCapture returns stdout and stderr on success.
+func runGitCapture(dir string, args ...string) (stdout, stderr string, err error) {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	var outBuf bytes.Buffer
+	var errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	if runErr := cmd.Run(); runErr != nil {
+		msg := strings.TrimSpace(errBuf.String())
+		if msg == "" {
+			msg = runErr.Error()
+		}
+		return "", "", errors.New(msg)
+	}
+	return strings.TrimSuffix(outBuf.String(), "\n"), strings.TrimSuffix(errBuf.String(), "\n"), nil
+}
+
 // runGitAllowDiffExit runs git diff and treats exit code 1 as success.
 // git diff uses exit code 1 when differences are present.
 func runGitAllowDiffExit(dir string, args ...string) (string, error) {

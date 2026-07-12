@@ -1,29 +1,22 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { MouseEvent } from 'react'
+import { useCallback, useRef } from 'react'
 
+import { useBusy } from '../../hooks/useBusy'
 import { useErrorDialog } from '../../hooks/useErrorDialog'
 import { useResizableSplit } from '../../hooks/useResizableSplit'
 import { useContextMenu } from '../../hooks/useContextMenu'
+import { useGitDestructiveConfirm } from '../../hooks/useGitDestructiveConfirm'
 import { useGitDiff } from '../../hooks/useGitDiff'
 import { useGitStatus } from '../../hooks/useGitStatus'
+import { useGitWorkspaceActions } from '../../hooks/useGitWorkspaceActions'
 import { useSectionSelection } from '../../hooks/useSectionSelection'
-import {
-  commit,
-  discardHunk,
-  isConflict,
-  openMergetool,
-  push,
-  stageHunk,
-  unstageHunk,
-} from '../../lib/wails'
-import type { FileStatus } from '../../types'
+import { isConflict } from '../../utils/gitStatus'
 import { ContextMenu } from '../ui/ContextMenu'
-import { ErrorDialog } from '../ui/ErrorDialog'
 import { ResizeHandle } from '../ui/ResizeHandle'
 import { cx } from '../../utils/cx'
 import { ChangesPanel } from './ChangesPanel'
 import { CommitBar } from './CommitBar'
 import { DiffView } from './DiffView'
+import { GitWorkspaceDialogs } from './GitWorkspaceDialogs'
 import styles from './GitWorkspace.module.css'
 
 interface GitWorkspaceProps {
@@ -42,13 +35,7 @@ export function GitWorkspace({
   onSidebarReload,
   onBusyChange,
 }: GitWorkspaceProps) {
-  const [busy, setBusy] = useState(false)
-  const [mergetoolError, setMergetoolError] = useState<string | null>(null)
-
-  useEffect(() => {
-    onBusyChange?.(busy)
-    return () => onBusyChange?.(false)
-  }, [busy, onBusyChange])
+  const { busy, runBusy } = useBusy(onBusyChange)
   const {
     stagedSelection,
     unstagedSelection,
@@ -80,6 +67,7 @@ export function GitWorkspace({
       ? null
       : [...staged, ...unstaged].find((entry) => entry.path === focusFile.path) ?? null
   const focusIsConflict = focusEntry ? isConflict(focusEntry) : false
+  const conflictCount = unstaged.filter(isConflict).length
 
   const { diff, loading: diffLoading, error: diffError, reload: reloadDiff } = useGitDiff(
     worktreePath,
@@ -89,7 +77,6 @@ export function GitWorkspace({
 
   const statusErrorDialog = useErrorDialog(error)
   const diffErrorDialog = useErrorDialog(diffError)
-  const mergetoolErrorDialog = useErrorDialog(mergetoolError)
   const { ratio, resizing, splitRef, handleResizeStart } = useResizableSplit({
     storageKey: FILES_SPLIT_STORAGE_KEY,
     defaultRatio: FILES_SPLIT_DEFAULT_RATIO,
@@ -102,182 +89,52 @@ export function GitWorkspace({
     await onSidebarReload?.()
   }, [onSidebarReload])
 
-  const runBusy = useCallback(async (action: () => Promise<void>) => {
-    setBusy(true)
-    try {
-      await action()
-    } finally {
-      setBusy(false)
-    }
-  }, [])
+  const clearUnstaged = useCallback(() => {
+    clearSection('unstaged')
+  }, [clearSection])
 
-  const handleStage = useCallback(
-    async (path: string) => {
-      await runBusy(async () => {
-        await stage([path])
-        await refreshSidebar()
-        setFocus('staged', path)
-      })
-    },
-    [refreshSidebar, runBusy, setFocus, stage],
-  )
+  const refreshMergeStateRef = useRef<() => Promise<void>>(async () => undefined)
 
-  const handleUnstage = useCallback(
-    async (path: string) => {
-      await runBusy(async () => {
-        await unstage([path])
-        await refreshSidebar()
-        setFocus('unstaged', path)
-      })
-    },
-    [refreshSidebar, runBusy, setFocus, unstage],
-  )
-
-  const handleStageSelected = useCallback(async () => {
-    const paths = [...unstagedSelection.paths].filter((path) => {
-      const entry = unstaged.find((item) => item.path === path)
-      return entry ? !isConflict(entry) : true
-    })
-    if (paths.length === 0) {
-      return
-    }
-    await runBusy(async () => {
-      await stage(paths)
-      await refreshSidebar()
-      setFocus('staged', paths[paths.length - 1])
-    })
-  }, [refreshSidebar, runBusy, setFocus, stage, unstaged, unstagedSelection.paths])
-
-  const handleUnstageSelected = useCallback(async () => {
-    const paths = [...stagedSelection.paths]
-    if (paths.length === 0) {
-      return
-    }
-    await runBusy(async () => {
-      await unstage(paths)
-      await refreshSidebar()
-      setFocus('unstaged', paths[paths.length - 1])
-    })
-  }, [refreshSidebar, runBusy, setFocus, stagedSelection.paths, unstage])
-
-  const handleStageAll = useCallback(async () => {
-    await runBusy(async () => {
-      await stage(unstaged.filter((entry) => !isConflict(entry)).map((entry) => entry.path))
-      await refreshSidebar()
-      clearSection('unstaged')
-    })
-  }, [clearSection, refreshSidebar, runBusy, stage, unstaged])
-
-  const handleUnstageAll = useCallback(async () => {
-    await runBusy(async () => {
-      await unstage(staged.map((entry) => entry.path))
-      await refreshSidebar()
-      clearSection('staged')
-    })
-  }, [clearSection, refreshSidebar, runBusy, staged, unstage])
-
-  const handleCommit = useCallback(
-    async (message: string) => {
-      await runBusy(async () => {
-        await commit(worktreePath, message)
-        clearAll()
-        await reload()
-        await refreshSidebar()
-      })
-    },
-    [clearAll, refreshSidebar, runBusy, worktreePath, reload],
-  )
-
-  const handlePush = useCallback(async () => {
-    await runBusy(async () => {
-      await push(worktreePath)
+  const destructive = useGitDestructiveConfirm({
+    worktreePath,
+    unstaged,
+    stagedCount: staged.length,
+    unstagedCount: unstaged.length,
+    runBusy,
+    clearAll,
+    clearUnstaged,
+    afterDestructive: async () => {
       await reload()
       await refreshSidebar()
-    })
-  }, [refreshSidebar, runBusy, worktreePath, reload])
-
-  const handleStageHunk = useCallback(
-    async (hunkIndex: number) => {
-      if (!focusFile?.path) {
-        return
-      }
-      await runBusy(async () => {
-        await stageHunk(worktreePath, focusFile.path, hunkIndex)
-        await reload()
-        await refreshSidebar()
-        await reloadDiff()
-      })
+      await reloadDiff()
+      await refreshMergeStateRef.current()
     },
-    [focusFile?.path, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
-  )
+  })
 
-  const handleUnstageHunk = useCallback(
-    async (hunkIndex: number) => {
-      if (!focusFile?.path) {
-        return
-      }
-      await runBusy(async () => {
-        await unstageHunk(worktreePath, focusFile.path, hunkIndex)
-        await reload()
-        await refreshSidebar()
-        await reloadDiff()
-      })
-    },
-    [focusFile?.path, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
-  )
+  const actions = useGitWorkspaceActions({
+    worktreePath,
+    staged,
+    unstaged,
+    stagedSelectionPaths: stagedSelection.paths,
+    unstagedSelectionPaths: unstagedSelection.paths,
+    focusFile,
+    stage,
+    unstage,
+    reload,
+    reloadDiff,
+    refreshSidebar,
+    clearAll,
+    clearSection,
+    setFocus,
+    openMenu,
+    requestDeletePaths: destructive.requestDeletePaths,
+    requestDiscardTrackedPaths: destructive.requestDiscardTrackedPaths,
+    runBusy,
+  })
 
-  const handleDiscardHunk = useCallback(
-    async (hunkIndex: number) => {
-      if (!focusFile?.path) {
-        return
-      }
-      await runBusy(async () => {
-        await discardHunk(worktreePath, focusFile.path, hunkIndex, focusFile.staged)
-        await reload()
-        await refreshSidebar()
-        await reloadDiff()
-      })
-    },
-    [focusFile, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
-  )
+  refreshMergeStateRef.current = actions.refreshMergeState
 
-  const handleOpenMergetool = useCallback(
-    async (path: string) => {
-      setMergetoolError(null)
-      await runBusy(async () => {
-        try {
-          await openMergetool(worktreePath, path)
-          await reload()
-          await refreshSidebar()
-          await reloadDiff()
-        } catch (err) {
-          setMergetoolError(
-            err instanceof Error ? err.message : '外部ツールの起動に失敗しました',
-          )
-        }
-      })
-    },
-    [refreshSidebar, reload, reloadDiff, runBusy, worktreePath],
-  )
-
-  const handleFileContextMenu = useCallback(
-    (entry: FileStatus, event: MouseEvent) => {
-      if (!isConflict(entry)) {
-        return
-      }
-      event.preventDefault()
-      event.stopPropagation()
-      openMenu(event.clientX, event.clientY, [
-        {
-          label: '外部ツールで競合を解決',
-          onClick: () => {
-            void handleOpenMergetool(entry.path)
-          },
-        },
-      ])
-    },
-    [handleOpenMergetool, openMenu],
-  )
+  const externalToolErrorDialog = useErrorDialog(actions.externalToolError)
 
   if (!worktreePath) {
     return (
@@ -300,14 +157,21 @@ export function GitWorkspace({
             loading={loading}
             stagedSelection={stagedSelection}
             unstagedSelection={unstagedSelection}
+            conflictCount={conflictCount}
+            merging={actions.merging}
             onFileClick={handleClick}
-            onFileContextMenu={handleFileContextMenu}
-            onStage={(path) => void handleStage(path)}
-            onUnstage={(path) => void handleUnstage(path)}
-            onStageSelected={() => void handleStageSelected()}
-            onUnstageSelected={() => void handleUnstageSelected()}
-            onStageAll={() => void handleStageAll()}
-            onUnstageAll={() => void handleUnstageAll()}
+            onFileContextMenu={actions.handleFileContextMenu}
+            onStage={(path) => void actions.handleStage(path)}
+            onUnstage={(path) => void actions.handleUnstage(path)}
+            onStageSelected={() => void actions.handleStageSelected()}
+            onUnstageSelected={() => void actions.handleUnstageSelected()}
+            onStageAll={() => void actions.handleStageAll()}
+            onUnstageAll={() => void actions.handleUnstageAll()}
+            onDiscardSelected={() =>
+              destructive.requestDiscardPaths([...unstagedSelection.paths])
+            }
+            onDiscardAll={destructive.requestDiscardAll}
+            onAbortMerge={destructive.requestAbortMerge}
           />
         </div>
         <ResizeHandle
@@ -325,17 +189,18 @@ export function GitWorkspace({
             staged={focusFile?.staged ?? false}
             conflict={focusIsConflict}
             busy={busy}
-            onStageHunk={(index) => void handleStageHunk(index)}
-            onUnstageHunk={(index) => void handleUnstageHunk(index)}
-            onDiscardHunk={(index) => void handleDiscardHunk(index)}
+            onStageHunk={(index) => void actions.handleStageHunk(index)}
+            onUnstageHunk={(index) => void actions.handleUnstageHunk(index)}
+            onDiscardHunk={(index) => void actions.handleDiscardHunk(index)}
           />
         </div>
       </div>
       <CommitBar
         disabled={!worktreePath}
         busy={loading || busy}
-        onCommit={handleCommit}
-        onPush={handlePush}
+        amendInfo={actions.amendInfo}
+        onCommit={actions.handleCommit}
+        onPush={actions.handlePush}
       />
       {menu && (
         <ContextMenu
@@ -345,23 +210,18 @@ export function GitWorkspace({
           onClose={closeMenu}
         />
       )}
-      <ErrorDialog
-        open={statusErrorDialog.open}
-        title="変更の取得に失敗しました"
-        message={statusErrorDialog.message}
-        onClose={statusErrorDialog.dismiss}
-      />
-      <ErrorDialog
-        open={diffErrorDialog.open}
-        title="差分の取得に失敗しました"
-        message={diffErrorDialog.message}
-        onClose={diffErrorDialog.dismiss}
-      />
-      <ErrorDialog
-        open={mergetoolErrorDialog.open}
-        title="競合解決ツールの起動に失敗しました"
-        message={mergetoolErrorDialog.message}
-        onClose={mergetoolErrorDialog.dismiss}
+      <GitWorkspaceDialogs
+        confirmOpen={destructive.confirmAction !== null}
+        confirmTitle={destructive.confirmTitle}
+        confirmMessage={destructive.confirmMessage}
+        confirmLabel={destructive.confirmLabel}
+        onConfirm={() => {
+          void destructive.handleConfirmDestructive()
+        }}
+        onCancelConfirm={destructive.cancelConfirm}
+        statusError={statusErrorDialog}
+        diffError={diffErrorDialog}
+        externalToolError={externalToolErrorDialog}
       />
     </div>
   )

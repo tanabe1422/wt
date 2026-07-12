@@ -43,7 +43,17 @@ export const PushWithBadge: Story = {
 }
 
 export const Fetch: Story = {
-  args: { action: 'fetch' },
+  args: {
+    action: 'fetch',
+    menuItems: [
+      {
+        label: 'フェッチして prune',
+        onClick: () => {
+          console.info('[story] fetch with prune')
+        },
+      },
+    ],
+  },
 }
 
 export const Disabled: Story = {
@@ -65,7 +75,17 @@ export const AllActions: Story = {
     >
       <GitSyncActionButton action="pull" badgeCount={5} />
       <GitSyncActionButton action="push" badgeCount={23} />
-      <GitSyncActionButton action="fetch" />
+      <GitSyncActionButton
+        action="fetch"
+        menuItems={[
+          {
+            label: 'フェッチして prune',
+            onClick: () => {
+              console.info('[story] fetch with prune')
+            },
+          },
+        ]}
+      />
     </div>
   ),
 }
@@ -131,10 +151,20 @@ export const InToolbarContext: Story = {
       >
         <GitSyncActionButton action="pull" badgeCount={5} />
         <GitSyncActionButton action="push" badgeCount={23} />
-        <GitSyncActionButton action="fetch" />
+        <GitSyncActionButton
+          action="fetch"
+          menuItems={[
+            {
+              label: 'フェッチして prune',
+              onClick: () => {
+                console.info('[story] fetch with prune')
+              },
+            },
+          ]}
+        />
       </div>
       <div style={{ padding: '1rem', fontSize: '0.8125rem', color: 'var(--color-slate-500)' }}>
-        メインコンテンツ領域
+        メインコンテンツ領域（フェッチ右の矢印でオプションメニュー）
       </div>
     </div>
   ),

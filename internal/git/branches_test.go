@@ -105,6 +105,42 @@ func TestDeleteBranchCurrentRejected(t *testing.T) {
 	}
 }
 
+func TestRenameBranch(t *testing.T) {
+	dir := initBranchOpRepo(t)
+	if err := RenameBranch(dir, "feature", "feature-renamed"); err != nil {
+		t.Fatalf("RenameBranch: %v", err)
+	}
+	entries, err := ListBranches(dir)
+	if err != nil {
+		t.Fatalf("ListBranches: %v", err)
+	}
+	var foundOld, foundNew bool
+	for _, entry := range entries {
+		if entry.IsRemote {
+			continue
+		}
+		if entry.Name == "feature" {
+			foundOld = true
+		}
+		if entry.Name == "feature-renamed" {
+			foundNew = true
+		}
+	}
+	if foundOld {
+		t.Fatal("old branch name should be gone")
+	}
+	if !foundNew {
+		t.Fatal("renamed branch should exist")
+	}
+}
+
+func TestRenameBranchEmptyName(t *testing.T) {
+	dir := initBranchOpRepo(t)
+	if err := RenameBranch(dir, "feature", "  "); err == nil {
+		t.Fatal("expected error for empty new branch name")
+	}
+}
+
 func TestMergeBranch(t *testing.T) {
 	dir := initBranchOpRepo(t)
 	if err := MergeBranch(dir, "feature"); err != nil {
@@ -263,6 +299,60 @@ func TestListBranches(t *testing.T) {
 	}
 }
 
+func TestListBranchesHasUpstream(t *testing.T) {
+	dir := initBranchOpRepo(t)
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+
+	entries, err := ListBranches(dir)
+	if err != nil {
+		t.Fatalf("ListBranches: %v", err)
+	}
+	for _, entry := range entries {
+		if entry.IsRemote {
+			continue
+		}
+		if entry.HasUpstream {
+			t.Fatalf("expected no upstream, got HasUpstream on %q", entry.Name)
+		}
+	}
+
+	defaultBranch, err := CurrentBranch(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sha, err := runGit(dir, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	run("remote", "add", "origin", dir)
+	run("update-ref", "refs/remotes/origin/"+defaultBranch, sha)
+	run("branch", "--set-upstream-to=origin/"+defaultBranch, defaultBranch)
+
+	entries, err = ListBranches(dir)
+	if err != nil {
+		t.Fatalf("ListBranches after upstream: %v", err)
+	}
+	found := false
+	for _, entry := range entries {
+		if entry.Name == defaultBranch {
+			found = true
+			if !entry.HasUpstream {
+				t.Fatalf("expected HasUpstream on %q", defaultBranch)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("branch %q not found", defaultBranch)
+	}
+}
+
 func TestLocalBranchFromRemote(t *testing.T) {
 	tests := []struct {
 		remoteRef string
@@ -291,5 +381,86 @@ func TestLocalBranchFromRemote(t *testing.T) {
 		if got != tc.want {
 			t.Fatalf("localBranchFromRemote(%q) = %q, want %q", tc.remoteRef, got, tc.want)
 		}
+	}
+}
+
+func TestSwitchBranch(t *testing.T) {
+	dir := initBranchOpRepo(t)
+	if err := SwitchBranch(dir, "feature"); err != nil {
+		t.Fatalf("SwitchBranch: %v", err)
+	}
+	current, err := CurrentBranch(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current != "feature" {
+		t.Fatalf("expected feature, got %q", current)
+	}
+}
+
+func TestSwitchBranchEmptyName(t *testing.T) {
+	dir := initBranchOpRepo(t)
+	if err := SwitchBranch(dir, "  "); err == nil {
+		t.Fatal("expected error for empty branch name")
+	}
+}
+
+func TestCheckoutRemoteBranch(t *testing.T) {
+	dir := initBranchOpRepo(t)
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+
+	bare := t.TempDir()
+	cmd := exec.Command("git", "clone", "--bare", dir, bare)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("bare clone: %v\n%s", err, out)
+	}
+	run("remote", "add", "origin", bare)
+	run("fetch", "origin")
+
+	defaultBranch, err := CurrentBranch(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Tracking branch for remote feature should be created.
+	if err := CheckoutRemoteBranch(dir, "origin/feature"); err != nil {
+		t.Fatalf("CheckoutRemoteBranch create: %v", err)
+	}
+	current, err := CurrentBranch(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current != "feature" {
+		t.Fatalf("expected feature, got %q", current)
+	}
+
+	if err := SwitchBranch(dir, defaultBranch); err != nil {
+		t.Fatalf("SwitchBranch back: %v", err)
+	}
+
+	// Existing local branch: switch only.
+	if err := CheckoutRemoteBranch(dir, "origin/feature"); err != nil {
+		t.Fatalf("CheckoutRemoteBranch existing: %v", err)
+	}
+	current, err = CurrentBranch(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current != "feature" {
+		t.Fatalf("expected feature after re-checkout, got %q", current)
+	}
+}
+
+func TestCheckoutRemoteBranchInvalid(t *testing.T) {
+	dir := initBranchOpRepo(t)
+	if err := CheckoutRemoteBranch(dir, "origin"); err == nil {
+		t.Fatal("expected error for invalid remote ref")
 	}
 }

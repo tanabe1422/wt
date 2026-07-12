@@ -32,9 +32,9 @@ export const pullConflictError = {
     'マージ中に競合が発生しました。競合を解決してからコミットしてください。',
 } as const
 
-/** Story / 表示用: mergetool 起動失敗 */
+/** Story / 表示用: 外部ツール起動失敗 */
 export const mergetoolError = {
-  title: '競合解決ツールの起動に失敗しました',
+  title: '外部ツールの起動に失敗しました',
   message:
-    'mergetool が設定されていません。git config で merge.tool を設定してください。',
+    '外部ツールが設定されていません。設定画面でアプリと開き方を設定してください。',
 } as const

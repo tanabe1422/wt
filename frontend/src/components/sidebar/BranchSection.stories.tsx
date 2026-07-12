@@ -102,3 +102,17 @@ export const NestedBranches: Story = {
     defaultExpanded: true,
   },
 }
+
+export const IconInContext: Story = {
+  name: '見出しアイコン（実 UI）',
+  args: {
+    title: 'ブランチ',
+    icon: <BranchSectionIcon />,
+    nodes: compositeLocal,
+    selectedBranch: 'feature/hoge',
+    checkedOutBranch: 'feature/hoge',
+    worktreeBranches: compositeWorktreeBranches,
+    showWorktreeMarks: true,
+    defaultExpanded: true,
+  },
+}

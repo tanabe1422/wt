@@ -14,6 +14,7 @@ interface BranchSectionProps {
   worktreeBranches: Set<string>
   showWorktreeMarks?: boolean
   defaultExpanded?: boolean
+  expansionThreshold?: number
   onActivate?: (fullName: string) => void
   onContextMenu?: (fullName: string, event: MouseEvent) => void
 }
@@ -28,6 +29,7 @@ export function BranchSection({
   worktreeBranches,
   showWorktreeMarks = false,
   defaultExpanded = true,
+  expansionThreshold = 2,
   onActivate,
   onContextMenu,
 }: BranchSectionProps) {
@@ -42,7 +44,7 @@ export function BranchSection({
           onSelect={onSelect}
           checkedOutBranch={showWorktreeMarks ? checkedOutBranch : null}
           worktreeBranches={showWorktreeMarks ? worktreeBranches : new Set()}
-          expansionThreshold={2}
+          expansionThreshold={expansionThreshold}
           onActivate={onActivate}
           onContextMenu={onContextMenu}
         />

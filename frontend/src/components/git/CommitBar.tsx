@@ -1,72 +1,149 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useErrorDialog } from '../../hooks/useErrorDialog'
+import type { AmendInfo } from '../../types'
 import { Button } from '../ui/Button'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ErrorDialog } from '../ui/ErrorDialog'
 import styles from './CommitBar.module.css'
+
+export interface CommitOptions {
+  amend: boolean
+}
 
 interface CommitBarProps {
   disabled: boolean
   busy: boolean
-  onCommit: (message: string) => Promise<void>
+  amendInfo: AmendInfo | null
+  onCommit: (message: string, options: CommitOptions) => Promise<void>
   onPush: () => Promise<void>
 }
 
-export function CommitBar({ disabled, busy, onCommit, onPush }: CommitBarProps) {
+const emptyAmendInfo: AmendInfo = {
+  canAmend: false,
+  reason: '',
+  headMessage: '',
+}
+
+export function CommitBar({ disabled, busy, amendInfo, onCommit, onPush }: CommitBarProps) {
+  const info = amendInfo ?? emptyAmendInfo
   const [message, setMessage] = useState('')
+  const [amend, setAmend] = useState(false)
+  const [confirmAmendOpen, setConfirmAmendOpen] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionTitle, setActionTitle] = useState('操作に失敗しました')
   const [acting, setActing] = useState(false)
   const actionErrorDialog = useErrorDialog(actionError)
 
-  const run = async (action: 'commit' | 'push') => {
+  useEffect(() => {
+    if (!info.canAmend && amend) {
+      setAmend(false)
+    }
+  }, [amend, info.canAmend])
+
+  const runCommit = async (useAmend: boolean) => {
     setActionError(null)
     setActing(true)
     try {
-      if (action === 'commit') {
-        await onCommit(message)
-        setMessage('')
-      } else {
-        await onPush()
-      }
+      await onCommit(message, { amend: useAmend })
+      setMessage('')
+      setAmend(false)
     } catch (err) {
-      setActionTitle(action === 'commit' ? 'コミットに失敗しました' : 'プッシュに失敗しました')
+      setActionTitle(useAmend ? 'コミットの修正に失敗しました' : 'コミットに失敗しました')
       setActionError(err instanceof Error ? err.message : '操作に失敗しました')
     } finally {
       setActing(false)
     }
   }
 
+  const runPush = async () => {
+    setActionError(null)
+    setActing(true)
+    try {
+      await onPush()
+    } catch (err) {
+      setActionTitle('プッシュに失敗しました')
+      setActionError(err instanceof Error ? err.message : '操作に失敗しました')
+    } finally {
+      setActing(false)
+    }
+  }
+
+  const handleAmendChange = (checked: boolean) => {
+    setAmend(checked)
+    if (checked && !message.trim() && info.headMessage) {
+      setMessage(info.headMessage)
+    }
+  }
+
+  const handlePrimaryClick = () => {
+    if (amend) {
+      setConfirmAmendOpen(true)
+      return
+    }
+    void runCommit(false)
+  }
+
   const isDisabled = disabled || busy || acting
 
   return (
     <div className={styles.bar}>
-      <textarea
-        className={styles.input}
-        placeholder="コミットメッセージ"
-        value={message}
-        disabled={isDisabled}
-        rows={3}
-        onChange={(event) => setMessage(event.target.value)}
-      />
+      <div className={styles.messageColumn}>
+        <textarea
+          className={styles.input}
+          placeholder="コミットメッセージ"
+          value={message}
+          disabled={isDisabled}
+          rows={3}
+          onChange={(event) => setMessage(event.target.value)}
+        />
+        <label
+          className={styles.amendLabel}
+          title={!info.canAmend && info.reason ? info.reason : undefined}
+        >
+          <input
+            type="checkbox"
+            className={styles.amendCheckbox}
+            checked={amend}
+            disabled={isDisabled || !info.canAmend}
+            onChange={(event) => handleAmendChange(event.target.checked)}
+          />
+          Amend
+          {!info.canAmend && info.reason ? (
+            <span className={styles.amendHint}>{info.reason}</span>
+          ) : null}
+        </label>
+      </div>
       <div className={styles.actions}>
         <Button
           type="button"
           className={styles.commitButton}
           disabled={isDisabled || !message.trim()}
-          onClick={() => void run('commit')}
+          onClick={handlePrimaryClick}
         >
-          Commit
+          {amend ? 'Amend' : 'Commit'}
         </Button>
         <Button
           type="button"
           className={styles.pushButton}
           disabled={isDisabled}
-          onClick={() => void run('push')}
+          onClick={() => void runPush()}
         >
           Push
         </Button>
       </div>
+      <ConfirmDialog
+        open={confirmAmendOpen}
+        title="コミットを修正"
+        message="直前のコミットを書き換えます。元のコミットは履歴から消えます。"
+        confirmLabel="修正する"
+        danger
+        onConfirm={() => {
+          setConfirmAmendOpen(false)
+          void runCommit(true)
+        }}
+        onCancel={() => setConfirmAmendOpen(false)}
+      />
       <ErrorDialog
         open={actionErrorDialog.open}
         title={actionTitle}

@@ -1,12 +1,29 @@
+export type ExternalToolPreset = 'vscode' | 'winmerge' | 'beyondcompare' | 'custom'
+
+export interface ExternalTool {
+  preset: ExternalToolPreset | string
+  path: string
+  args: string
+}
+
 export interface Settings {
   repositories: string[]
   activeRepository: string
+  diffTool: ExternalTool
+  mergeTool: ExternalTool
+}
+
+export interface AmendInfo {
+  canAmend: boolean
+  reason: string
+  headMessage: string
 }
 
 export interface BranchEntry {
   name: string
   isCurrent: boolean
   isRemote: boolean
+  hasUpstream: boolean
   aheadCount: number
   behindCount: number
 }
@@ -18,6 +35,12 @@ export interface WorktreeEntry {
   isBare: boolean
   isLocked: boolean
   changedFileCount: number
+}
+
+export interface StashEntry {
+  index: number
+  ref: string
+  message: string
 }
 
 export interface FileStatus {

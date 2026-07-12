@@ -24,7 +24,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
   flex-shrink: 0;
   min-height: var(--git-panel-header-min-height);
   margin: 0;
@@ -46,7 +47,18 @@
 .headingActions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.25rem 0.5rem;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.headingActionsSep {
+  width: 1px;
+  height: 0.875rem;
+  margin: 0 0.125rem;
+  background: var(--color-slate-300);
   flex-shrink: 0;
 }
 
@@ -70,6 +82,52 @@
 .headingAction:disabled {
   color: var(--color-slate-400);
   cursor: default;
+}
+
+.headingActionDanger {
+  color: var(--color-red-600);
+}
+
+.headingActionDanger:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.headingActionDanger:disabled {
+  color: var(--color-slate-400);
+}
+
+.mergeBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-amber-50, #fffbeb);
+  border-bottom: 1px solid var(--color-amber-200, #fde68a);
+}
+
+.mergeBannerText {
+  font-size: var(--font-size-compact);
+  font-weight: 600;
+  color: var(--color-amber-800, #92400e);
+}
+
+.mergeAbort {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--font-size-grid-header);
+  font-weight: 500;
+  color: var(--color-red-600);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mergeAbort:hover {
+  text-decoration: underline;
 }
 
 .error {

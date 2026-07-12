@@ -35,7 +35,13 @@ function ChangesPanelDemo({
   const [focusPath, setFocusPath] = useState<string | null>(
     unstaged.find((entry) => isConflict(entry))?.path ?? unstaged[0]?.path ?? null,
   )
-  const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null)
+  const [menu, setMenu] = useState<{
+    x: number
+    y: number
+    path: string
+    conflict: boolean
+    untracked: boolean
+  } | null>(null)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: 360 }}>
@@ -63,11 +69,14 @@ function ChangesPanelDemo({
           )}
           onFileClick={(path) => setFocusPath(path)}
           onFileContextMenu={(entry, event: MouseEvent) => {
-            if (!isConflict(entry)) {
-              return
-            }
             event.preventDefault()
-            setMenu({ x: event.clientX, y: event.clientY, path: entry.path })
+            setMenu({
+              x: event.clientX,
+              y: event.clientY,
+              path: entry.path,
+              conflict: isConflict(entry),
+              untracked: entry.index === '?' && entry.workTree === '?',
+            })
           }}
           onStage={noop}
           onUnstage={noop}
@@ -75,20 +84,51 @@ function ChangesPanelDemo({
           onUnstageSelected={noop}
           onStageAll={noop}
           onUnstageAll={noop}
+          onDiscardSelected={noop}
+          onDiscardAll={noop}
+          onAbortMerge={
+            unstaged.some((entry) => isConflict(entry)) ? noop : undefined
+          }
+          conflictCount={unstaged.filter((entry) => isConflict(entry)).length}
+          merging={unstaged.some((entry) => isConflict(entry))}
         />
       </div>
       {menu && (
         <ContextMenu
           x={menu.x}
           y={menu.y}
-          items={[
-            {
-              label: '外部ツールで競合を解決',
-              onClick: () => {
-                console.info('[story] OpenMergetool', menu.path)
-              },
-            },
-          ]}
+          items={
+            menu.conflict
+              ? [
+                  {
+                    label: '外部ツールで競合を解決',
+                    onClick: () => {
+                      console.info('[story] OpenMergetool', menu.path)
+                    },
+                  },
+                ]
+              : [
+                  {
+                    label: '差分を外部ツールで開く',
+                    onClick: () => {
+                      console.info('[story] OpenDifftool', menu.path)
+                    },
+                  },
+                  menu.untracked
+                    ? {
+                        label: 'ファイルを削除',
+                        onClick: () => {
+                          console.info('[story] DeleteUntracked', menu.path)
+                        },
+                      }
+                    : {
+                        label: '変更を破棄',
+                        onClick: () => {
+                          console.info('[story] DiscardFiles', menu.path)
+                        },
+                      },
+                ]
+          }
           onClose={() => setMenu(null)}
         />
       )}

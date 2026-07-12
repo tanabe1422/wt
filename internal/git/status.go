@@ -31,6 +31,31 @@ func GetStatus(worktreePath string) ([]FileStatus, error) {
 	return entries, nil
 }
 
+// countChangedFiles returns the number of porcelain status lines for a worktree.
+// Unlike GetStatus, it skips per-file enrichment (sufficient for badge counts).
+func countChangedFiles(worktreePath string) (int, error) {
+	dir, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return 0, err
+	}
+
+	out, err := runGit(dir, "status", "--porcelain=v1", "-u")
+	if err != nil {
+		return 0, err
+	}
+	if strings.TrimSpace(out) == "" {
+		return 0, nil
+	}
+
+	count := 0
+	for _, line := range strings.Split(out, "\n") {
+		if line != "" {
+			count++
+		}
+	}
+	return count, nil
+}
+
 func parsePorcelainStatus(out string) []FileStatus {
 	if strings.TrimSpace(out) == "" {
 		return []FileStatus{}

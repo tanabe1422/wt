@@ -6,6 +6,7 @@ import {
   createBranch,
   deleteBranch,
   mergeBranch,
+  renameBranch,
   squashMergeBranch,
   switchBranch,
 } from '../lib/wails'
@@ -20,9 +21,9 @@ export function useBranchActions({ worktreePath, onSuccess }: UseBranchActionsOp
   const [error, setError] = useState<string | null>(null)
 
   const runAction = useCallback(
-    async (action: () => Promise<void>, fallbackMessage: string) => {
+    async (action: () => Promise<void>, fallbackMessage: string): Promise<boolean> => {
       if (!worktreePath || busy) {
-        return
+        return false
       }
 
       setBusy(true)
@@ -30,8 +31,10 @@ export function useBranchActions({ worktreePath, onSuccess }: UseBranchActionsOp
       try {
         await action()
         await onSuccess()
+        return true
       } catch (err) {
         setError(errorMessage(err, fallbackMessage))
+        return false
       } finally {
         setBusy(false)
       }
@@ -84,6 +87,15 @@ export function useBranchActions({ worktreePath, onSuccess }: UseBranchActionsOp
     [runAction, worktreePath],
   )
 
+  const rename = useCallback(
+    (oldName: string, newName: string) =>
+      runAction(
+        () => renameBranch(worktreePath!, oldName, newName),
+        'ブランチのリネームに失敗しました',
+      ),
+    [runAction, worktreePath],
+  )
+
   const create = useCallback(
     (name: string) =>
       runAction(
@@ -104,6 +116,7 @@ export function useBranchActions({ worktreePath, onSuccess }: UseBranchActionsOp
     merge,
     squashMerge,
     removeBranch,
+    rename,
     create,
   }
 }

@@ -12,7 +12,15 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex: 1;
   min-width: 0;
+}
+
+.trailing {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .divider {
@@ -26,4 +34,20 @@
   display: flex;
   align-items: center;
   gap: 0.125rem;
+}
+
+.sidebarToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.25rem;
+  color: var(--color-slate-500);
+}
+
+.sidebarToggle:hover:not(:disabled) {
+  color: var(--color-slate-700);
+  background: var(--overlay-slate-50);
 }

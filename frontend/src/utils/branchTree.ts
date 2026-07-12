@@ -75,6 +75,29 @@ export function splitBranchTrees(entries: BranchEntry[]) {
   }
 }
 
+/** Keep nodes whose name/fullName match query, or that have matching descendants. */
+export function filterBranchTree(nodes: BranchTreeNode[], query: string): BranchTreeNode[] {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) {
+    return nodes
+  }
+
+  const filterNode = (node: BranchTreeNode): BranchTreeNode | null => {
+    const children = node.children
+      .map(filterNode)
+      .filter((child): child is BranchTreeNode => child !== null)
+    const selfMatch =
+      node.name.toLowerCase().includes(normalized) ||
+      (node.fullName?.toLowerCase().includes(normalized) ?? false)
+    if (!selfMatch && children.length === 0) {
+      return null
+    }
+    return { ...node, children }
+  }
+
+  return nodes.map(filterNode).filter((node): node is BranchTreeNode => node !== null)
+}
+
 export function localBranchFromRemote(remoteRef: string): string {
   const slash = remoteRef.indexOf('/')
   if (slash < 0) {

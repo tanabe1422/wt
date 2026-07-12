@@ -5,11 +5,21 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
+// ExternalTool describes how to launch an external diff or merge app.
+type ExternalTool struct {
+	Preset string `json:"preset"` // vscode | winmerge | beyondcompare | custom
+	Path   string `json:"path"`
+	Args   string `json:"args"`
+}
+
 type Settings struct {
-	Repositories     []string `json:"repositories"`
-	ActiveRepository string   `json:"activeRepository"`
+	Repositories     []string     `json:"repositories"`
+	ActiveRepository string       `json:"activeRepository"`
+	DiffTool         ExternalTool `json:"diffTool"`
+	MergeTool        ExternalTool `json:"mergeTool"`
 }
 
 func configPath() (string, error) {
@@ -21,6 +31,7 @@ func configPath() (string, error) {
 }
 
 func normalizePath(path string) (string, error) {
+	path = strings.TrimSpace(path)
 	if path == "" {
 		return "", nil
 	}
@@ -29,6 +40,39 @@ func normalizePath(path string) (string, error) {
 		return "", err
 	}
 	return abs, nil
+}
+
+func normalizeExternalTool(tool ExternalTool) ExternalTool {
+	preset := strings.TrimSpace(tool.Preset)
+	if preset == "" {
+		preset = "custom"
+	}
+	path := strings.TrimSpace(tool.Path)
+	args := strings.TrimSpace(tool.Args)
+
+	// WinMerge /flags are converted to drive paths by git's MSYS shell (/e → E:\).
+	if preset == "winmerge" && hasSlashFlag(args) {
+		if strings.Contains(args, "$BASE") || strings.Contains(args, "$MERGED") {
+			args = `-e -u "$LOCAL" "$BASE" "$REMOTE" -o "$MERGED"`
+		} else {
+			args = `-e -u -wl "$LOCAL" "$REMOTE"`
+		}
+	}
+
+	return ExternalTool{
+		Preset: preset,
+		Path:   path,
+		Args:   args,
+	}
+}
+
+func hasSlashFlag(args string) bool {
+	for _, part := range strings.Fields(args) {
+		if len(part) >= 2 && part[0] == '/' && ((part[1] >= 'a' && part[1] <= 'z') || (part[1] >= 'A' && part[1] <= 'Z')) {
+			return true
+		}
+	}
+	return false
 }
 
 func Load() (Settings, error) {
@@ -119,6 +163,8 @@ func normalizeSettings(settings Settings) (Settings, error) {
 	return Settings{
 		Repositories:     repositories,
 		ActiveRepository: active,
+		DiffTool:         normalizeExternalTool(settings.DiffTool),
+		MergeTool:        normalizeExternalTool(settings.MergeTool),
 	}, nil
 }
 

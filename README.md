@@ -31,6 +31,18 @@ pnpm dev
 
 ブラウザでは Go バックエンドに接続せず、`wails.ts` のモックが使われます。
 
+### ローカル用サンプルリポジトリ
+
+手動確認用にルートへ `sample-repo/` を置ける（gitignore 済み）。中に `.go` があると `go build ./...` の対象になるので、次の `go.mod` を必ず入れる:
+
+```text
+module sample-repo
+
+go 1.23
+```
+
+（これで Go は別モジュールとみなし、wt-manager の `./...` から外れる）
+
 ## ビルド
 
 ```powershell

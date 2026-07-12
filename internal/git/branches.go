@@ -11,6 +11,7 @@ type BranchEntry struct {
 	Name        string `json:"name"`
 	IsCurrent   bool   `json:"isCurrent"`
 	IsRemote    bool   `json:"isRemote"`
+	HasUpstream bool   `json:"hasUpstream"`
 	AheadCount  int    `json:"aheadCount"`
 	BehindCount int    `json:"behindCount"`
 }
@@ -40,7 +41,7 @@ func parseUpstreamTrack(track string) (ahead, behind int) {
 
 // ListBranches returns local and remote branches for the repository at repoPath.
 func ListBranches(repoPath string) ([]BranchEntry, error) {
-	localOut, err := runGit(repoPath, "for-each-ref", "--format=%(refname:short)|%(HEAD)|%(upstream:track)", "refs/heads/")
+	localOut, err := runGit(repoPath, "for-each-ref", "--format=%(refname:short)|%(HEAD)|%(upstream:short)|%(upstream:track)", "refs/heads/")
 	if err != nil {
 		return nil, err
 	}
@@ -48,21 +49,26 @@ func ListBranches(repoPath string) ([]BranchEntry, error) {
 	entries := make([]BranchEntry, 0)
 	if localOut != "" {
 		for _, line := range strings.Split(localOut, "\n") {
-			parts := strings.SplitN(line, "|", 3)
+			parts := strings.SplitN(line, "|", 4)
 			name := strings.TrimSpace(parts[0])
 			if name == "" {
 				continue
 			}
 			isCurrent := len(parts) > 1 && parts[1] == "*"
-			track := ""
+			upstream := ""
 			if len(parts) > 2 {
-				track = parts[2]
+				upstream = strings.TrimSpace(parts[2])
+			}
+			track := ""
+			if len(parts) > 3 {
+				track = parts[3]
 			}
 			ahead, behind := parseUpstreamTrack(track)
 			entries = append(entries, BranchEntry{
 				Name:        name,
 				IsCurrent:   isCurrent,
 				IsRemote:    false,
+				HasUpstream: upstream != "",
 				AheadCount:  ahead,
 				BehindCount: behind,
 			})
@@ -154,6 +160,20 @@ func DeleteBranch(worktreePath, name string, force bool) error {
 		flag = "-D"
 	}
 	_, err = runGit(worktreePath, "branch", flag, name)
+	return err
+}
+
+// RenameBranch renames a local branch (git branch -m old new).
+func RenameBranch(worktreePath, oldName, newName string) error {
+	oldName = strings.TrimSpace(oldName)
+	newName = strings.TrimSpace(newName)
+	if oldName == "" || newName == "" {
+		return errors.New("ブランチ名が空です")
+	}
+	if oldName == newName {
+		return nil
+	}
+	_, err := runGit(worktreePath, "branch", "-m", oldName, newName)
 	return err
 }
 

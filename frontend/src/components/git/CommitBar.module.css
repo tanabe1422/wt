@@ -8,6 +8,13 @@
   background: var(--color-surface-header);
 }
 
+.messageColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
 .input {
   width: 100%;
   min-height: 4.5rem;
@@ -28,6 +35,35 @@
 
 .input:disabled {
   opacity: 0.6;
+}
+
+.amendLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  font-size: var(--font-size-compact);
+  color: var(--color-slate-700);
+  user-select: none;
+  cursor: pointer;
+}
+
+.amendLabel:has(.amendCheckbox:disabled) {
+  cursor: default;
+}
+
+.amendCheckbox {
+  margin: 0;
+  cursor: pointer;
+}
+
+.amendCheckbox:disabled {
+  cursor: default;
+}
+
+.amendHint {
+  color: var(--color-slate-400);
+  font-weight: 400;
 }
 
 .actions {

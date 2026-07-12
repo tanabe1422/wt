@@ -6,11 +6,12 @@
 *.dylib
 *.test
 *.out
-/build/
 /bin/
 /dist/
 
-# Wails
+# Wails: keep appicon / windows assets tracked; ignore build output only
+/build/bin/
+/build/icons/
 frontend/dist/
 
 # Frontend
@@ -31,5 +32,7 @@ Thumbs.db
 .env
 .env.*
 
-# Local sample git repo for development
+# Local sample git repo for manual UI testing (gitignored).
+# Not part of the wt-manager Go module — if you create it, include a go.mod
+# (module sample-repo) so `go build ./...` / `go test ./...` skip it.
 /sample-repo/

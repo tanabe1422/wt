@@ -250,3 +250,74 @@ func TestAddWorktreeRemoteCreatesTrackingBranch(t *testing.T) {
 		t.Fatalf("remote worktree not found: %+v", entries)
 	}
 }
+
+func TestRemoveWorktree(t *testing.T) {
+	dir := initWorktreeAddRepo(t)
+	target := filepath.Join(filepath.Dir(dir), "wt-remove")
+
+	created, err := AddWorktree(dir, target, "feature", false)
+	if err != nil {
+		t.Fatalf("AddWorktree: %v", err)
+	}
+
+	if err := RemoveWorktree(dir, created, false); err != nil {
+		t.Fatalf("RemoveWorktree: %v", err)
+	}
+
+	entries, err := ListWorktrees(dir)
+	if err != nil {
+		t.Fatalf("ListWorktrees: %v", err)
+	}
+	for _, entry := range entries {
+		if pathsEqual(entry.Path, created) {
+			t.Fatalf("worktree still listed after remove: %+v", entry)
+		}
+	}
+}
+
+func TestRemoveWorktreeRejectsMain(t *testing.T) {
+	dir := initWorktreeAddRepo(t)
+	entries, err := ListWorktrees(dir)
+	if err != nil {
+		t.Fatalf("ListWorktrees: %v", err)
+	}
+	var mainPath string
+	for _, entry := range entries {
+		if entry.IsMain {
+			mainPath = entry.Path
+			break
+		}
+	}
+	if mainPath == "" {
+		t.Fatal("main worktree not found")
+	}
+
+	err = RemoveWorktree(dir, mainPath, false)
+	if err == nil {
+		t.Fatal("expected error removing main worktree")
+	}
+	if !strings.Contains(err.Error(), "メイン") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRemoveWorktreeForceDirty(t *testing.T) {
+	dir := initWorktreeAddRepo(t)
+	target := filepath.Join(filepath.Dir(dir), "wt-remove-dirty")
+
+	created, err := AddWorktree(dir, target, "feature", false)
+	if err != nil {
+		t.Fatalf("AddWorktree: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(created, "dirty.txt"), []byte("dirty\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := RemoveWorktree(dir, created, false); err == nil {
+		t.Fatal("expected error removing dirty worktree without force")
+	}
+
+	if err := RemoveWorktree(dir, created, true); err != nil {
+		t.Fatalf("RemoveWorktree force: %v", err)
+	}
+}

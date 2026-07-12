@@ -1,3 +1,5 @@
+import type { MouseEvent } from 'react'
+
 import { cx } from '../../utils/cx'
 import type { WorktreeEntry } from '../../types'
 import { Button } from '../ui/Button'
@@ -5,6 +7,7 @@ import { CountBadge } from '../ui/CountBadge'
 import { ActiveMark } from './ActiveMark'
 import { FolderIcon } from './BranchIcons'
 import styles from './WorktreeList.module.css'
+
 const INDENT_BASE = 8
 
 function baseName(path: string): string {
@@ -16,12 +19,14 @@ interface WorktreeListProps {
   worktrees: WorktreeEntry[]
   selectedWorktree: string | null
   onSelect: (path: string) => void
+  onContextMenu?: (worktree: WorktreeEntry, event: MouseEvent) => void
 }
 
 export function WorktreeList({
   worktrees,
   selectedWorktree,
   onSelect,
+  onContextMenu,
 }: WorktreeListProps) {
   return (
     <>
@@ -37,6 +42,7 @@ export function WorktreeList({
             style={{ paddingLeft: INDENT_BASE }}
             title={worktree.path}
             onClick={() => onSelect(worktree.path)}
+            onContextMenu={(event) => onContextMenu?.(worktree, event)}
           >
             <ActiveMark
               active={isSelected}

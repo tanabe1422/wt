@@ -14,6 +14,7 @@ interface UseBranchContextMenuOptions {
   onNewWorktree?: (branch: string) => void
   onMerge?: (branch: string) => void
   onSquashMerge?: (branch: string) => void
+  onRename?: (branch: string) => void
   onDelete?: (branch: string) => void
 }
 
@@ -59,6 +60,7 @@ export function useBranchContextMenu({
   onNewWorktree,
   onMerge,
   onSquashMerge,
+  onRename,
   onDelete,
 }: UseBranchContextMenuOptions) {
   const { menu, openMenu, closeMenu } = useContextMenu()
@@ -104,6 +106,11 @@ export function useBranchContextMenu({
           },
           { type: 'separator' },
           {
+            label: 'ブランチ名を変更',
+            disabled: !onRename,
+            onClick: () => onRename?.(branchName),
+          },
+          {
             label: 'ブランチを削除',
             disabled: checkedOut || !onDelete,
             onClick: () => onDelete?.(branchName),
@@ -120,6 +127,7 @@ export function useBranchContextMenu({
       onDelete,
       onMerge,
       onNewWorktree,
+      onRename,
       onSquashMerge,
       onSwitchLocal,
       openMenu,

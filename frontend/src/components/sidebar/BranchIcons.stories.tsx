@@ -504,38 +504,6 @@ export const TwigIconCandidates: Story = {
   ),
 }
 
-export const TwigIconInContext: Story = {
-  name: '枝っぽいアイコン（実 UI）',
-  render: () => (
-    <div
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '1.25rem',
-        alignItems: 'flex-start',
-      }}
-    >
-      {twigIconCandidates.map((candidate) => (
-        <IconFrame key={candidate.id} label={candidate.label}>
-          <SidebarStoryFrame>
-            <BranchSection
-              title="ブランチ"
-              icon={candidate.icon}
-              nodes={compositeLocal}
-              selectedBranch="feature/hoge"
-              checkedOutBranch="feature/hoge"
-              worktreeBranches={compositeWorktreeBranches}
-              showWorktreeMarks
-              defaultExpanded
-              onSelect={() => {}}
-            />
-          </SidebarStoryFrame>
-        </IconFrame>
-      ))}
-    </div>
-  ),
-}
-
 export const TreeIconCandidates: Story = {
   name: 'Tree 系アイコン',
   render: () => (
@@ -561,38 +529,6 @@ export const TreeIconCandidates: Story = {
   ),
 }
 
-export const TreeIconInContext: Story = {
-  name: 'Tree 系アイコン（実 UI）',
-  render: () => (
-    <div
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '1.25rem',
-        alignItems: 'flex-start',
-      }}
-    >
-      {treeIconCandidates.map((candidate) => (
-        <IconFrame key={candidate.id} label={candidate.label}>
-          <SidebarStoryFrame>
-            <BranchSection
-              title="ブランチ"
-              icon={candidate.icon}
-              nodes={compositeLocal}
-              selectedBranch="feature/hoge"
-              checkedOutBranch="feature/hoge"
-              worktreeBranches={compositeWorktreeBranches}
-              showWorktreeMarks
-              defaultExpanded
-              onSelect={() => {}}
-            />
-          </SidebarStoryFrame>
-        </IconFrame>
-      ))}
-    </div>
-  ),
-}
-
 export const SectionIconCandidates: Story = {
   name: 'セクション見出しアイコン候補',
   render: () => (
@@ -607,38 +543,6 @@ export const SectionIconCandidates: Story = {
       {sectionIconCandidates.map((candidate) => (
         <IconFrame key={candidate.id} label={candidate.label} description={candidate.description}>
           <SectionHeaderPreview icon={candidate.icon} title="ブランチ" />
-        </IconFrame>
-      ))}
-    </div>
-  ),
-}
-
-export const SectionIconInContext: Story = {
-  name: 'セクション見出し（実 UI 比較）',
-  render: () => (
-    <div
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '1.25rem',
-        alignItems: 'flex-start',
-      }}
-    >
-      {sectionIconCandidates.map((candidate) => (
-        <IconFrame key={candidate.id} label={candidate.label}>
-          <SidebarStoryFrame>
-            <BranchSection
-              title="ブランチ"
-              icon={candidate.icon}
-              nodes={compositeLocal}
-              selectedBranch="feature/hoge"
-              checkedOutBranch="feature/hoge"
-              worktreeBranches={compositeWorktreeBranches}
-              showWorktreeMarks
-              defaultExpanded
-              onSelect={() => {}}
-            />
-          </SidebarStoryFrame>
         </IconFrame>
       ))}
     </div>

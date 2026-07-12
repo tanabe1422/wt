@@ -3,9 +3,15 @@
 import {config} from '../models';
 import {git} from '../models';
 
+export function AbortMerge(arg1:string):Promise<void>;
+
 export function AddRepository(arg1:string):Promise<config.Settings>;
 
 export function AddWorktree(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<string>;
+
+export function AmendCommit(arg1:string,arg2:string):Promise<void>;
+
+export function ApplyStash(arg1:string,arg2:number):Promise<void>;
 
 export function CheckoutRemoteBranch(arg1:string,arg2:string):Promise<void>;
 
@@ -17,9 +23,21 @@ export function DefaultWorktreePath(arg1:string,arg2:string):Promise<string>;
 
 export function DeleteBranch(arg1:string,arg2:string,arg3:boolean):Promise<void>;
 
+export function DeleteUntracked(arg1:string,arg2:Array<string>):Promise<void>;
+
+export function DiscardAllChanges(arg1:string):Promise<void>;
+
+export function DiscardFiles(arg1:string,arg2:Array<string>):Promise<void>;
+
 export function DiscardHunk(arg1:string,arg2:string,arg3:number,arg4:boolean):Promise<void>;
 
+export function DropStash(arg1:string,arg2:number):Promise<void>;
+
 export function Fetch(arg1:string):Promise<void>;
+
+export function FetchPrune(arg1:string):Promise<Array<string>>;
+
+export function GetAmendInfo(arg1:string):Promise<git.AmendInfo>;
 
 export function GetCommitFileDiff(arg1:string,arg2:string,arg3:string):Promise<git.FileDiff>;
 
@@ -29,6 +47,8 @@ export function GetSettings():Promise<config.Settings>;
 
 export function GetStatus(arg1:string):Promise<Array<git.FileStatus>>;
 
+export function IsMerging(arg1:string):Promise<boolean>;
+
 export function ListBranchHeads(arg1:string):Promise<Array<git.BranchHead>>;
 
 export function ListBranches(arg1:string):Promise<Array<git.BranchEntry>>;
@@ -37,25 +57,47 @@ export function ListCommitFiles(arg1:string,arg2:string):Promise<Array<git.Commi
 
 export function ListCommits(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<git.ListCommitsResult>;
 
+export function ListStashes(arg1:string):Promise<Array<git.StashEntry>>;
+
 export function ListWorktrees(arg1:string):Promise<Array<git.WorktreeEntry>>;
 
 export function MergeBranch(arg1:string,arg2:string):Promise<void>;
 
+export function OpenDifftool(arg1:string,arg2:string,arg3:boolean):Promise<void>;
+
 export function OpenMergetool(arg1:string,arg2:string):Promise<void>;
+
+export function OpenTerminal(arg1:string):Promise<void>;
 
 export function PickDirectory():Promise<string>;
 
+export function PickFile():Promise<string>;
+
 export function Ping():Promise<string>;
+
+export function PopStash(arg1:string,arg2:number):Promise<void>;
 
 export function Pull(arg1:string):Promise<void>;
 
 export function Push(arg1:string):Promise<void>;
 
+export function PushSetUpstream(arg1:string,arg2:string):Promise<void>;
+
 export function RemoveRepository(arg1:string):Promise<config.Settings>;
+
+export function RemoveWorktree(arg1:string,arg2:string,arg3:boolean):Promise<void>;
+
+export function RenameBranch(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function ResetToCommit(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function SaveSettings(arg1:config.Settings):Promise<config.Settings>;
+
+export function SaveStash(arg1:string,arg2:string,arg3:boolean):Promise<void>;
+
 export function SetActiveRepository(arg1:string):Promise<config.Settings>;
+
+export function ShowInExplorer(arg1:string):Promise<void>;
 
 export function SquashMergeBranch(arg1:string,arg2:string):Promise<void>;
 

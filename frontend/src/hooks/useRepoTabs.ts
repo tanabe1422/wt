@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { emptyExternalTool, migrateExternalTool } from '../lib/externalToolPresets'
 import {
   addRepository,
   getSettings,
   pickDirectory,
   removeRepository,
+  saveSettings,
   setActiveRepository,
 } from '../lib/wails'
 import type { Settings } from '../types'
@@ -12,6 +14,18 @@ import type { Settings } from '../types'
 const emptySettings: Settings = {
   repositories: [],
   activeRepository: '',
+  diffTool: emptyExternalTool(),
+  mergeTool: emptyExternalTool(),
+}
+
+function normalizeLoadedSettings(settings: Settings): Settings {
+  return {
+    ...settings,
+    repositories: settings.repositories ?? [],
+    activeRepository: settings.activeRepository ?? '',
+    diffTool: migrateExternalTool({ ...emptyExternalTool(), ...settings.diffTool }),
+    mergeTool: migrateExternalTool({ ...emptyExternalTool(), ...settings.mergeTool }),
+  }
 }
 
 export function useRepoTabs() {
@@ -21,7 +35,7 @@ export function useRepoTabs() {
 
   useEffect(() => {
     getSettings()
-      .then(setSettings)
+      .then((next) => setSettings(normalizeLoadedSettings(next)))
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : String(err))
       })
@@ -32,7 +46,7 @@ export function useRepoTabs() {
     try {
       setError(null)
       const next = await setActiveRepository(path)
-      setSettings(next)
+      setSettings(normalizeLoadedSettings(next))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     }
@@ -42,7 +56,7 @@ export function useRepoTabs() {
     try {
       setError(null)
       const next = await removeRepository(path)
-      setSettings(next)
+      setSettings(normalizeLoadedSettings(next))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     }
@@ -56,13 +70,21 @@ export function useRepoTabs() {
         return
       }
       const next = await addRepository(path)
-      setSettings(next)
+      setSettings(normalizeLoadedSettings(next))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
     }
   }, [])
 
+  const updateSettings = useCallback(async (next: Settings) => {
+    setError(null)
+    const saved = await saveSettings(next)
+    setSettings(normalizeLoadedSettings(saved))
+    return saved
+  }, [])
+
   return {
+    settings,
     repositories: settings.repositories,
     activeRepository: settings.activeRepository,
     loading,
@@ -70,5 +92,6 @@ export function useRepoTabs() {
     activateRepo,
     closeRepo,
     addRepo,
+    updateSettings,
   }
 }

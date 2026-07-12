@@ -23,6 +23,9 @@ const meta = {
   args: {
     selectedWorktree: FIXTURE_REPO_ROOT,
     onSelect: () => {},
+    onContextMenu: (worktree) => {
+      console.info('[story] worktree context menu', worktree.path)
+    },
   },
 } satisfies Meta<typeof WorktreeList>
 

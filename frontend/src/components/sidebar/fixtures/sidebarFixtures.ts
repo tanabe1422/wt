@@ -27,6 +27,7 @@ function branch(
     name,
     isCurrent: false,
     isRemote: false,
+    hasUpstream: true,
     aheadCount: 0,
     behindCount: 0,
     ...options,
@@ -38,6 +39,7 @@ function remoteBranch(name: string): BranchEntry {
     name,
     isCurrent: false,
     isRemote: true,
+    hasUpstream: false,
     aheadCount: 0,
     behindCount: 0,
   }

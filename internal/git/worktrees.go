@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // WorktreeEntry describes a git worktree attached to a repository.
@@ -18,8 +19,19 @@ type WorktreeEntry struct {
 	ChangedFileCount int    `json:"changedFileCount"`
 }
 
-// ListWorktrees returns all worktrees for the repository at repoPath.
+// ListWorktrees returns all worktrees for the repository at repoPath,
+// including a changed-file badge count for each worktree.
 func ListWorktrees(repoPath string) ([]WorktreeEntry, error) {
+	entries, err := listWorktreesMeta(repoPath)
+	if err != nil {
+		return nil, err
+	}
+	fillChangedFileCounts(entries)
+	return entries, nil
+}
+
+// listWorktreesMeta lists worktrees without running git status per entry.
+func listWorktreesMeta(repoPath string) ([]WorktreeEntry, error) {
 	repoRoot, err := filepath.Abs(filepath.Clean(repoPath))
 	if err != nil {
 		return nil, err
@@ -30,21 +42,29 @@ func ListWorktrees(repoPath string) ([]WorktreeEntry, error) {
 		return nil, err
 	}
 
-	entries, err := parseWorktreePorcelain(out, repoRoot)
-	if err != nil {
-		return nil, err
+	return parseWorktreePorcelain(out, repoRoot)
+}
+
+// fillChangedFileCounts sets ChangedFileCount for each entry in parallel.
+func fillChangedFileCounts(entries []WorktreeEntry) {
+	if len(entries) == 0 {
+		return
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(len(entries))
 	for i := range entries {
-		status, statusErr := GetStatus(entries[i].Path)
-		if statusErr != nil {
-			entries[i].ChangedFileCount = 0
-			continue
-		}
-		entries[i].ChangedFileCount = len(status)
+		go func(i int) {
+			defer wg.Done()
+			n, err := countChangedFiles(entries[i].Path)
+			if err != nil {
+				entries[i].ChangedFileCount = 0
+				return
+			}
+			entries[i].ChangedFileCount = n
+		}(i)
 	}
-
-	return entries, nil
+	wg.Wait()
 }
 
 // DefaultWorktreePath suggests a sibling directory path for a new worktree.
@@ -124,6 +144,46 @@ func AddWorktree(repoRoot, targetPath, branch string, isRemote bool) (string, er
 	return absPath, nil
 }
 
+// RemoveWorktree removes a linked worktree. The main worktree cannot be removed.
+// When force is true, dirty worktrees are removed with git worktree remove --force.
+func RemoveWorktree(repoRoot, worktreePath string, force bool) error {
+	absRoot, err := filepath.Abs(filepath.Clean(repoRoot))
+	if err != nil {
+		return err
+	}
+	absPath, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return err
+	}
+
+	entries, err := listWorktreesMeta(absRoot)
+	if err != nil {
+		return err
+	}
+
+	var target *WorktreeEntry
+	for i := range entries {
+		if pathsEqual(entries[i].Path, absPath) {
+			target = &entries[i]
+			break
+		}
+	}
+	if target == nil {
+		return fmt.Errorf("ワークツリーが見つかりません: %s", absPath)
+	}
+	if target.IsMain {
+		return errors.New("メインのワークツリーは削除できません")
+	}
+
+	args := []string{"worktree", "remove"}
+	if force {
+		args = append(args, "--force")
+	}
+	args = append(args, absPath)
+	_, err = runGit(absRoot, args...)
+	return err
+}
+
 func resolveWorktreeTargetPath(repoRoot, targetPath string) (string, error) {
 	if filepath.IsAbs(targetPath) {
 		return filepath.Abs(filepath.Clean(targetPath))
@@ -152,7 +212,7 @@ func findAvailableWorktreePath(preferred string) (string, error) {
 }
 
 func ensureBranchNotCheckedOut(repoRoot, branch string) error {
-	entries, err := ListWorktrees(repoRoot)
+	entries, err := listWorktreesMeta(repoRoot)
 	if err != nil {
 		return err
 	}

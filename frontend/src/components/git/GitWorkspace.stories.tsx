@@ -1,14 +1,14 @@
-import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import type { MouseEvent } from 'react'
 
-import type { SectionSelection } from '../../hooks/useSectionSelection'
-import { isConflict } from '../../lib/wails'
+import { GitWorkspace } from './GitWorkspace'
+import { isConflict } from '../../utils/gitStatus'
 import type { FileStatus } from '../../types'
+import { SidebarProvider } from '../layout/CollapsibleSidebar'
 import { GitSyncToolbar } from '../toolbar/GitSyncToolbar'
 import type { MainView } from '../toolbar/MainViewToolbarTabs'
 import { ContextMenu } from '../ui/ContextMenu'
 import { ErrorDialog } from '../ui/ErrorDialog'
+import { ToastProvider } from '../../hooks/useToast'
 import { ChangesPanel } from './ChangesPanel'
 import { CommitBar } from './CommitBar'
 import { DiffView } from './DiffView'
@@ -19,6 +19,9 @@ import {
   mergetoolError,
   pullConflictError,
 } from './fixtures/conflictStatusFixtures'
+import type { SectionSelection } from '../../hooks/useSectionSelection'
+import { useState } from 'react'
+import type { MouseEvent } from 'react'
 import workspaceStyles from './GitWorkspace.module.css'
 
 const emptySelection: SectionSelection = { paths: new Set(), focus: null, anchor: null }
@@ -36,7 +39,7 @@ interface ConflictWorkspaceDemoProps {
   staged: FileStatus[]
   unstaged: FileStatus[]
   initialFocus?: string
-  initialMenu?: { x: number; y: number; path: string }
+  initialMenu?: { x: number; y: number; path: string; conflict?: boolean }
   behindCount?: number
   showToolbar?: boolean
   hint?: string
@@ -70,6 +73,7 @@ function ConflictWorkspaceDemo({
   const focusInStaged = staged.some((entry) => entry.path === focusPath)
 
   return (
+    <ToastProvider>
     <div
       style={{
         display: 'flex',
@@ -98,13 +102,16 @@ function ConflictWorkspaceDemo({
         </p>
       ) : null}
       {showToolbar ? (
-        <GitSyncToolbar
-          worktreePath="C:/dev/sample-repo"
-          behindCount={behindCount}
-          aheadCount={0}
-          mainView={mainView}
-          onMainViewChange={setMainView}
-        />
+        <SidebarProvider>
+          <GitSyncToolbar
+            worktreePath="C:/dev/sample-repo"
+            behindCount={behindCount}
+            aheadCount={0}
+            mainView={mainView}
+            onMainViewChange={setMainView}
+            onOpenSettings={() => console.info('[story] open settings')}
+          />
+        </SidebarProvider>
       ) : null}
       <div className={workspaceStyles.workspace} style={{ flex: 1, minHeight: 0 }}>
         <div className={workspaceStyles.body}>
@@ -117,11 +124,13 @@ function ConflictWorkspaceDemo({
               unstagedSelection={selectionFor(!focusInStaged ? focusPath : null)}
               onFileClick={(path) => setFocusPath(path)}
               onFileContextMenu={(entry, event: MouseEvent) => {
-                if (!isConflict(entry)) {
-                  return
-                }
                 event.preventDefault()
-                setMenu({ x: event.clientX, y: event.clientY, path: entry.path })
+                setMenu({
+                  x: event.clientX,
+                  y: event.clientY,
+                  path: entry.path,
+                  conflict: isConflict(entry),
+                })
               }}
               onStage={noopAsync}
               onUnstage={noopAsync}
@@ -129,6 +138,8 @@ function ConflictWorkspaceDemo({
               onUnstageSelected={noopAsync}
               onStageAll={noopAsync}
               onUnstageAll={noopAsync}
+              onDiscardSelected={noopAsync}
+              onDiscardAll={noopAsync}
             />
           </div>
           <div className={workspaceStyles.diff}>
@@ -142,19 +153,36 @@ function ConflictWorkspaceDemo({
             />
           </div>
         </div>
-        <CommitBar disabled={false} busy={false} onCommit={noopAsync} onPush={noopAsync} />
+        <CommitBar
+          disabled={false}
+          busy={false}
+          amendInfo={{
+            canAmend: true,
+            reason: '',
+            headMessage: 'story tip message',
+          }}
+          onCommit={noopAsync}
+          onPush={noopAsync}
+        />
       </div>
       {menu && (
         <ContextMenu
           x={menu.x}
           y={menu.y}
           items={[
-            {
-              label: '外部ツールで競合を解決',
-              onClick: () => {
-                console.info('[story] OpenMergetool', menu.path)
-              },
-            },
+            menu.conflict !== false
+              ? {
+                  label: '外部ツールで競合を解決',
+                  onClick: () => {
+                    console.info('[story] OpenMergetool', menu.path)
+                  },
+                }
+              : {
+                  label: '差分を外部ツールで開く',
+                  onClick: () => {
+                    console.info('[story] OpenDifftool', menu.path)
+                  },
+                },
           ]}
           onClose={() => setMenu(null)}
         />
@@ -168,85 +196,117 @@ function ConflictWorkspaceDemo({
         />
       )}
     </div>
+    </ToastProvider>
   )
 }
 
 const meta = {
   title: 'Git/GitWorkspace',
-  component: ConflictWorkspaceDemo,
   parameters: {
     layout: 'padded',
   },
-} satisfies Meta<typeof ConflictWorkspaceDemo>
+} satisfies Meta
 
 export default meta
 type Story = StoryObj<typeof meta>
 
+export const WithMockApi: Story = {
+  name: '実コンポーネント（モック API）',
+  render: () => (
+    <ToastProvider>
+      <div
+        style={{
+          width: '100%',
+          minWidth: 880,
+          height: 640,
+          border: '1px solid var(--color-slate-200)',
+          borderRadius: '0.375rem',
+          overflow: 'hidden',
+        }}
+      >
+        <GitWorkspace worktreePath="C:/dev/sample-repo" />
+      </div>
+    </ToastProvider>
+  ),
+}
+
 export const AfterPullConflict: Story = {
   name: 'プル衝突後（ダイアログ閉じた後）',
-  args: {
-    staged: afterPullConflictStaged,
-    unstaged: afterPullConflictUnstaged,
-    initialFocus: 'src/conflict.ts',
-    behindCount: 5,
-    hint: 'ダイアログを閉じた後。競合ファイルが「変更」に表示されます。',
-  },
+  render: () => (
+    <ConflictWorkspaceDemo
+      staged={afterPullConflictStaged}
+      unstaged={afterPullConflictUnstaged}
+      initialFocus="src/conflict.ts"
+      behindCount={5}
+      hint="ダイアログを閉じた後。競合ファイルが「変更」に表示されます。"
+    />
+  ),
 }
 
 export const PullFailedWithDialog: Story = {
   name: 'プル失敗（ダイアログ表示）',
-  args: {
-    staged: afterPullConflictStaged,
-    unstaged: afterPullConflictUnstaged,
-    initialFocus: 'src/conflict.ts',
-    behindCount: 5,
-    errorDialog: pullConflictError,
-    hint: 'Pull 失敗直後。エラーダイアログの背後に競合一覧が更新された状態です。',
-  },
+  render: () => (
+    <ConflictWorkspaceDemo
+      staged={afterPullConflictStaged}
+      unstaged={afterPullConflictUnstaged}
+      initialFocus="src/conflict.ts"
+      behindCount={5}
+      errorDialog={pullConflictError}
+      hint="Pull 失敗直後。エラーダイアログの背後に競合一覧が更新された状態です。"
+    />
+  ),
 }
 
 export const MergetoolFailedWithDialog: Story = {
   name: 'mergetool 起動失敗（ダイアログ表示）',
-  args: {
-    staged: afterPullConflictStaged,
-    unstaged: afterPullConflictUnstaged,
-    initialFocus: 'src/conflict.ts',
-    behindCount: 5,
-    errorDialog: mergetoolError,
-    hint: '「外部ツールで競合を解決」実行時に mergetool 未設定などで失敗した場合。',
-  },
+  render: () => (
+    <ConflictWorkspaceDemo
+      staged={afterPullConflictStaged}
+      unstaged={afterPullConflictUnstaged}
+      initialFocus="src/conflict.ts"
+      behindCount={5}
+      errorDialog={mergetoolError}
+      hint="「外部ツールで競合を解決」実行時に mergetool 未設定などで失敗した場合。"
+    />
+  ),
 }
 
 export const WithContextMenuOpen: Story = {
   name: '競合解決メニュー表示',
-  args: {
-    staged: afterPullConflictStaged,
-    unstaged: afterPullConflictUnstaged,
-    initialFocus: 'src/conflict.ts',
-    initialMenu: { x: 280, y: 220, path: 'src/conflict.ts' },
-    behindCount: 5,
-    hint: '競合ファイルの右クリックメニュー（外部ツールで競合を解決）',
-  },
+  render: () => (
+    <ConflictWorkspaceDemo
+      staged={afterPullConflictStaged}
+      unstaged={afterPullConflictUnstaged}
+      initialFocus="src/conflict.ts"
+      initialMenu={{ x: 280, y: 220, path: 'src/conflict.ts', conflict: true }}
+      behindCount={5}
+      hint="競合ファイルの右クリックメニュー（外部ツールで競合を解決）"
+    />
+  ),
 }
 
 export const ConflictOnly: Story = {
   name: '競合ファイルのみ',
-  args: {
-    staged: [],
-    unstaged: conflictOnlyUnstaged,
-    initialFocus: 'src/conflict.ts',
-    behindCount: 3,
-    hint: '未解決の競合のみ（マージ途中で他に変更がない状態）',
-  },
+  render: () => (
+    <ConflictWorkspaceDemo
+      staged={[]}
+      unstaged={conflictOnlyUnstaged}
+      initialFocus="src/conflict.ts"
+      behindCount={3}
+      hint="未解決の競合のみ（マージ途中で他に変更がない状態）"
+    />
+  ),
 }
 
 export const WorkspaceWithoutToolbar: Story = {
   name: 'ツールバーなし',
-  args: {
-    staged: afterPullConflictStaged,
-    unstaged: afterPullConflictUnstaged,
-    initialFocus: 'pkg/both-added.go',
-    showToolbar: false,
-    hint: 'ツールバーなし（メイン領域のみ）',
-  },
+  render: () => (
+    <ConflictWorkspaceDemo
+      staged={afterPullConflictStaged}
+      unstaged={afterPullConflictUnstaged}
+      initialFocus="pkg/both-added.go"
+      showToolbar={false}
+      hint="ツールバーなし（メイン領域のみ）"
+    />
+  ),
 }

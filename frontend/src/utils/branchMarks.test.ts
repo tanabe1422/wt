@@ -10,10 +10,10 @@ import {
 import { buildBranchTree, splitBranchTrees } from './branchTree'
 
 const sampleBranches: BranchEntry[] = [
-  { name: 'main', isCurrent: false, isRemote: false, aheadCount: 0, behindCount: 0 },
-  { name: 'feature/hoge', isCurrent: true, isRemote: false, aheadCount: 5, behindCount: 0 },
-  { name: 'feature/bar', isCurrent: false, isRemote: false, aheadCount: 0, behindCount: 2 },
-  { name: 'origin/main', isCurrent: false, isRemote: true, aheadCount: 0, behindCount: 0 },
+  { name: 'main', isCurrent: false, isRemote: false, hasUpstream: true, aheadCount: 0, behindCount: 0 },
+  { name: 'feature/hoge', isCurrent: true, isRemote: false, hasUpstream: true, aheadCount: 5, behindCount: 0 },
+  { name: 'feature/bar', isCurrent: false, isRemote: false, hasUpstream: true, aheadCount: 0, behindCount: 2 },
+  { name: 'origin/main', isCurrent: false, isRemote: true, hasUpstream: false, aheadCount: 0, behindCount: 0 },
 ]
 
 const sampleWorktrees: WorktreeEntry[] = [

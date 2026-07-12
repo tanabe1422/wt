@@ -5,10 +5,39 @@
   min-height: 0;
 }
 
+.filter {
+  flex-shrink: 0;
+  padding: 0.5rem 0.625rem;
+  border-bottom: 1px solid var(--color-slate-200);
+}
+
+.filterInput {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0.3125rem 0.5rem;
+  border: 1px solid var(--color-slate-300);
+  border-radius: 0.25rem;
+  background: var(--color-surface-main);
+  color: var(--color-slate-900);
+  font: inherit;
+  font-size: var(--font-size-compact);
+}
+
+.filterInput::placeholder {
+  color: var(--color-slate-400);
+}
+
+.filterInput:focus {
+  outline: 1px solid var(--color-blue-500);
+  border-color: var(--color-blue-500);
+}
+
 .scroll {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  padding-bottom: 3rem;
 }
 
 .empty,
