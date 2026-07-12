@@ -4,6 +4,7 @@ import type { BranchEntry } from '../types'
 import type { WorktreeEntry } from '../types'
 import {
   collectWorktreeBranches,
+  findWorktreePathByBranch,
   getBranchMarkFlags,
   getSelectedWorktreeBranch,
 } from './branchMarks'
@@ -75,6 +76,12 @@ describe('branchMarks', () => {
     expect(getSelectedWorktreeBranch(sampleWorktrees, '/repo')).toBe('feature/hoge')
     expect(getSelectedWorktreeBranch(sampleWorktrees, '/repo-wt-bar')).toBe('feature/bar')
     expect(getSelectedWorktreeBranch(sampleWorktrees, null)).toBeNull()
+  })
+
+  it('finds worktree path by branch name', () => {
+    expect(findWorktreePathByBranch(sampleWorktrees, 'feature/bar')).toBe('/repo-wt-bar')
+    expect(findWorktreePathByBranch(sampleWorktrees, 'feature/hoge')).toBe('/repo')
+    expect(findWorktreePathByBranch(sampleWorktrees, 'main')).toBeNull()
   })
 
   it('marks checkout and worktree branches', () => {

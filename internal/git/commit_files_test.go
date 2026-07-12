@@ -1,10 +1,6 @@
 package git
 
 import (
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -34,37 +30,20 @@ func TestParseNameStatusZEmpty(t *testing.T) {
 
 func TestListCommitFilesAndDiff(t *testing.T) {
 	dir := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
+	fake := newFakeRunner()
+	fake.On("rev-list", "--parents", "-n", "1", "rootsha").Once().Return("rootsha", nil)
+	fake.On("diff-tree", "--no-commit-id", "--name-status", "-r", "-z", "--root", "rootsha").Once().
+		Return("A\x00a.txt\x00", nil)
+	fake.On("rev-list", "--parents", "-n", "1", "secondsha").Once().Return("secondsha rootsha", nil)
+	fake.On("diff-tree", "--no-commit-id", "--name-status", "-r", "-z", "secondsha").Once().
+		Return("M\x00a.txt\x00A\x00b.txt\x00", nil)
+	fake.On("show", "-U3", "--format=", "secondsha", "--", "a.txt").Return(
+		"diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1,1 +1,2 @@\n line1\n+line2\n",
+		nil,
+	)
+	withFakeRunner(t, fake)
 
-	run("init")
-	run("config", "user.email", "test@example.com")
-	run("config", "user.name", "Test User")
-
-	write := func(name, content string) {
-		t.Helper()
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	write("a.txt", "line1\n")
-	run("add", "a.txt")
-	run("commit", "-m", "root commit")
-
-	rootSHA, err := runGit(dir, "rev-parse", "HEAD")
-	if err != nil {
-		t.Fatalf("rev-parse root: %v", err)
-	}
-	rootSHA = strings.TrimSpace(rootSHA)
-
-	rootFiles, err := ListCommitFiles(dir, rootSHA)
+	rootFiles, err := ListCommitFiles(dir, "rootsha")
 	if err != nil {
 		t.Fatalf("ListCommitFiles root: %v", err)
 	}
@@ -72,25 +51,13 @@ func TestListCommitFilesAndDiff(t *testing.T) {
 		t.Fatalf("unexpected root files: %+v", rootFiles)
 	}
 
-	write("a.txt", "line1\nline2\n")
-	write("b.txt", "new\n")
-	run("add", "a.txt", "b.txt")
-	run("commit", "-m", "second commit")
-
-	secondSHA, err := runGit(dir, "rev-parse", "HEAD")
-	if err != nil {
-		t.Fatalf("rev-parse second: %v", err)
-	}
-	secondSHA = strings.TrimSpace(secondSHA)
-
-	files, err := ListCommitFiles(dir, secondSHA)
+	files, err := ListCommitFiles(dir, "secondsha")
 	if err != nil {
 		t.Fatalf("ListCommitFiles second: %v", err)
 	}
 	if len(files) != 2 {
 		t.Fatalf("expected 2 files, got %+v", files)
 	}
-
 	byPath := map[string]CommitFileChange{}
 	for _, f := range files {
 		byPath[f.Path] = f
@@ -102,17 +69,13 @@ func TestListCommitFilesAndDiff(t *testing.T) {
 		t.Fatalf("expected b.txt added, got %+v", byPath["b.txt"])
 	}
 
-	diff, err := GetCommitFileDiff(dir, secondSHA, "a.txt")
+	diff, err := GetCommitFileDiff(dir, "secondsha", "a.txt")
 	if err != nil {
 		t.Fatalf("GetCommitFileDiff: %v", err)
 	}
 	if diff.Path != "a.txt" {
 		t.Fatalf("unexpected path: %s", diff.Path)
 	}
-	if len(diff.Hunks) == 0 {
-		t.Fatal("expected hunks in commit file diff")
-	}
-
 	foundAdd := false
 	for _, hunk := range diff.Hunks {
 		for _, line := range hunk.Lines {
@@ -132,6 +95,66 @@ func TestGetCommitFileDiffEmptyArgs(t *testing.T) {
 		t.Fatal("expected error for empty sha")
 	}
 	_, err = GetCommitFileDiff(".", "abc", "")
+	if err == nil {
+		t.Fatal("expected error for empty file")
+	}
+}
+
+func TestListRangeFilesAndDiff(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("diff", "--name-status", "-z", "main", "feature").Once().
+		Return("M\x00a.txt\x00A\x00b.txt\x00", nil)
+	fake.On("diff", "-U3", "main", "feature", "--", "a.txt").Once().Return(
+		"diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1,1 +1,2 @@\n line1\n+line2\n",
+		nil,
+	)
+	withFakeRunner(t, fake)
+
+	files, err := ListRangeFiles(dir, "main", "feature")
+	if err != nil {
+		t.Fatalf("ListRangeFiles: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files, got %+v", files)
+	}
+	if files[0].Path != "a.txt" || files[0].Status != "M" {
+		t.Fatalf("unexpected first file: %+v", files[0])
+	}
+	if files[1].Path != "b.txt" || files[1].Status != "A" {
+		t.Fatalf("unexpected second file: %+v", files[1])
+	}
+
+	diff, err := GetRangeFileDiff(dir, "main", "feature", "a.txt")
+	if err != nil {
+		t.Fatalf("GetRangeFileDiff: %v", err)
+	}
+	if diff.Path != "a.txt" {
+		t.Fatalf("unexpected path: %s", diff.Path)
+	}
+	foundAdd := false
+	for _, hunk := range diff.Hunks {
+		for _, line := range hunk.Lines {
+			if line.Kind == "add" && line.Content == "line2" {
+				foundAdd = true
+			}
+		}
+	}
+	if !foundAdd {
+		t.Fatalf("expected added line2 in diff: %+v", diff)
+	}
+}
+
+func TestListRangeFilesEmptyArgs(t *testing.T) {
+	_, err := ListRangeFiles(".", "", "feature")
+	if err == nil {
+		t.Fatal("expected error for empty fromRef")
+	}
+	_, err = ListRangeFiles(".", "main", "")
+	if err == nil {
+		t.Fatal("expected error for empty toRef")
+	}
+	_, err = GetRangeFileDiff(".", "main", "feature", "")
 	if err == nil {
 		t.Fatal("expected error for empty file")
 	}

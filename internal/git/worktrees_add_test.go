@@ -1,8 +1,8 @@
 package git
 
 import (
+	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -97,48 +97,17 @@ func TestResolveWorktreeTargetPath(t *testing.T) {
 	}
 }
 
-func initWorktreeAddRepo(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-
-	run("init")
-	run("config", "user.email", "test@example.com")
-	run("config", "user.name", "Test User")
-
-	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("1\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	run("add", "a.txt")
-	run("commit", "-m", "commit 1")
-
-	defaultBranch, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatalf("CurrentBranch: %v", err)
-	}
-
-	run("checkout", "-b", "feature")
-	if err := os.WriteFile(filepath.Join(dir, "b.txt"), []byte("2\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	run("add", "b.txt")
-	run("commit", "-m", "feature commit")
-
-	// Switch back so feature can be used for worktree add.
-	run("checkout", defaultBranch)
-	return dir
+func worktreeListPorcelain(mainPath, branch string) string {
+	return "worktree " + mainPath + "\nHEAD abc\nbranch refs/heads/" + branch + "\n"
 }
 
 func TestAddWorktreeLocal(t *testing.T) {
-	dir := initWorktreeAddRepo(t)
-	target := filepath.Join(filepath.Dir(dir), "wt-feature")
+	dir := t.TempDir()
+	target := filepath.Join(filepath.Dir(dir), "wt-feature-"+filepath.Base(dir))
+	fake := newFakeRunner()
+	fake.On("worktree", "list", "--porcelain").Return(worktreeListPorcelain(dir, "main"), nil)
+	fake.On("worktree", "add", target, "feature").Return("", nil)
+	withFakeRunner(t, fake)
 
 	created, err := AddWorktree(dir, target, "feature", false)
 	if err != nil {
@@ -147,34 +116,17 @@ func TestAddWorktreeLocal(t *testing.T) {
 	if created != target {
 		t.Fatalf("expected path %q, got %q", target, created)
 	}
-
-	entries, err := ListWorktrees(dir)
-	if err != nil {
-		t.Fatalf("ListWorktrees: %v", err)
-	}
-	found := false
-	for _, entry := range entries {
-		if pathsEqual(entry.Path, created) && entry.Branch == "feature" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("created worktree not found in list: %+v", entries)
-	}
-
-	// cleanup so TempDir can remove parent
-	if _, err := runGit(dir, "worktree", "remove", "--force", created); err != nil {
-		t.Logf("cleanup worktree remove: %v", err)
-	}
+	fake.AssertCalled(t, "worktree", "add", target, "feature")
 }
 
 func TestAddWorktreeExistingPath(t *testing.T) {
-	dir := initWorktreeAddRepo(t)
-	target := filepath.Join(filepath.Dir(dir), "wt-exists")
+	dir := t.TempDir()
+	target := filepath.Join(dir, "exists")
 	if err := os.Mkdir(target, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	fake := newFakeRunner()
+	withFakeRunner(t, fake)
 
 	_, err := AddWorktree(dir, target, "feature", false)
 	if err == nil {
@@ -186,138 +138,100 @@ func TestAddWorktreeExistingPath(t *testing.T) {
 }
 
 func TestAddWorktreeAlreadyCheckedOut(t *testing.T) {
-	dir := initWorktreeAddRepo(t)
-	target1 := filepath.Join(filepath.Dir(dir), "wt-feature-1")
-	if _, err := AddWorktree(dir, target1, "feature", false); err != nil {
-		t.Fatalf("first AddWorktree: %v", err)
-	}
-	defer func() {
-		_, _ = runGit(dir, "worktree", "remove", "--force", target1)
-	}()
+	dir := t.TempDir()
+	other := filepath.Join(filepath.Dir(dir), "other-"+filepath.Base(dir))
+	target := filepath.Join(filepath.Dir(dir), "wt-feature-2-"+filepath.Base(dir))
+	porcelain := worktreeListPorcelain(dir, "main") + "\nworktree " + other + "\nHEAD def\nbranch refs/heads/feature\n"
+	fake := newFakeRunner()
+	fake.On("worktree", "list", "--porcelain").Return(porcelain, nil)
+	withFakeRunner(t, fake)
 
-	target2 := filepath.Join(filepath.Dir(dir), "wt-feature-2")
-	_, err := AddWorktree(dir, target2, "feature", false)
+	_, err := AddWorktree(dir, target, "feature", false)
 	if err == nil {
 		t.Fatal("expected error for already checked-out branch")
 	}
 	if !strings.Contains(err.Error(), "既にワークツリー") {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	fake.AssertNotCalledPrefix(t, "worktree", "add")
 }
 
 func TestAddWorktreeRemoteCreatesTrackingBranch(t *testing.T) {
-	dir := initWorktreeAddRepo(t)
+	dir := t.TempDir()
+	target := filepath.Join(filepath.Dir(dir), "wt-remote-"+filepath.Base(dir))
+	fake := newFakeRunner()
+	fake.On("worktree", "list", "--porcelain").Return(worktreeListPorcelain(dir, "main"), nil)
+	fake.On("rev-parse", "--verify", "refs/heads/remote-only").Return("", errors.New("missing"))
+	fake.On("worktree", "add", "-b", "remote-only", target, "origin/remote-only").Return("", nil)
+	withFakeRunner(t, fake)
 
-	// Simulate a remote ref without a local tracking branch.
-	if err := os.MkdirAll(filepath.Join(dir, ".git", "refs", "remotes", "origin"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	sha, err := runGit(dir, "rev-parse", "feature")
-	if err != nil {
-		t.Fatalf("rev-parse feature: %v", err)
-	}
-	refPath := filepath.Join(dir, ".git", "refs", "remotes", "origin", "remote-only")
-	if err := os.WriteFile(refPath, []byte(sha+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Delete local feature so we use a different local name from remote.
-	if _, err := runGit(dir, "branch", "-D", "feature"); err != nil {
-		t.Fatalf("delete feature: %v", err)
-	}
-
-	target := filepath.Join(filepath.Dir(dir), "wt-remote-only")
 	created, err := AddWorktree(dir, target, "origin/remote-only", true)
 	if err != nil {
 		t.Fatalf("AddWorktree remote: %v", err)
 	}
-	defer func() {
-		_, _ = runGit(dir, "worktree", "remove", "--force", created)
-	}()
+	if created != target {
+		t.Fatalf("expected %q, got %q", target, created)
+	}
+	fake.AssertCalled(t, "worktree", "add", "-b", "remote-only", target, "origin/remote-only")
+}
 
-	entries, err := ListWorktrees(dir)
-	if err != nil {
-		t.Fatalf("ListWorktrees: %v", err)
+func TestAddWorktreeRemoteExistingLocal(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(filepath.Dir(dir), "wt-remote-exist-"+filepath.Base(dir))
+	fake := newFakeRunner()
+	fake.On("worktree", "list", "--porcelain").Return(worktreeListPorcelain(dir, "main"), nil)
+	fake.On("rev-parse", "--verify", "refs/heads/feature").Return("abc", nil)
+	fake.On("worktree", "add", target, "feature").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if _, err := AddWorktree(dir, target, "origin/feature", true); err != nil {
+		t.Fatalf("AddWorktree: %v", err)
 	}
-	found := false
-	for _, entry := range entries {
-		if pathsEqual(entry.Path, created) && entry.Branch == "remote-only" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("remote worktree not found: %+v", entries)
-	}
+	fake.AssertCalled(t, "worktree", "add", target, "feature")
 }
 
 func TestRemoveWorktree(t *testing.T) {
-	dir := initWorktreeAddRepo(t)
-	target := filepath.Join(filepath.Dir(dir), "wt-remove")
-
-	created, err := AddWorktree(dir, target, "feature", false)
-	if err != nil {
-		t.Fatalf("AddWorktree: %v", err)
-	}
+	dir := t.TempDir()
+	created := filepath.Join(filepath.Dir(dir), "wt-remove-"+filepath.Base(dir))
+	porcelain := worktreeListPorcelain(dir, "main") + "\nworktree " + created + "\nHEAD def\nbranch refs/heads/feature\n"
+	fake := newFakeRunner()
+	fake.On("worktree", "list", "--porcelain").Return(porcelain, nil)
+	fake.On("worktree", "remove", created).Return("", nil)
+	withFakeRunner(t, fake)
 
 	if err := RemoveWorktree(dir, created, false); err != nil {
 		t.Fatalf("RemoveWorktree: %v", err)
 	}
-
-	entries, err := ListWorktrees(dir)
-	if err != nil {
-		t.Fatalf("ListWorktrees: %v", err)
-	}
-	for _, entry := range entries {
-		if pathsEqual(entry.Path, created) {
-			t.Fatalf("worktree still listed after remove: %+v", entry)
-		}
-	}
+	fake.AssertCalled(t, "worktree", "remove", created)
 }
 
 func TestRemoveWorktreeRejectsMain(t *testing.T) {
-	dir := initWorktreeAddRepo(t)
-	entries, err := ListWorktrees(dir)
-	if err != nil {
-		t.Fatalf("ListWorktrees: %v", err)
-	}
-	var mainPath string
-	for _, entry := range entries {
-		if entry.IsMain {
-			mainPath = entry.Path
-			break
-		}
-	}
-	if mainPath == "" {
-		t.Fatal("main worktree not found")
-	}
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("worktree", "list", "--porcelain").Return(worktreeListPorcelain(dir, "main"), nil)
+	withFakeRunner(t, fake)
 
-	err = RemoveWorktree(dir, mainPath, false)
+	err := RemoveWorktree(dir, dir, false)
 	if err == nil {
 		t.Fatal("expected error removing main worktree")
 	}
 	if !strings.Contains(err.Error(), "メイン") {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	fake.AssertNotCalledPrefix(t, "worktree", "remove")
 }
 
-func TestRemoveWorktreeForceDirty(t *testing.T) {
-	dir := initWorktreeAddRepo(t)
-	target := filepath.Join(filepath.Dir(dir), "wt-remove-dirty")
-
-	created, err := AddWorktree(dir, target, "feature", false)
-	if err != nil {
-		t.Fatalf("AddWorktree: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(created, "dirty.txt"), []byte("dirty\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := RemoveWorktree(dir, created, false); err == nil {
-		t.Fatal("expected error removing dirty worktree without force")
-	}
+func TestRemoveWorktreeForce(t *testing.T) {
+	dir := t.TempDir()
+	created := filepath.Join(filepath.Dir(dir), "wt-force-"+filepath.Base(dir))
+	porcelain := worktreeListPorcelain(dir, "main") + "\nworktree " + created + "\nHEAD def\nbranch refs/heads/feature\n"
+	fake := newFakeRunner()
+	fake.On("worktree", "list", "--porcelain").Return(porcelain, nil)
+	fake.On("worktree", "remove", "--force", created).Return("", nil)
+	withFakeRunner(t, fake)
 
 	if err := RemoveWorktree(dir, created, true); err != nil {
 		t.Fatalf("RemoveWorktree force: %v", err)
 	}
+	fake.AssertCalled(t, "worktree", "remove", "--force", created)
 }

@@ -13,6 +13,8 @@ interface BranchSectionProps {
   checkedOutBranch: string | null
   worktreeBranches: Set<string>
   showWorktreeMarks?: boolean
+  /** 行アイコンを fill 版にする（サイドバーは outline がデフォルト） */
+  filledIcons?: boolean
   defaultExpanded?: boolean
   expansionThreshold?: number
   onActivate?: (fullName: string) => void
@@ -28,6 +30,7 @@ export function BranchSection({
   checkedOutBranch,
   worktreeBranches,
   showWorktreeMarks = false,
+  filledIcons = false,
   defaultExpanded = true,
   expansionThreshold = 2,
   onActivate,
@@ -44,6 +47,8 @@ export function BranchSection({
           onSelect={onSelect}
           checkedOutBranch={showWorktreeMarks ? checkedOutBranch : null}
           worktreeBranches={showWorktreeMarks ? worktreeBranches : new Set()}
+          toneByWorktree={showWorktreeMarks}
+          filledIcons={filledIcons}
           expansionThreshold={expansionThreshold}
           onActivate={onActivate}
           onContextMenu={onContextMenu}

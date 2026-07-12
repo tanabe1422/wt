@@ -106,6 +106,41 @@ func GetCommitFileDiff(worktreePath, sha, file string) (FileDiff, error) {
 	return parseUnifiedDiff(file, out), nil
 }
 
+// GetRangeFileDiff returns a parsed unified diff for a file between two refs.
+func GetRangeFileDiff(worktreePath, fromRef, toRef, file string) (FileDiff, error) {
+	dir, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return FileDiff{}, err
+	}
+	fromRef = strings.TrimSpace(fromRef)
+	toRef = strings.TrimSpace(toRef)
+	if fromRef == "" || toRef == "" {
+		return FileDiff{}, errors.New("比較対象の ref が空です")
+	}
+	if strings.TrimSpace(file) == "" {
+		return FileDiff{}, errors.New("ファイルパスが空です")
+	}
+
+	args := []string{
+		"diff",
+		"-U" + strconv.Itoa(diffContextLines),
+		fromRef,
+		toRef,
+		"--",
+		file,
+	}
+	out, err := runGitAllowDiffExit(dir, args...)
+	if err != nil {
+		return FileDiff{}, err
+	}
+
+	if strings.Contains(out, "Binary files") {
+		return FileDiff{}, errors.New("バイナリファイルの diff は表示できません")
+	}
+
+	return parseUnifiedDiff(file, out), nil
+}
+
 func isUntracked(dir, file string) bool {
 	out, err := runGit(dir, "ls-files", "--others", "--exclude-standard", "--", file)
 	if err != nil {

@@ -265,6 +265,23 @@ export async function getCommitFileDiff(
   return callApp('GetCommitFileDiff', worktreePath, sha, file)
 }
 
+export async function listRangeFiles(
+  worktreePath: string,
+  fromRef: string,
+  toRef: string,
+): Promise<CommitFileChange[]> {
+  return callApp('ListRangeFiles', worktreePath, fromRef, toRef)
+}
+
+export async function getRangeFileDiff(
+  worktreePath: string,
+  fromRef: string,
+  toRef: string,
+  file: string,
+): Promise<FileDiff> {
+  return callApp('GetRangeFileDiff', worktreePath, fromRef, toRef, file)
+}
+
 export async function switchBranch(worktreePath: string, branch: string): Promise<void> {
   return callApp('SwitchBranch', worktreePath, branch)
 }

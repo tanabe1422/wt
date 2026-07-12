@@ -12,11 +12,12 @@ import type { HistoryScope } from '../../types'
 import { shortSha } from '../../utils/commitGraph'
 import { cx } from '../../utils/cx'
 import { ChoiceDialog, type ChoiceOption } from '../ui/ChoiceDialog'
-import { ContextMenu } from '../ui/ContextMenu'
+import { ContextMenu, type ContextMenuEntry } from '../ui/ContextMenu'
 import { ErrorDialog } from '../ui/ErrorDialog'
 import { ResizeHandle } from '../ui/ResizeHandle'
 import { CommitDetailPane } from './CommitDetailPane'
 import { CommitHistoryTable } from './CommitHistoryTable'
+import { CompareDetailPane, type CompareRange } from './CompareDetailPane'
 import styles from './HistoryView.module.css'
 
 const STORAGE_KEY_TREE_RATIO = 'wt-manager.historyTreeRatio'
@@ -25,6 +26,10 @@ const MIN_TREE_RATIO = 0.25
 const MAX_TREE_RATIO = 0.75
 
 type ResetMode = 'soft' | 'mixed' | 'hard'
+
+type DetailMode =
+  | { kind: 'commit'; sha: string }
+  | { kind: 'compare'; fromRef: string; toRef: string }
 
 const RESET_OPTIONS: ChoiceOption<ResetMode>[] = [
   {
@@ -47,49 +52,67 @@ const RESET_OPTIONS: ChoiceOption<ResetMode>[] = [
 interface HistoryViewProps {
   worktreePath: string
   currentBranch: string
+  compareRequest?: CompareRange | null
+  onCompareRequestConsumed?: () => void
   onResetComplete?: () => void | Promise<void>
 }
 
 interface ScopeToggleProps {
   scope: HistoryScope
-  loading: boolean
   branchAvailable: boolean
   onChange: (scope: HistoryScope) => void
 }
 
-function ScopeToggle({ scope, loading, branchAvailable, onChange }: ScopeToggleProps) {
+function ScopeToggle({ scope, branchAvailable, onChange }: ScopeToggleProps) {
+  const showAll = scope === 'all'
+  // On = すべてのブランチ。Off = 現在ブランチのみ。
+  // loading では disabled にしない（切替のたびに色がチカつくため）。
+  const canTurnOff = branchAvailable
+  const disabled = showAll && !canTurnOff
+
   return (
-    <div className={styles.scopeToggle} role="group" aria-label="履歴の表示範囲">
-      <button
-        type="button"
-        className={cx(styles.scopeButton, scope === 'all' && styles.scopeActive)}
-        disabled={loading}
-        aria-pressed={scope === 'all'}
-        onClick={() => onChange('all')}
+    <div className={styles.scopeBar}>
+      <label
+        className={styles.scopeToggle}
+        title={
+          disabled
+            ? 'ブランチにチェックアウトされていません'
+            : undefined
+        }
       >
-        全ブランチ
-      </button>
-      <button
-        type="button"
-        className={cx(styles.scopeButton, scope === 'branch' && styles.scopeActive)}
-        disabled={loading || !branchAvailable}
-        aria-pressed={scope === 'branch'}
-        title={branchAvailable ? undefined : 'ブランチにチェックアウトされていません'}
-        onClick={() => onChange('branch')}
-      >
-        現在ブランチ
-      </button>
+        <input
+          type="checkbox"
+          className={styles.scopeCheckbox}
+          checked={showAll}
+          disabled={disabled}
+          onChange={(event) => {
+            if (event.target.checked) {
+              onChange('all')
+            } else if (canTurnOff) {
+              onChange('branch')
+            }
+          }}
+        />
+        すべてのブランチを表示する
+      </label>
     </div>
   )
+}
+
+function compareBaseRef(currentBranch: string): string {
+  return currentBranch !== '' ? currentBranch : 'HEAD'
 }
 
 export function HistoryView({
   worktreePath,
   currentBranch,
+  compareRequest = null,
+  onCompareRequestConsumed,
   onResetComplete,
 }: HistoryViewProps) {
   const branchAvailable = currentBranch !== '' && currentBranch !== 'HEAD'
   const [selectedSha, setSelectedSha] = useState<string | null>(null)
+  const [detailMode, setDetailMode] = useState<DetailMode | null>(null)
   const [resetTarget, setResetTarget] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [acting, setActing] = useState(false)
@@ -119,11 +142,34 @@ export function HistoryView({
 
   useEffect(() => {
     setSelectedSha(null)
-  }, [worktreePath, scope])
+    setDetailMode(null)
+    onCompareRequestConsumed?.()
+  }, [worktreePath, scope, onCompareRequestConsumed])
+
+  useEffect(() => {
+    if (!compareRequest) {
+      return
+    }
+    setSelectedSha(null)
+    setDetailMode({
+      kind: 'compare',
+      fromRef: compareRequest.fromRef,
+      toRef: compareRequest.toRef,
+    })
+  }, [compareRequest])
 
   const selectedCommit = useMemo(
     () => commits.find((commit) => commit.sha === selectedSha) ?? null,
     [commits, selectedSha],
+  )
+
+  const handleSelectCommit = useCallback(
+    (sha: string) => {
+      setSelectedSha(sha)
+      setDetailMode({ kind: 'commit', sha })
+      onCompareRequestConsumed?.()
+    },
+    [onCompareRequestConsumed],
   )
 
   const handleLoadMore = useCallback(() => {
@@ -140,14 +186,41 @@ export function HistoryView({
     (sha: string, event: MouseEvent) => {
       event.preventDefault()
       event.stopPropagation()
-      openMenu(event.clientX, event.clientY, [
+      const fromRef = compareBaseRef(currentBranch)
+      const items: ContextMenuEntry[] = [
+        {
+          label: '現在のブランチとの Diff を表示',
+          onClick: () => {
+            setSelectedSha(null)
+            setDetailMode({ kind: 'compare', fromRef, toRef: sha })
+            onCompareRequestConsumed?.()
+          },
+        },
+      ]
+      if (selectedSha && selectedSha !== sha) {
+        items.push({
+          label: '選択中のコミットとの Diff を表示',
+          onClick: () => {
+            setSelectedSha(null)
+            setDetailMode({
+              kind: 'compare',
+              fromRef: selectedSha,
+              toRef: sha,
+            })
+            onCompareRequestConsumed?.()
+          },
+        })
+      }
+      items.push(
+        { type: 'separator' },
         {
           label: 'このコミットまでリセット',
           onClick: () => setResetTarget(sha),
         },
-      ])
+      )
+      openMenu(event.clientX, event.clientY, items)
     },
-    [openMenu],
+    [currentBranch, onCompareRequestConsumed, openMenu, selectedSha],
   )
 
   const handleResetConfirm = async (mode: ResetMode) => {
@@ -161,6 +234,7 @@ export function HistoryView({
     try {
       await resetToCommit(worktreePath, sha, mode)
       setSelectedSha(null)
+      setDetailMode(null)
       await reload()
       await onResetComplete?.()
     } catch (err) {
@@ -178,11 +252,23 @@ export function HistoryView({
     )
   }
 
+  const detailPane =
+    detailMode?.kind === 'compare' ? (
+      <CompareDetailPane
+        worktreePath={worktreePath}
+        range={{ fromRef: detailMode.fromRef, toRef: detailMode.toRef }}
+      />
+    ) : (
+      <CommitDetailPane
+        worktreePath={worktreePath}
+        commit={detailMode?.kind === 'commit' ? selectedCommit : null}
+      />
+    )
+
   return (
     <div className={styles.root}>
       <ScopeToggle
         scope={scope}
-        loading={loading}
         branchAvailable={branchAvailable}
         onChange={setScope}
       />
@@ -201,7 +287,7 @@ export function HistoryView({
                 commits={commits}
                 labels={labels}
                 selectedSha={selectedSha}
-                onSelect={setSelectedSha}
+                onSelect={handleSelectCommit}
                 onContextMenu={handleContextMenu}
               />
               <div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />
@@ -215,7 +301,7 @@ export function HistoryView({
             active={resizing}
           />
           <div className={styles.detailPane} style={{ flex: `${1 - treeRatio} 1 0%` }}>
-            <CommitDetailPane worktreePath={worktreePath} commit={selectedCommit} />
+            {detailPane}
           </div>
         </div>
       )}

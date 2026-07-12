@@ -43,6 +43,8 @@ export function GetCommitFileDiff(arg1:string,arg2:string,arg3:string):Promise<g
 
 export function GetFileDiff(arg1:string,arg2:string,arg3:boolean):Promise<git.FileDiff>;
 
+export function GetRangeFileDiff(arg1:string,arg2:string,arg3:string,arg4:string):Promise<git.FileDiff>;
+
 export function GetSettings():Promise<config.Settings>;
 
 export function GetStatus(arg1:string):Promise<Array<git.FileStatus>>;
@@ -56,6 +58,8 @@ export function ListBranches(arg1:string):Promise<Array<git.BranchEntry>>;
 export function ListCommitFiles(arg1:string,arg2:string):Promise<Array<git.CommitFileChange>>;
 
 export function ListCommits(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<git.ListCommitsResult>;
+
+export function ListRangeFiles(arg1:string,arg2:string,arg3:string):Promise<Array<git.CommitFileChange>>;
 
 export function ListStashes(arg1:string):Promise<Array<git.StashEntry>>;
 

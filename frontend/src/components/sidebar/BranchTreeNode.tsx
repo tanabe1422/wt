@@ -6,11 +6,11 @@ import { Button } from '../ui/Button'
 import { CountBadge } from '../ui/CountBadge'
 import { ActiveMark } from './ActiveMark'
 import {
-  BriefcaseIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   FolderIcon,
   GitBranchIcon,
+  HardDriveIcon,
 } from './BranchIcons'
 import styles from './BranchTreeNode.module.css'
 import type { MouseEvent } from 'react'
@@ -29,9 +29,29 @@ interface BranchTreeNodeProps {
   onSelect: (fullName: string) => void
   checkedOutBranch: string | null
   worktreeBranches: Set<string>
+  /** ワークツリー有無でラベル・アイコン色を分ける（ローカルブランチ用） */
+  toneByWorktree?: boolean
+  /** 行アイコンを fill 版にする */
+  filledIcons?: boolean
   expansionThreshold?: number
   onActivate?: (fullName: string) => void
   onContextMenu?: (fullName: string, event: MouseEvent) => void
+}
+
+function rowToneClass(
+  toneByWorktree: boolean,
+  marks: ReturnType<typeof getBranchMarkFlags>,
+): string | false {
+  if (!toneByWorktree) {
+    return false
+  }
+  if (marks.isCheckedOutOnSelected) {
+    return styles.toneActive
+  }
+  if (marks.hasWorktree) {
+    return styles.toneWorktree
+  }
+  return styles.toneIdle
 }
 
 function renderBranchRow(
@@ -43,12 +63,15 @@ function renderBranchRow(
   selectedBranch: string | null,
   checkedOutBranch: string | null,
   worktreeBranches: Set<string>,
+  toneByWorktree: boolean,
+  filledIcons: boolean,
   onSelect: (fullName: string) => void,
   onActivate?: (fullName: string) => void,
   onContextMenu?: (fullName: string, event: MouseEvent) => void,
 ) {
   const isSelected = selectedBranch === fullName
   const marks = getBranchMarkFlags(fullName, checkedOutBranch, worktreeBranches)
+  const toneClass = rowToneClass(toneByWorktree, marks)
 
   return (
     <Button
@@ -75,12 +98,12 @@ function renderBranchRow(
         <span className={styles.caret} />
       </span>
       <span
-        className={styles.iconSlot}
+        className={cx(styles.iconSlot, toneClass)}
         title={marks.hasWorktree ? 'ワークツリーあり' : undefined}
       >
-        {marks.hasWorktree ? <BriefcaseIcon /> : <GitBranchIcon />}
+        {marks.hasWorktree ? <HardDriveIcon /> : <GitBranchIcon filled={filledIcons} />}
       </span>
-      <span className={styles.label}>{label}</span>
+      <span className={cx(styles.label, toneClass)}>{label}</span>
       <span className={styles.badgeGroup}>
         <CountBadge count={behindCount} variant="behind" />
         <CountBadge count={aheadCount} variant="ahead" />
@@ -96,6 +119,8 @@ export function BranchTreeNode({
   onSelect,
   checkedOutBranch,
   worktreeBranches,
+  toneByWorktree = false,
+  filledIcons = false,
   expansionThreshold = 1,
   onActivate,
   onContextMenu,
@@ -115,6 +140,8 @@ export function BranchTreeNode({
       selectedBranch,
       checkedOutBranch,
       worktreeBranches,
+      toneByWorktree,
+      filledIcons,
       onSelect,
       onActivate,
       onContextMenu,
@@ -151,6 +178,8 @@ export function BranchTreeNode({
               onSelect={onSelect}
               checkedOutBranch={checkedOutBranch}
               worktreeBranches={worktreeBranches}
+              toneByWorktree={toneByWorktree}
+              filledIcons={filledIcons}
               expansionThreshold={expansionThreshold}
               onActivate={onActivate}
               onContextMenu={onContextMenu}
@@ -170,6 +199,8 @@ export function BranchTreeNode({
       selectedBranch,
       checkedOutBranch,
       worktreeBranches,
+      toneByWorktree,
+      filledIcons,
       onSelect,
       onActivate,
       onContextMenu,

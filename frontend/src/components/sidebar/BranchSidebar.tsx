@@ -6,7 +6,11 @@ import { useBranchContextMenu } from '../../hooks/useBranchContextMenu'
 import { useStashActions } from '../../hooks/useStashActions'
 import { useWorktreeDialogs } from '../../hooks/useWorktreeDialogs'
 import type { BranchEntry, WorktreeEntry } from '../../types'
-import { collectWorktreeBranches, getSelectedWorktreeBranch } from '../../utils/branchMarks'
+import {
+  collectWorktreeBranches,
+  findWorktreePathByBranch,
+  getSelectedWorktreeBranch,
+} from '../../utils/branchMarks'
 import { localBranchFromRemote } from '../../utils/branchTree'
 import { BranchSidebarDialogs } from './BranchSidebarDialogs'
 import { RepoSidebarContent } from './RepoSidebarContent'
@@ -24,6 +28,8 @@ interface BranchSidebarProps {
   onSelectWorktree: (path: string) => void
   onReload: () => void | Promise<void>
   onBranchChanged?: () => void
+  compareFromRef?: string | null
+  onCompareWithCurrent?: (branch: string) => void
 }
 
 export function BranchSidebar({
@@ -38,6 +44,8 @@ export function BranchSidebar({
   onSelectWorktree,
   onReload,
   onBranchChanged,
+  compareFromRef,
+  onCompareWithCurrent,
 }: BranchSidebarProps) {
   const errorDialog = useErrorDialog(error)
   const checkedOutBranch = getSelectedWorktreeBranch(worktrees, selectedWorktree)
@@ -76,17 +84,52 @@ export function BranchSidebar({
     onSuccess: handleBranchSuccess,
   })
 
+  const handleSelectWorktree = useCallback(
+    (path: string) => {
+      onSelectWorktree(path)
+      const worktree = worktrees.find((entry) => entry.path === path)
+      if (worktree?.branch) {
+        onSelectBranch(worktree.branch)
+      }
+    },
+    [onSelectBranch, onSelectWorktree, worktrees],
+  )
+
+  /** ワークツリー付きならそちらへ、なければ現在 WT でブランチ切替 */
+  const handleActivateLocal = useCallback(
+    (branch: string) => {
+      const worktreePath = findWorktreePathByBranch(worktrees, branch)
+      if (worktreePath) {
+        if (worktreePath !== selectedWorktree) {
+          handleSelectWorktree(worktreePath)
+        }
+        return
+      }
+      if (branch === checkedOutBranch || branchActions.busy) {
+        return
+      }
+      void branchActions.switchLocalBranch(branch)
+    },
+    [
+      branchActions,
+      checkedOutBranch,
+      handleSelectWorktree,
+      selectedWorktree,
+      worktrees,
+    ],
+  )
+
   const localContextMenu = useBranchContextMenu({
     isRemote: false,
     checkedOutBranch,
     worktreeBranches,
-    onSwitchLocal: (branch) => {
-      void branchActions.switchLocalBranch(branch)
-    },
+    compareFromRef,
+    onSwitchLocal: handleActivateLocal,
     onCheckoutRemote: () => {},
     onNewWorktree: (branch) => {
       void worktreeDialogs.openWorktreeCheckout(branch, false)
     },
+    onCompareWithCurrent,
     onMerge: (branch) => {
       void branchActions.merge(branch)
     },
@@ -106,6 +149,7 @@ export function BranchSidebar({
     isRemote: true,
     checkedOutBranch,
     worktreeBranches,
+    compareFromRef,
     onSwitchLocal: () => {},
     onCheckoutRemote: (remoteRef) => {
       void branchActions.checkoutRemote(remoteRef)
@@ -113,17 +157,8 @@ export function BranchSidebar({
     onNewWorktree: (branch) => {
       void worktreeDialogs.openWorktreeCheckout(branch, true)
     },
+    onCompareWithCurrent,
   })
-
-  const handleActivateLocal = useCallback(
-    (branch: string) => {
-      if (branch === checkedOutBranch || branchActions.busy) {
-        return
-      }
-      void branchActions.switchLocalBranch(branch)
-    },
-    [branchActions, checkedOutBranch],
-  )
 
   const handleActivateRemote = useCallback(
     (remoteRef: string) => {
@@ -141,14 +176,6 @@ export function BranchSidebar({
     },
     [branchActions, checkedOutBranch],
   )
-
-  const handleSelectWorktree = (path: string) => {
-    onSelectWorktree(path)
-    const worktree = worktrees.find((entry) => entry.path === path)
-    if (worktree?.branch) {
-      onSelectBranch(worktree.branch)
-    }
-  }
 
   const handleConfirmDelete = () => {
     if (!deleteTarget) {

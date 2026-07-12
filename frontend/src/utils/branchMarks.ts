@@ -25,6 +25,14 @@ export function getSelectedWorktreeBranch(
   return worktrees.find((worktree) => worktree.path === selectedWorktreePath)?.branch ?? null
 }
 
+/** ブランチを checkout しているワークツリーのパス。なければ null */
+export function findWorktreePathByBranch(
+  worktrees: WorktreeEntry[],
+  branchName: string,
+): string | null {
+  return worktrees.find((worktree) => worktree.branch === branchName)?.path ?? null
+}
+
 export function getBranchMarkFlags(
   branchName: string,
   checkedOutBranch: string | null,

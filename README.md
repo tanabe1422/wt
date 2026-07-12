@@ -33,15 +33,9 @@ pnpm dev
 
 ### ローカル用サンプルリポジトリ
 
-手動確認用にルートへ `sample-repo/` を置ける（gitignore 済み）。中に `.go` があると `go build ./...` の対象になるので、次の `go.mod` を必ず入れる:
+手動確認用にルートへ `sample-repo/` を置ける（gitignore 済み）。
 
-```text
-module sample-repo
-
-go 1.23
-```
-
-（これで Go は別モジュールとみなし、wt-manager の `./...` から外れる）
+**`.go` ファイルは置かない。** 置くと `go build ./...` が wt-manager の一部としてコンパイルし、競合マーカー入りデモなどでビルドが落ちる。デモ用は `.txt` / `.ts` / `.md` などにする。
 
 ## ビルド
 

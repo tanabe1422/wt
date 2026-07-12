@@ -64,6 +64,13 @@ export interface WailsApp {
   ListBranchHeads(worktreePath: string): Promise<BranchHead[]>
   ListCommitFiles(worktreePath: string, sha: string): Promise<CommitFileChange[]>
   GetCommitFileDiff(worktreePath: string, sha: string, file: string): Promise<FileDiff>
+  ListRangeFiles(worktreePath: string, fromRef: string, toRef: string): Promise<CommitFileChange[]>
+  GetRangeFileDiff(
+    worktreePath: string,
+    fromRef: string,
+    toRef: string,
+    file: string,
+  ): Promise<FileDiff>
   SwitchBranch(worktreePath: string, branch: string): Promise<void>
   CheckoutRemoteBranch(worktreePath: string, remoteRef: string): Promise<void>
   CreateBranch(worktreePath: string, name: string): Promise<void>

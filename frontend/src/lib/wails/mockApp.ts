@@ -628,6 +628,22 @@ export const mockApp: WailsApp = {
     return { path: file, hunks: mockDiff.hunks }
   },
 
+  async ListRangeFiles(_worktreePath: string, _fromRef: string, _toRef: string) {
+    return [
+      { path: 'src/App.tsx', status: 'M' },
+      { path: 'README.md', status: 'M' },
+    ]
+  },
+
+  async GetRangeFileDiff(
+    _worktreePath: string,
+    _fromRef: string,
+    _toRef: string,
+    file: string,
+  ) {
+    return { path: file, hunks: mockDiff.hunks }
+  },
+
   async SwitchBranch(worktreePath: string, branch: string) {
     const worktree = mockWorktreeList.find((entry) => entry.path === worktreePath)
     if (!worktree) {

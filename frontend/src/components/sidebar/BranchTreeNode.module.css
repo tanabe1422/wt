@@ -65,6 +65,19 @@
   font-size: 0.8125rem;
   flex: 1;
   min-width: 0;
+  color: var(--color-slate-900);
+}
+
+.toneActive {
+  color: var(--branch-tone-active, var(--color-blue-600));
+}
+
+.toneWorktree {
+  color: var(--branch-tone-worktree, var(--color-slate-900));
+}
+
+.toneIdle {
+  color: var(--branch-tone-idle, var(--color-slate-600));
 }
 
 .badgeGroup {

@@ -41,6 +41,26 @@ func ListCommitFiles(worktreePath, sha string) ([]CommitFileChange, error) {
 	return parseNameStatusZ(out), nil
 }
 
+// ListRangeFiles returns files that differ between two refs (two-dot diff).
+func ListRangeFiles(worktreePath, fromRef, toRef string) ([]CommitFileChange, error) {
+	if worktreePath == "" {
+		return nil, errors.New("ワークツリーが指定されていません")
+	}
+	fromRef = strings.TrimSpace(fromRef)
+	toRef = strings.TrimSpace(toRef)
+	if fromRef == "" || toRef == "" {
+		return nil, errors.New("比較対象の ref が空です")
+	}
+
+	args := []string{"diff", "--name-status", "-z", fromRef, toRef}
+	out, err := runGitAllowDiffExit(worktreePath, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseNameStatusZ(out), nil
+}
+
 func commitParentCount(worktreePath, sha string) (int, error) {
 	out, err := runGit(worktreePath, "rev-list", "--parents", "-n", "1", sha)
 	if err != nil {

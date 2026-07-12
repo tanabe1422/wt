@@ -8,22 +8,43 @@ import (
 	"strings"
 )
 
-func runGitWithStdin(dir, stdin string, args ...string) (string, error) {
+// gitRunner executes git commands. Tests replace defaultRunner with a fake.
+type gitRunner interface {
+	Run(dir, stdin string, extraOKExit int, args ...string) (stdout, stderr string, err error)
+}
+
+type realRunner struct{}
+
+func (realRunner) Run(dir, stdin string, extraOKExit int, args ...string) (string, string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
-	cmd.Stdin = strings.NewReader(stdin)
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
+	if stdin != "" {
+		cmd.Stdin = strings.NewReader(stdin)
+	}
+	var outBuf bytes.Buffer
+	var errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
 	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
+		if extraOKExit > 0 {
+			if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == extraOKExit {
+				return strings.TrimSuffix(outBuf.String(), "\n"), strings.TrimSuffix(errBuf.String(), "\n"), nil
+			}
+		}
+		msg := strings.TrimSpace(errBuf.String())
 		if msg == "" {
 			msg = err.Error()
 		}
-		return "", errors.New(msg)
+		return "", "", errors.New(msg)
 	}
-	return strings.TrimSuffix(out.String(), "\n"), nil
+	return strings.TrimSuffix(outBuf.String(), "\n"), strings.TrimSuffix(errBuf.String(), "\n"), nil
+}
+
+var defaultRunner gitRunner = realRunner{}
+
+func runGitWithStdin(dir, stdin string, args ...string) (string, error) {
+	stdout, _, err := defaultRunner.Run(dir, stdin, 0, args...)
+	return stdout, err
 }
 
 // RepoInfo describes whether a directory is inside a git repository.
@@ -38,20 +59,7 @@ func runGit(dir string, args ...string) (string, error) {
 
 // runGitCapture returns stdout and stderr on success.
 func runGitCapture(dir string, args ...string) (stdout, stderr string, err error) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	var outBuf bytes.Buffer
-	var errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-	if runErr := cmd.Run(); runErr != nil {
-		msg := strings.TrimSpace(errBuf.String())
-		if msg == "" {
-			msg = runErr.Error()
-		}
-		return "", "", errors.New(msg)
-	}
-	return strings.TrimSuffix(outBuf.String(), "\n"), strings.TrimSuffix(errBuf.String(), "\n"), nil
+	return defaultRunner.Run(dir, "", 0, args...)
 }
 
 // runGitAllowDiffExit runs git diff and treats exit code 1 as success.
@@ -61,25 +69,8 @@ func runGitAllowDiffExit(dir string, args ...string) (string, error) {
 }
 
 func runGitWithExitOK(dir string, extraOKExit int, args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		if extraOKExit > 0 {
-			if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == extraOKExit {
-				return strings.TrimSuffix(out.String(), "\n"), nil
-			}
-		}
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
-		}
-		return "", errors.New(msg)
-	}
-	return strings.TrimSuffix(out.String(), "\n"), nil
+	stdout, _, err := defaultRunner.Run(dir, "", extraOKExit, args...)
+	return stdout, err
 }
 
 // ResolveRepo returns repository metadata for the given directory.

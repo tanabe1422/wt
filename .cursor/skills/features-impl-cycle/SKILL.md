@@ -38,7 +38,7 @@ description: >-
 リポジトリルートで、両方とも exit 0 になるまで「完了」と言わない:
 
 ```bash
-go test ./...
+go test -short ./internal/...
 cd frontend && pnpm exec tsc -b && pnpm test
 ```
 

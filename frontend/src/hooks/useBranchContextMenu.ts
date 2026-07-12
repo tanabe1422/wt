@@ -9,9 +9,11 @@ interface UseBranchContextMenuOptions {
   isRemote: boolean
   checkedOutBranch: string | null
   worktreeBranches: Set<string>
+  compareFromRef?: string | null
   onSwitchLocal: (branch: string) => void
   onCheckoutRemote: (remoteRef: string) => void
   onNewWorktree?: (branch: string) => void
+  onCompareWithCurrent?: (branch: string) => void
   onMerge?: (branch: string) => void
   onSquashMerge?: (branch: string) => void
   onRename?: (branch: string) => void
@@ -55,9 +57,11 @@ export function useBranchContextMenu({
   isRemote,
   checkedOutBranch,
   worktreeBranches,
+  compareFromRef,
   onSwitchLocal,
   onCheckoutRemote,
   onNewWorktree,
+  onCompareWithCurrent,
   onMerge,
   onSquashMerge,
   onRename,
@@ -72,9 +76,21 @@ export function useBranchContextMenu({
 
       const checkedOut = isBranchCheckedOut(branchName, isRemote, checkedOutBranch)
       const hasWorktree = branchHasWorktree(branchName, isRemote, worktreeBranches)
+      // Local current branch only: comparing a tip with itself is empty.
+      // Remote tracking refs may differ from the local tip, so keep enabled.
+      const compareDisabled =
+        !onCompareWithCurrent ||
+        !compareFromRef ||
+        compareFromRef === '' ||
+        (!isRemote && checkedOutBranch !== null && branchName === checkedOutBranch)
+
       const items: ContextMenuEntry[] = [
         {
-          label: isRemote ? 'チェックアウト' : '切り替え',
+          label: isRemote
+            ? 'チェックアウト'
+            : hasWorktree
+              ? 'ワークツリーに切り替え'
+              : '切り替え',
           disabled: checkedOut,
           onClick: () => {
             if (isRemote) {
@@ -88,6 +104,11 @@ export function useBranchContextMenu({
           label: '新しいワークツリーでチェックアウト',
           disabled: hasWorktree || !onNewWorktree,
           onClick: () => onNewWorktree?.(branchName),
+        },
+        {
+          label: '現在のブランチとの Diff を表示',
+          disabled: compareDisabled,
+          onClick: () => onCompareWithCurrent?.(branchName),
         },
       ]
 
@@ -122,8 +143,10 @@ export function useBranchContextMenu({
     },
     [
       checkedOutBranch,
+      compareFromRef,
       isRemote,
       onCheckoutRemote,
+      onCompareWithCurrent,
       onDelete,
       onMerge,
       onNewWorktree,

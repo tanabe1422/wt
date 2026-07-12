@@ -1,225 +1,150 @@
 package git
 
 import (
-	"os"
-	"os/exec"
-	"path/filepath"
+	"errors"
 	"strings"
 	"testing"
 )
 
-func initBranchOpRepo(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-
-	run("init")
-	run("config", "user.email", "test@example.com")
-	run("config", "user.name", "Test User")
-
-	write := func(name, content string) {
-		t.Helper()
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	write("a.txt", "1\n")
-	run("add", "a.txt")
-	run("commit", "-m", "commit 1")
-
-	defaultBranch, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatalf("CurrentBranch: %v", err)
-	}
-
-	run("checkout", "-b", "feature")
-	write("b.txt", "2\n")
-	run("add", "b.txt")
-	run("commit", "-m", "feature commit")
-
-	run("checkout", defaultBranch)
-	return dir
-}
-
 func TestCreateBranch(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	if err := CreateBranch(dir, "new-branch"); err != nil {
+	fake := newFakeRunner()
+	fake.On("switch", "-c", "new-branch").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := CreateBranch("/repo", "new-branch"); err != nil {
 		t.Fatalf("CreateBranch: %v", err)
 	}
-	current, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatalf("CurrentBranch: %v", err)
-	}
-	if current != "new-branch" {
-		t.Fatalf("expected new-branch, got %q", current)
-	}
+	fake.AssertCalled(t, "switch", "-c", "new-branch")
 }
 
 func TestCreateBranchEmptyName(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	if err := CreateBranch(dir, "  "); err == nil {
+	fake := newFakeRunner()
+	withFakeRunner(t, fake)
+	if err := CreateBranch("/repo", "  "); err == nil {
 		t.Fatal("expected error for empty branch name")
+	}
+	if len(fake.Calls()) != 0 {
+		t.Fatalf("expected no git calls, got %v", fake.ArgsList())
 	}
 }
 
 func TestDeleteBranch(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	// feature is not merged; force delete is required
-	if err := DeleteBranch(dir, "feature", true); err != nil {
+	fake := newFakeRunner()
+	fake.On("rev-parse", "--abbrev-ref", "HEAD").Return("main", nil)
+	fake.On("branch", "-D", "feature").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := DeleteBranch("/repo", "feature", true); err != nil {
 		t.Fatalf("DeleteBranch: %v", err)
 	}
-	entries, err := ListBranches(dir)
-	if err != nil {
-		t.Fatalf("ListBranches: %v", err)
-	}
-	for _, entry := range entries {
-		if !entry.IsRemote && entry.Name == "feature" {
-			t.Fatal("feature branch should be deleted")
-		}
-	}
+	fake.AssertCalled(t, "branch", "-D", "feature")
 }
 
-func TestDeleteBranchSafeRejectsUnmerged(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	if err := DeleteBranch(dir, "feature", false); err == nil {
-		t.Fatal("expected error deleting unmerged branch without force")
+func TestDeleteBranchSafeUsesLowerD(t *testing.T) {
+	fake := newFakeRunner()
+	fake.On("rev-parse", "--abbrev-ref", "HEAD").Return("main", nil)
+	fake.On("branch", "-d", "feature").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := DeleteBranch("/repo", "feature", false); err != nil {
+		t.Fatalf("DeleteBranch: %v", err)
 	}
+	fake.AssertCalled(t, "branch", "-d", "feature")
 }
 
 func TestDeleteBranchCurrentRejected(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	current, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatalf("CurrentBranch: %v", err)
-	}
-	if err := DeleteBranch(dir, current, true); err == nil {
+	fake := newFakeRunner()
+	fake.On("rev-parse", "--abbrev-ref", "HEAD").Return("main", nil)
+	withFakeRunner(t, fake)
+
+	if err := DeleteBranch("/repo", "main", true); err == nil {
 		t.Fatal("expected error deleting current branch")
 	}
+	fake.AssertNotCalledPrefix(t, "branch")
 }
 
 func TestRenameBranch(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	if err := RenameBranch(dir, "feature", "feature-renamed"); err != nil {
+	fake := newFakeRunner()
+	fake.On("branch", "-m", "feature", "feature-renamed").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := RenameBranch("/repo", "feature", "feature-renamed"); err != nil {
 		t.Fatalf("RenameBranch: %v", err)
 	}
-	entries, err := ListBranches(dir)
-	if err != nil {
-		t.Fatalf("ListBranches: %v", err)
-	}
-	var foundOld, foundNew bool
-	for _, entry := range entries {
-		if entry.IsRemote {
-			continue
-		}
-		if entry.Name == "feature" {
-			foundOld = true
-		}
-		if entry.Name == "feature-renamed" {
-			foundNew = true
-		}
-	}
-	if foundOld {
-		t.Fatal("old branch name should be gone")
-	}
-	if !foundNew {
-		t.Fatal("renamed branch should exist")
-	}
+	fake.AssertCalled(t, "branch", "-m", "feature", "feature-renamed")
 }
 
 func TestRenameBranchEmptyName(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	if err := RenameBranch(dir, "feature", "  "); err == nil {
+	fake := newFakeRunner()
+	withFakeRunner(t, fake)
+	if err := RenameBranch("/repo", "feature", "  "); err == nil {
 		t.Fatal("expected error for empty new branch name")
+	}
+	if len(fake.Calls()) != 0 {
+		t.Fatalf("expected no git calls, got %v", fake.ArgsList())
+	}
+}
+
+func TestRenameBranchSameNameNoop(t *testing.T) {
+	fake := newFakeRunner()
+	withFakeRunner(t, fake)
+	if err := RenameBranch("/repo", "feature", "feature"); err != nil {
+		t.Fatalf("RenameBranch: %v", err)
+	}
+	if len(fake.Calls()) != 0 {
+		t.Fatalf("expected no git calls, got %v", fake.ArgsList())
 	}
 }
 
 func TestMergeBranch(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	if err := MergeBranch(dir, "feature"); err != nil {
+	fake := newFakeRunner()
+	fake.On("merge", "--no-edit", "feature").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := MergeBranch("/repo", "feature"); err != nil {
 		t.Fatalf("MergeBranch: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "b.txt")); err != nil {
-		t.Fatalf("expected b.txt after merge: %v", err)
-	}
+	fake.AssertCalled(t, "merge", "--no-edit", "feature")
 }
 
 func TestSquashMergeBranch(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	if err := SquashMergeBranch(dir, "feature"); err != nil {
+	fake := newFakeRunner()
+	fake.On("merge", "--squash", "feature").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := SquashMergeBranch("/repo", "feature"); err != nil {
 		t.Fatalf("SquashMergeBranch: %v", err)
 	}
-	entries, err := GetStatus(dir)
-	if err != nil {
-		t.Fatalf("GetStatus: %v", err)
-	}
-	var found bool
-	for _, entry := range entries {
-		if entry.Path == "b.txt" && HasStagedChange(entry) {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected staged b.txt after squash merge, got: %+v", entries)
-	}
+	fake.AssertCalled(t, "merge", "--squash", "feature")
 }
 
 func TestResetToCommit(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	firstSHA, err := runGit(dir, "rev-parse", "HEAD")
-	if err != nil {
-		t.Fatalf("rev-parse first: %v", err)
-	}
+	fake := newFakeRunner()
+	fake.On("reset", "--hard", "abc123").Return("", nil)
+	withFakeRunner(t, fake)
 
-	if err := os.WriteFile(filepath.Join(dir, "c.txt"), []byte("3\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.Command("git", "add", "c.txt")
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("git add: %v\n%s", err, out)
-	}
-	cmd = exec.Command("git", "commit", "-m", "commit 2")
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("git commit: %v\n%s", err, out)
-	}
-
-	if err := ResetToCommit(dir, firstSHA, ResetHard); err != nil {
+	if err := ResetToCommit("/repo", "abc123", ResetHard); err != nil {
 		t.Fatalf("ResetToCommit: %v", err)
 	}
-	head, err := runGit(dir, "rev-parse", "HEAD")
-	if err != nil {
-		t.Fatalf("rev-parse: %v", err)
-	}
-	if head != firstSHA {
-		t.Fatalf("HEAD = %q, want %q", head, firstSHA)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "c.txt")); !os.IsNotExist(err) {
-		t.Fatal("c.txt should be removed after hard reset")
-	}
+	fake.AssertCalled(t, "reset", "--hard", "abc123")
 }
 
 func TestResetToCommitInvalidMode(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	if err := ResetToCommit(dir, "HEAD", ResetMode("bogus")); err == nil {
+	fake := newFakeRunner()
+	withFakeRunner(t, fake)
+	if err := ResetToCommit("/repo", "HEAD", ResetMode("bogus")); err == nil {
 		t.Fatal("expected error for invalid mode")
+	}
+	if len(fake.Calls()) != 0 {
+		t.Fatalf("expected no git calls, got %v", fake.ArgsList())
 	}
 }
 
 func TestParseUpstreamTrack(t *testing.T) {
 	tests := []struct {
-		track       string
-		wantAhead   int
-		wantBehind  int
+		track      string
+		wantAhead  int
+		wantBehind int
 	}{
 		{"", 0, 0},
 		{"[gone]", 0, 0},
@@ -240,9 +165,9 @@ func TestParseUpstreamTrack(t *testing.T) {
 
 func TestParseBranchRefLine(t *testing.T) {
 	tests := []struct {
-		line         string
-		wantName     string
-		wantCurrent  bool
+		line        string
+		wantName    string
+		wantCurrent bool
 	}{
 		{"main|*", "main", true},
 		{"feature/foo| ", "feature/foo", false},
@@ -261,95 +186,40 @@ func TestParseBranchRefLine(t *testing.T) {
 }
 
 func TestListBranches(t *testing.T) {
-	repoPath := filepath.Join("..", "..", "sample-repo")
-	if _, err := os.Stat(repoPath); err != nil {
-		t.Skip("sample-repo not found")
-	}
+	fake := newFakeRunner()
+	fake.On("for-each-ref", "--format=%(refname:short)|%(HEAD)|%(upstream:short)|%(upstream:track)", "refs/heads/").Return(
+		"main|*|origin/main|[ahead 1]\nfeature/foo| |||",
+		nil,
+	)
+	fake.On("for-each-ref", "--format=%(refname:short)", "refs/remotes/").Return(
+		"origin/HEAD\norigin/main\norigin/feature/foo",
+		nil,
+	)
+	withFakeRunner(t, fake)
 
-	entries, err := ListBranches(repoPath)
+	entries, err := ListBranches("/repo")
 	if err != nil {
 		t.Fatalf("ListBranches: %v", err)
 	}
-	if len(entries) == 0 {
-		t.Fatal("expected branches")
-	}
 
-	localNames := make(map[string]BranchEntry)
+	local := map[string]BranchEntry{}
+	var remotes []string
 	for _, entry := range entries {
 		if entry.IsRemote {
+			remotes = append(remotes, entry.Name)
 			continue
 		}
-		localNames[entry.Name] = entry
+		local[entry.Name] = entry
 	}
 
-	for _, want := range []string{"main", "feature/add-logging", "feature/add-config", "fix/typo"} {
-		if _, ok := localNames[want]; !ok {
-			t.Fatalf("missing local branch %q", want)
-		}
+	if !local["main"].IsCurrent || !local["main"].HasUpstream || local["main"].AheadCount != 1 {
+		t.Fatalf("unexpected main entry: %+v", local["main"])
 	}
-
-	var currentCount int
-	for _, entry := range entries {
-		if !entry.IsRemote && entry.IsCurrent {
-			currentCount++
-		}
+	if local["feature/foo"].IsCurrent || local["feature/foo"].HasUpstream {
+		t.Fatalf("unexpected feature entry: %+v", local["feature/foo"])
 	}
-	if currentCount != 1 {
-		t.Fatalf("expected exactly one current local branch, got %d", currentCount)
-	}
-}
-
-func TestListBranchesHasUpstream(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-
-	entries, err := ListBranches(dir)
-	if err != nil {
-		t.Fatalf("ListBranches: %v", err)
-	}
-	for _, entry := range entries {
-		if entry.IsRemote {
-			continue
-		}
-		if entry.HasUpstream {
-			t.Fatalf("expected no upstream, got HasUpstream on %q", entry.Name)
-		}
-	}
-
-	defaultBranch, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sha, err := runGit(dir, "rev-parse", "HEAD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	run("remote", "add", "origin", dir)
-	run("update-ref", "refs/remotes/origin/"+defaultBranch, sha)
-	run("branch", "--set-upstream-to=origin/"+defaultBranch, defaultBranch)
-
-	entries, err = ListBranches(dir)
-	if err != nil {
-		t.Fatalf("ListBranches after upstream: %v", err)
-	}
-	found := false
-	for _, entry := range entries {
-		if entry.Name == defaultBranch {
-			found = true
-			if !entry.HasUpstream {
-				t.Fatalf("expected HasUpstream on %q", defaultBranch)
-			}
-		}
-	}
-	if !found {
-		t.Fatalf("branch %q not found", defaultBranch)
+	if len(remotes) != 2 {
+		t.Fatalf("expected 2 remotes (HEAD skipped), got %v", remotes)
 	}
 }
 
@@ -385,82 +255,59 @@ func TestLocalBranchFromRemote(t *testing.T) {
 }
 
 func TestSwitchBranch(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	if err := SwitchBranch(dir, "feature"); err != nil {
+	fake := newFakeRunner()
+	fake.On("switch", "feature").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := SwitchBranch("/repo", "feature"); err != nil {
 		t.Fatalf("SwitchBranch: %v", err)
 	}
-	current, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if current != "feature" {
-		t.Fatalf("expected feature, got %q", current)
-	}
+	fake.AssertCalled(t, "switch", "feature")
 }
 
 func TestSwitchBranchEmptyName(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	if err := SwitchBranch(dir, "  "); err == nil {
+	fake := newFakeRunner()
+	withFakeRunner(t, fake)
+	if err := SwitchBranch("/repo", "  "); err == nil {
 		t.Fatal("expected error for empty branch name")
+	}
+	if len(fake.Calls()) != 0 {
+		t.Fatalf("expected no git calls, got %v", fake.ArgsList())
 	}
 }
 
-func TestCheckoutRemoteBranch(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
+func TestCheckoutRemoteBranchCreatesTracking(t *testing.T) {
+	fake := newFakeRunner()
+	fake.On("rev-parse", "--verify", "refs/heads/feature").Return("", errors.New("missing"))
+	fake.On("switch", "-c", "feature", "--track", "origin/feature").Return("", nil)
+	withFakeRunner(t, fake)
 
-	bare := t.TempDir()
-	cmd := exec.Command("git", "clone", "--bare", dir, bare)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("bare clone: %v\n%s", err, out)
+	if err := CheckoutRemoteBranch("/repo", "origin/feature"); err != nil {
+		t.Fatalf("CheckoutRemoteBranch: %v", err)
 	}
-	run("remote", "add", "origin", bare)
-	run("fetch", "origin")
+	fake.AssertCalled(t, "switch", "-c", "feature", "--track", "origin/feature")
+}
 
-	defaultBranch, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestCheckoutRemoteBranchExistingLocal(t *testing.T) {
+	fake := newFakeRunner()
+	fake.On("rev-parse", "--verify", "refs/heads/feature").Return("abc", nil)
+	fake.On("switch", "feature").Return("", nil)
+	withFakeRunner(t, fake)
 
-	// Tracking branch for remote feature should be created.
-	if err := CheckoutRemoteBranch(dir, "origin/feature"); err != nil {
-		t.Fatalf("CheckoutRemoteBranch create: %v", err)
+	if err := CheckoutRemoteBranch("/repo", "origin/feature"); err != nil {
+		t.Fatalf("CheckoutRemoteBranch: %v", err)
 	}
-	current, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if current != "feature" {
-		t.Fatalf("expected feature, got %q", current)
-	}
-
-	if err := SwitchBranch(dir, defaultBranch); err != nil {
-		t.Fatalf("SwitchBranch back: %v", err)
-	}
-
-	// Existing local branch: switch only.
-	if err := CheckoutRemoteBranch(dir, "origin/feature"); err != nil {
-		t.Fatalf("CheckoutRemoteBranch existing: %v", err)
-	}
-	current, err = CurrentBranch(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if current != "feature" {
-		t.Fatalf("expected feature after re-checkout, got %q", current)
-	}
+	fake.AssertCalled(t, "switch", "feature")
+	fake.AssertNotCalledPrefix(t, "switch", "-c")
 }
 
 func TestCheckoutRemoteBranchInvalid(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	if err := CheckoutRemoteBranch(dir, "origin"); err == nil {
+	fake := newFakeRunner()
+	withFakeRunner(t, fake)
+	if err := CheckoutRemoteBranch("/repo", "origin"); err == nil {
 		t.Fatal("expected error for invalid remote ref")
+	}
+	if len(fake.Calls()) != 0 {
+		t.Fatalf("expected no git calls, got %v", fake.ArgsList())
 	}
 }

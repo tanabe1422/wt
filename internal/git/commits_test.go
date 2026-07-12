@@ -1,62 +1,11 @@
 package git
 
 import (
-	"os"
-	"os/exec"
-	"path/filepath"
+	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 )
-
-func initTempRepo(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-
-	run("init")
-	run("config", "user.email", "test@example.com")
-	run("config", "user.name", "Test User")
-
-	write := func(name, content string) {
-		t.Helper()
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	write("a.txt", "1\n")
-	run("add", "a.txt")
-	run("commit", "-m", "commit 1")
-
-	write("b.txt", "2\n")
-	run("add", "b.txt")
-	run("commit", "-m", "commit 2")
-
-	run("checkout", "-b", "feature")
-	write("c.txt", "3\n")
-	run("add", "c.txt")
-	run("commit", "-m", "feature commit")
-
-	defaultBranch, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatalf("CurrentBranch: %v", err)
-	}
-	run("checkout", defaultBranch)
-	write("d.txt", "4\n")
-	run("add", "d.txt")
-	run("commit", "-m", "main commit")
-
-	run("merge", "feature", "-m", "merge feature")
-
-	return dir
-}
 
 func TestParseCommitLog(t *testing.T) {
 	raw := "abc123\x1fdef456\x1fAlice\x1falice@example.com\x1f2026-01-01T00:00:00+09:00\x1fhello\nworld\x1e"
@@ -86,11 +35,21 @@ func TestParseParentsEmpty(t *testing.T) {
 	}
 }
 
+func commitRecord(sha, parents, message string) string {
+	return sha + "\x1f" + parents + "\x1fAlice\x1fa@example.com\x1f2026-01-01T00:00:00+09:00\x1f" + message + "\x1e"
+}
+
 func TestListCommitsPagination(t *testing.T) {
-	repo := initTempRepo(t)
+	dir := t.TempDir()
+	page1Out := commitRecord("c1", "", "one") + commitRecord("c2", "c1", "two") + commitRecord("c3", "c2", "three")
+	page2Out := commitRecord("c3", "c2", "three") + commitRecord("c4", "c3", "four")
+	fake := newFakeRunner()
+	fake.On("log", "--all", "--topo-order", fmt.Sprintf("--format=%s", commitLogFormat), "--skip=0", "-n", "3").Once().Return(page1Out, nil)
+	fake.On("log", "--all", "--topo-order", fmt.Sprintf("--format=%s", commitLogFormat), "--skip=2", "-n", "3").Once().Return(page2Out, nil)
+	withFakeRunner(t, fake)
 
 	page1, err := ListCommits(ListCommitsParams{
-		WorktreePath: repo,
+		WorktreePath: dir,
 		Scope:        HistoryScopeAll,
 		Skip:         0,
 		Limit:        2,
@@ -109,7 +68,7 @@ func TestListCommitsPagination(t *testing.T) {
 	}
 
 	page2, err := ListCommits(ListCommitsParams{
-		WorktreePath: repo,
+		WorktreePath: dir,
 		Scope:        HistoryScopeAll,
 		Skip:         page1.NextSkip,
 		Limit:        2,
@@ -130,33 +89,22 @@ func TestListCommitsPagination(t *testing.T) {
 }
 
 func TestListCommitsScopeBranch(t *testing.T) {
-	repo := initTempRepo(t)
-
-	allResult, err := ListCommits(ListCommitsParams{
-		WorktreePath: repo,
-		Scope:        HistoryScopeAll,
-		Skip:         0,
-		Limit:        50,
-	})
-	if err != nil {
-		t.Fatalf("ListCommits all: %v", err)
-	}
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("log", "--topo-order", fmt.Sprintf("--format=%s", commitLogFormat), "--skip=0", "-n", strconv.Itoa(defaultCommitLimit+1), "feature").
+		Return(commitRecord("f1", "", "feature commit"), nil)
+	withFakeRunner(t, fake)
 
 	branchResult, err := ListCommits(ListCommitsParams{
-		WorktreePath: repo,
+		WorktreePath: dir,
 		Scope:        HistoryScopeBranch,
 		Branch:       "feature",
 		Skip:         0,
-		Limit:        50,
+		Limit:        defaultCommitLimit,
 	})
 	if err != nil {
 		t.Fatalf("ListCommits branch: %v", err)
 	}
-
-	if len(allResult.Commits) < len(branchResult.Commits) {
-		t.Fatalf("expected all (%d) >= feature (%d)", len(allResult.Commits), len(branchResult.Commits))
-	}
-
 	foundFeature := false
 	for _, entry := range branchResult.Commits {
 		if strings.Contains(entry.Commit.Message, "feature commit") {
@@ -167,63 +115,53 @@ func TestListCommitsScopeBranch(t *testing.T) {
 	if !foundFeature {
 		t.Fatal("expected feature branch commit in branch-scoped result")
 	}
+	fake.AssertCalledPrefix(t, "log", "--topo-order")
 }
 
 func TestListBranchHeads(t *testing.T) {
-	repo := initTempRepo(t)
+	dir := t.TempDir()
+	mergeSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	fake := newFakeRunner()
+	fake.On("for-each-ref", "--format=%(refname:short)|%(objecttype)|%(objectname)", "refs/heads/", "refs/remotes/", "refs/tags/").Return(
+		"feature|commit|"+mergeSHA+"\nv-light|commit|"+mergeSHA+"\nv-annotated|tag|bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\norigin/HEAD|commit|"+mergeSHA,
+		nil,
+	)
+	fake.On("rev-parse", "v-annotated^{commit}").Return(mergeSHA, nil)
+	withFakeRunner(t, fake)
 
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = repo
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-
-	mergeCommitSHA, err := runGit(repo, "rev-parse", "HEAD")
-	if err != nil {
-		t.Fatalf("rev-parse HEAD: %v", err)
-	}
-	mergeCommitSHA = strings.TrimSpace(mergeCommitSHA)
-
-	run("tag", "v-light", mergeCommitSHA)
-	run("tag", "-a", "v-annotated", "-m", "annotated tag", mergeCommitSHA)
-
-	heads, err := ListBranchHeads(repo)
+	heads, err := ListBranchHeads(dir)
 	if err != nil {
 		t.Fatalf("ListBranchHeads: %v", err)
 	}
-	if len(heads) < 2 {
-		t.Fatalf("expected at least 2 branch heads, got %d", len(heads))
-	}
-
 	names := make(map[string]string)
 	for _, head := range heads {
-		if head.Name == "" || head.Commit.SHA == "" {
-			t.Fatalf("invalid branch head: %+v", head)
-		}
 		names[head.Name] = head.Commit.SHA
 	}
 	if _, ok := names["feature"]; !ok {
 		t.Fatalf("expected feature branch head, got %#v", names)
 	}
-	if names["v-light"] != mergeCommitSHA {
+	if names["v-light"] != mergeSHA {
 		t.Fatalf("expected lightweight tag on merge commit, got %q", names["v-light"])
 	}
-	if names["v-annotated"] != mergeCommitSHA {
+	if names["v-annotated"] != mergeSHA {
 		t.Fatalf("expected annotated tag on merge commit, got %q", names["v-annotated"])
+	}
+	if _, ok := names["origin/HEAD"]; ok {
+		t.Fatal("HEAD remote ref should be skipped")
 	}
 }
 
 func TestCurrentBranch(t *testing.T) {
-	repo := initTempRepo(t)
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("rev-parse", "--abbrev-ref", "HEAD").Return("main", nil)
+	withFakeRunner(t, fake)
 
-	branch, err := CurrentBranch(repo)
+	branch, err := CurrentBranch(dir)
 	if err != nil {
 		t.Fatalf("CurrentBranch: %v", err)
 	}
-	if branch == "" || branch == "HEAD" {
+	if branch != "main" {
 		t.Fatalf("unexpected current branch: %s", branch)
 	}
 }

@@ -82,6 +82,10 @@ export function GetFileDiff(arg1, arg2, arg3) {
   return window['go']['app']['App']['GetFileDiff'](arg1, arg2, arg3);
 }
 
+export function GetRangeFileDiff(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['GetRangeFileDiff'](arg1, arg2, arg3, arg4);
+}
+
 export function GetSettings() {
   return window['go']['app']['App']['GetSettings']();
 }
@@ -108,6 +112,10 @@ export function ListCommitFiles(arg1, arg2) {
 
 export function ListCommits(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['app']['App']['ListCommits'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function ListRangeFiles(arg1, arg2, arg3) {
+  return window['go']['app']['App']['ListRangeFiles'](arg1, arg2, arg3);
 }
 
 export function ListStashes(arg1) {

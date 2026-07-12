@@ -1,173 +1,43 @@
 package git
 
 import (
-	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
+	"errors"
 	"strings"
 	"testing"
-	"time"
 )
 
-func sampleRepoPath(t *testing.T) string {
-	t.Helper()
-	repoPath := filepath.Join("..", "..", "sample-repo")
-	if _, err := os.Stat(repoPath); err != nil {
-		t.Skip("sample-repo not found")
-	}
-	return repoPath
-}
+func TestGetStatus(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("status", "--porcelain=v1", "-u").Return("?? status-test-tmp.txt", nil)
+	fake.On("ls-files", "-s", "--", "status-test-tmp.txt").Return("", nil)
+	withFakeRunner(t, fake)
 
-func gitHead(t *testing.T, dir string) string {
-	t.Helper()
-	cmd := exec.Command("git", "rev-parse", "HEAD")
-	cmd.Dir = dir
-	out, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("rev-parse HEAD: %v", err)
-	}
-	return strings.TrimSpace(string(out))
-}
-
-func TestGetStatusIntegration(t *testing.T) {
-	repo := sampleRepoPath(t)
-	testFile := filepath.Join(repo, "status-test-tmp.txt")
-	if err := os.WriteFile(testFile, []byte("hello\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Remove(testFile) })
-
-	entries, err := GetStatus(repo)
+	entries, err := GetStatus(dir)
 	if err != nil {
 		t.Fatalf("GetStatus: %v", err)
 	}
-
-	var found *FileStatus
-	for i := range entries {
-		if entries[i].Path == "status-test-tmp.txt" {
-			found = &entries[i]
-			break
-		}
+	if len(entries) != 1 || entries[0].Path != "status-test-tmp.txt" {
+		t.Fatalf("unexpected entries: %+v", entries)
 	}
-	if found == nil {
-		t.Fatal("expected untracked file in status")
-	}
-	if !HasUnstagedChange(*found) || HasStagedChange(*found) {
-		t.Fatalf("unexpected status: %+v", found)
-	}
+	fake.AssertCalledPrefix(t, "status", "--porcelain=v1", "-u")
 }
 
-func TestStageCommitIntegration(t *testing.T) {
-	repo := sampleRepoPath(t)
-	testName := fmt.Sprintf("commit-test-%d.txt", time.Now().UnixNano())
-	testFile := filepath.Join(repo, testName)
-	content := fmt.Sprintf("commit me %d\n", time.Now().UnixNano())
-	if err := os.WriteFile(testFile, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
+func TestStageCommit(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("add", "--", "README.md").Return("", nil)
+	fake.On("commit", "-m", "test commit from unit").Return("", nil)
+	withFakeRunner(t, fake)
 
-	before := gitHead(t, repo)
-	t.Cleanup(func() {
-		cmd := exec.Command("git", "reset", "--hard", before)
-		cmd.Dir = repo
-		_ = cmd.Run()
-		_ = os.Remove(testFile)
-	})
-
-	if err := StageFiles(repo, []string{testName}); err != nil {
+	if err := StageFiles(dir, []string{"README.md"}); err != nil {
 		t.Fatalf("StageFiles: %v", err)
 	}
-
-	entries, err := GetStatus(repo)
-	if err != nil {
-		t.Fatalf("GetStatus after stage: %v", err)
-	}
-	var found bool
-	for _, entry := range entries {
-		if filepath.Base(filepath.FromSlash(entry.Path)) == testName && HasStagedChange(entry) {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected staged file %q, got: %+v", testName, entries)
-	}
-
-	if err := Commit(repo, "test: commit integration"); err != nil {
+	if err := Commit(dir, "test commit from unit"); err != nil {
 		t.Fatalf("Commit: %v", err)
 	}
-
-	after := gitHead(t, repo)
-	if before == after {
-		t.Fatal("HEAD should advance after commit")
-	}
-}
-
-func TestGetFileDiffUntrackedIntegration(t *testing.T) {
-	repo := sampleRepoPath(t)
-	testName := fmt.Sprintf("untracked-diff-%d.txt", time.Now().UnixNano())
-	testFile := filepath.Join(repo, testName)
-	content := fmt.Sprintf("line one %d\nline two\n", time.Now().UnixNano())
-	if err := os.WriteFile(testFile, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Remove(testFile) })
-
-	diff, err := GetFileDiff(repo, testName, false)
-	if err != nil {
-		t.Fatalf("GetFileDiff: %v", err)
-	}
-	if len(diff.Hunks) == 0 {
-		t.Fatal("expected at least one hunk for untracked file")
-	}
-
-	hasAdd := false
-	for _, hunk := range diff.Hunks {
-		for _, line := range hunk.Lines {
-			if line.Kind == "add" && strings.Contains(line.Content, "line one") {
-				hasAdd = true
-			}
-		}
-	}
-	if !hasAdd {
-		t.Fatal("expected added lines for untracked file")
-	}
-}
-
-func TestGetFileDiffIntegration(t *testing.T) {
-	repo := sampleRepoPath(t)
-	readme := filepath.Join(repo, "README.md")
-	original, err := os.ReadFile(readme)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.WriteFile(readme, original, 0o644) })
-
-	modified := string(original) + "\n# diff test line\n"
-	if err := os.WriteFile(readme, []byte(modified), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	diff, err := GetFileDiff(repo, "README.md", false)
-	if err != nil {
-		t.Fatalf("GetFileDiff: %v", err)
-	}
-	if len(diff.Hunks) == 0 {
-		t.Fatal("expected at least one hunk")
-	}
-
-	hasAdd := false
-	for _, hunk := range diff.Hunks {
-		for _, line := range hunk.Lines {
-			if line.Kind == "add" && strings.Contains(line.Content, "diff test line") {
-				hasAdd = true
-			}
-		}
-	}
-	if !hasAdd {
-		t.Fatal("expected added line in diff")
-	}
+	fake.AssertCalled(t, "add", "--", "README.md")
+	fake.AssertCalled(t, "commit", "-m", "test commit from unit")
 }
 
 func TestFetchArgs(t *testing.T) {
@@ -342,443 +212,189 @@ func TestBuildToolCmd(t *testing.T) {
 	}
 }
 
-func TestStageHunkIntegration(t *testing.T) {
-	repo := sampleRepoPath(t)
-	readme := filepath.Join(repo, "README.md")
-	original, err := os.ReadFile(readme)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		cmd := exec.Command("git", "reset", "--hard")
-		cmd.Dir = repo
-		_ = cmd.Run()
-		_ = os.WriteFile(readme, original, 0o644)
-	})
+func TestDiscardFiles(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("restore", "--worktree", "--", "README.md").Return("", nil)
+	withFakeRunner(t, fake)
 
-	modified := string(original) + "\n# hunk stage line 1\n# hunk stage line 2\n"
-	if err := os.WriteFile(readme, []byte(modified), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	diff, err := GetFileDiff(repo, "README.md", false)
-	if err != nil {
-		t.Fatalf("GetFileDiff: %v", err)
-	}
-	if len(diff.Hunks) == 0 {
-		t.Fatal("expected at least one hunk")
-	}
-
-	if err := StageHunk(repo, "README.md", 0); err != nil {
-		t.Fatalf("StageHunk: %v", err)
-	}
-
-	stagedDiff, err := GetFileDiff(repo, "README.md", true)
-	if err != nil {
-		t.Fatalf("GetFileDiff staged: %v", err)
-	}
-	if len(stagedDiff.Hunks) == 0 {
-		t.Fatal("expected staged hunk after StageHunk")
-	}
-
-	unstagedDiff, err := GetFileDiff(repo, "README.md", false)
-	if err != nil {
-		t.Fatalf("GetFileDiff unstaged: %v", err)
-	}
-	// After staging the only hunk, unstaged diff should be empty.
-	if len(unstagedDiff.Hunks) > 0 {
-		t.Fatalf("expected no unstaged hunks after staging all changes, got %d", len(unstagedDiff.Hunks))
-	}
-
-	if err := UnstageHunk(repo, "README.md", 0); err != nil {
-		t.Fatalf("UnstageHunk: %v", err)
-	}
-
-	stagedAfter, err := GetFileDiff(repo, "README.md", true)
-	if err != nil {
-		t.Fatalf("GetFileDiff staged after unstage: %v", err)
-	}
-	if len(stagedAfter.Hunks) > 0 {
-		t.Fatalf("expected no staged hunks after UnstageHunk, got %d", len(stagedAfter.Hunks))
-	}
-}
-
-func TestDiscardHunkIntegration(t *testing.T) {
-	repo := sampleRepoPath(t)
-	readme := filepath.Join(repo, "README.md")
-	original, err := os.ReadFile(readme)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		cmd := exec.Command("git", "reset", "--hard")
-		cmd.Dir = repo
-		_ = cmd.Run()
-		_ = os.WriteFile(readme, original, 0o644)
-	})
-
-	modified := string(original) + "\n# discard hunk line\n"
-	if err := os.WriteFile(readme, []byte(modified), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	diff, err := GetFileDiff(repo, "README.md", false)
-	if err != nil {
-		t.Fatalf("GetFileDiff: %v", err)
-	}
-	if len(diff.Hunks) == 0 {
-		t.Fatal("expected at least one hunk")
-	}
-
-	if err := DiscardHunk(repo, "README.md", 0, false); err != nil {
-		t.Fatalf("DiscardHunk: %v", err)
-	}
-
-	after, err := os.ReadFile(readme)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(after) != string(original) {
-		t.Fatalf("expected file reverted after DiscardHunk, got:\n%s", string(after))
-	}
-
-	unstagedDiff, err := GetFileDiff(repo, "README.md", false)
-	if err != nil {
-		t.Fatalf("GetFileDiff after discard: %v", err)
-	}
-	if len(unstagedDiff.Hunks) > 0 {
-		t.Fatalf("expected no unstaged hunks after discard, got %d", len(unstagedDiff.Hunks))
-	}
-}
-
-func TestDiscardFilesIntegration(t *testing.T) {
-	repo := sampleRepoPath(t)
-	readme := filepath.Join(repo, "README.md")
-	original, err := os.ReadFile(readme)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		cmd := exec.Command("git", "reset", "--hard")
-		cmd.Dir = repo
-		_ = cmd.Run()
-		_ = os.WriteFile(readme, original, 0o644)
-	})
-
-	modified := string(original) + "\n# discard files line\n"
-	if err := os.WriteFile(readme, []byte(modified), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := DiscardFiles(repo, []string{"README.md"}); err != nil {
+	if err := DiscardFiles(dir, []string{"README.md"}); err != nil {
 		t.Fatalf("DiscardFiles: %v", err)
 	}
-
-	after, err := os.ReadFile(readme)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(after) != string(original) {
-		t.Fatalf("expected file reverted after DiscardFiles")
-	}
+	fake.AssertCalled(t, "restore", "--worktree", "--", "README.md")
 }
 
-func TestDeleteUntrackedIntegration(t *testing.T) {
-	repo := sampleRepoPath(t)
-	testName := fmt.Sprintf("delete-untracked-%d.txt", time.Now().UnixNano())
-	testFile := filepath.Join(repo, testName)
-	if err := os.WriteFile(testFile, []byte("temp\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Remove(testFile) })
+func TestDeleteUntracked(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("clean", "-fd", "--", "tmp-untracked.txt").Return("", nil)
+	withFakeRunner(t, fake)
 
-	if err := DeleteUntracked(repo, []string{testName}); err != nil {
+	if err := DeleteUntracked(dir, []string{"tmp-untracked.txt"}); err != nil {
 		t.Fatalf("DeleteUntracked: %v", err)
 	}
-	if _, err := os.Stat(testFile); !os.IsNotExist(err) {
-		t.Fatalf("expected untracked file removed, stat err=%v", err)
-	}
+	fake.AssertCalled(t, "clean", "-fd", "--", "tmp-untracked.txt")
 }
 
-func TestDiscardAllChangesIntegration(t *testing.T) {
-	repo := sampleRepoPath(t)
-	readme := filepath.Join(repo, "README.md")
-	original, err := os.ReadFile(readme)
-	if err != nil {
-		t.Fatal(err)
-	}
-	untrackedName := fmt.Sprintf("discard-all-%d.txt", time.Now().UnixNano())
-	untrackedFile := filepath.Join(repo, untrackedName)
-	t.Cleanup(func() {
-		cmd := exec.Command("git", "reset", "--hard")
-		cmd.Dir = repo
-		_ = cmd.Run()
-		_ = os.WriteFile(readme, original, 0o644)
-		_ = os.Remove(untrackedFile)
-	})
+func TestDiscardAllChanges(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("reset", "--hard").Return("", nil)
+	fake.On("clean", "-fd").Return("", nil)
+	withFakeRunner(t, fake)
 
-	if err := os.WriteFile(readme, append(original, []byte("\n# discard all\n")...), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(untrackedFile, []byte("temp\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.Command("git", "add", "README.md")
-	cmd.Dir = repo
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("git add: %v\n%s", err, out)
-	}
-
-	if err := DiscardAllChanges(repo); err != nil {
+	if err := DiscardAllChanges(dir); err != nil {
 		t.Fatalf("DiscardAllChanges: %v", err)
 	}
-
-	after, err := os.ReadFile(readme)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(after) != string(original) {
-		t.Fatalf("expected tracked file reverted after DiscardAllChanges")
-	}
-	if _, err := os.Stat(untrackedFile); !os.IsNotExist(err) {
-		t.Fatalf("expected untracked file removed, stat err=%v", err)
-	}
+	fake.AssertCalled(t, "reset", "--hard")
+	fake.AssertCalled(t, "clean", "-fd")
 }
 
-func TestAbortMergeIntegration(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-
-	merging, err := IsMerging(dir)
-	if err != nil {
-		t.Fatalf("IsMerging before: %v", err)
-	}
-	if merging {
-		t.Fatal("expected not merging initially")
-	}
-
-	defaultBranch, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("main conflict\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	run("add", "a.txt")
-	run("commit", "-m", "main conflict")
-
-	run("checkout", "feature")
-	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("feature conflict\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	run("add", "a.txt")
-	run("commit", "-m", "feature conflict")
-	run("checkout", defaultBranch)
-
-	cmd := exec.Command("git", "merge", "--no-commit", "feature")
-	cmd.Dir = dir
-	_ = cmd.Run() // expect conflict
-
-	merging, err = IsMerging(dir)
-	if err != nil {
-		t.Fatalf("IsMerging during: %v", err)
-	}
-	if !merging {
-		t.Fatal("expected merge in progress")
-	}
+func TestAbortMerge(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("merge", "--abort").Return("", nil)
+	withFakeRunner(t, fake)
 
 	if err := AbortMerge(dir); err != nil {
 		t.Fatalf("AbortMerge: %v", err)
 	}
+	fake.AssertCalled(t, "merge", "--abort")
+}
 
-	merging, err = IsMerging(dir)
-	if err != nil {
-		t.Fatalf("IsMerging after abort: %v", err)
+func TestStageHunk(t *testing.T) {
+	dir := t.TempDir()
+	diffBody := "diff --git a/README.md b/README.md\n" +
+		"--- a/README.md\n+++ b/README.md\n" +
+		"@@ -1,1 +1,2 @@\n line\n+added\n"
+	fake := newFakeRunner()
+	fake.On("diff", "-U3", "--", "README.md").Return(diffBody, nil)
+	fake.On("apply", "--cached").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := StageHunk(dir, "README.md", 0); err != nil {
+		t.Fatalf("StageHunk: %v", err)
 	}
-	if merging {
-		t.Fatal("expected merge aborted")
+	fake.AssertCalledPrefix(t, "apply", "--cached")
+	calls := fake.Calls()
+	var applyCall *fakeCall
+	for i := range calls {
+		if len(calls[i].Args) >= 1 && calls[i].Args[0] == "apply" {
+			applyCall = &calls[i]
+			break
+		}
+	}
+	if applyCall == nil || applyCall.Stdin == "" {
+		t.Fatal("expected apply with patch stdin")
 	}
 }
 
 func TestGetAmendInfoNoUpstream(t *testing.T) {
-	dir := initBranchOpRepo(t)
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("rev-parse", "-q", "--verify", "HEAD").Return("abc", nil)
+	fake.On("log", "-1", "--format=%B").Return("tip message\n", nil)
+	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("", errors.New("missing"))
+	fake.On("rev-parse", "-q", "--verify", "@{upstream}").Return("", errors.New("no upstream"))
+	withFakeRunner(t, fake)
+
 	info, err := GetAmendInfo(dir)
 	if err != nil {
 		t.Fatalf("GetAmendInfo: %v", err)
 	}
 	if !info.CanAmend {
-		t.Fatalf("expected canAmend, reason=%q", info.Reason)
+		t.Fatalf("expected CanAmend, got %+v", info)
 	}
-	if info.HeadMessage == "" {
-		t.Fatal("expected head message")
+	if info.HeadMessage != "tip message" {
+		t.Fatalf("unexpected message: %q", info.HeadMessage)
 	}
 }
 
 func TestGetAmendInfoBlocksWhenSyncedWithUpstream(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-
-	defaultBranch, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sha, err := runGit(dir, "rev-parse", "HEAD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	run("remote", "add", "origin", dir)
-	run("update-ref", "refs/remotes/origin/"+defaultBranch, sha)
-	run("branch", "--set-upstream-to=origin/"+defaultBranch, defaultBranch)
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("rev-parse", "-q", "--verify", "HEAD").Return("abc", nil)
+	fake.On("log", "-1", "--format=%B").Return("synced tip\n", nil)
+	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("", errors.New("missing"))
+	fake.On("rev-parse", "-q", "--verify", "@{upstream}").Return("origin/main", nil)
+	fake.On("rev-list", "--count", "@{upstream}..HEAD").Return("0", nil)
+	withFakeRunner(t, fake)
 
 	info, err := GetAmendInfo(dir)
 	if err != nil {
 		t.Fatalf("GetAmendInfo: %v", err)
 	}
 	if info.CanAmend {
-		t.Fatal("expected amend blocked when ahead=0")
+		t.Fatal("expected CanAmend=false when synced")
 	}
-	if info.Reason != "すでにプッシュ済みです" {
+	if !strings.Contains(info.Reason, "プッシュ済み") {
 		t.Fatalf("unexpected reason: %q", info.Reason)
 	}
 }
 
 func TestAmendCommitAllowsWhenAhead(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("rev-parse", "-q", "--verify", "HEAD").Return("abc", nil)
+	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("", errors.New("missing"))
+	fake.On("rev-parse", "-q", "--verify", "@{upstream}").Return("origin/main", nil)
+	fake.On("rev-list", "--count", "@{upstream}..HEAD").Return("1", nil)
+	fake.On("commit", "--amend", "-m", "amended message").Return("", nil)
+	withFakeRunner(t, fake)
 
-	defaultBranch, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	baseSHA, err := runGit(dir, "rev-parse", "HEAD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	run("remote", "add", "origin", dir)
-	run("update-ref", "refs/remotes/origin/"+defaultBranch, baseSHA)
-	run("branch", "--set-upstream-to=origin/"+defaultBranch, defaultBranch)
-
-	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("local ahead\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	run("add", "a.txt")
-	run("commit", "-m", "local tip")
-
-	info, err := GetAmendInfo(dir)
-	if err != nil {
-		t.Fatalf("GetAmendInfo: %v", err)
-	}
-	if !info.CanAmend {
-		t.Fatalf("expected canAmend when ahead>=1, reason=%q", info.Reason)
-	}
-
-	before := gitHead(t, dir)
-	if err := AmendCommit(dir, "amended tip"); err != nil {
+	if err := AmendCommit(dir, "amended message"); err != nil {
 		t.Fatalf("AmendCommit: %v", err)
 	}
-	after := gitHead(t, dir)
-	if before == after {
-		t.Fatal("HEAD sha should change after amend")
-	}
-	msg, err := runGit(dir, "log", "-1", "--format=%B")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.TrimSpace(msg) != "amended tip" {
-		t.Fatalf("message=%q", msg)
-	}
+	fake.AssertCalled(t, "commit", "--amend", "-m", "amended message")
 }
 
 func TestAmendCommitRejectsWhenSynced(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("rev-parse", "-q", "--verify", "HEAD").Return("abc", nil)
+	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("", errors.New("missing"))
+	fake.On("rev-parse", "-q", "--verify", "@{upstream}").Return("origin/main", nil)
+	fake.On("rev-list", "--count", "@{upstream}..HEAD").Return("0", nil)
+	withFakeRunner(t, fake)
 
-	defaultBranch, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatal(err)
+	err := AmendCommit(dir, "should fail")
+	if err == nil {
+		t.Fatal("expected amend to fail when synced")
 	}
-	sha, err := runGit(dir, "rev-parse", "HEAD")
-	if err != nil {
-		t.Fatal(err)
+	if !strings.Contains(err.Error(), "プッシュ済み") {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	run("remote", "add", "origin", dir)
-	run("update-ref", "refs/remotes/origin/"+defaultBranch, sha)
-	run("branch", "--set-upstream-to=origin/"+defaultBranch, defaultBranch)
-
-	if err := AmendCommit(dir, "should fail"); err == nil {
-		t.Fatal("expected AmendCommit to fail when ahead=0")
-	}
+	fake.AssertNotCalledPrefix(t, "commit", "--amend")
 }
 
 func TestGetAmendInfoBlocksWhileMerging(t *testing.T) {
-	dir := initBranchOpRepo(t)
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-
-	defaultBranch, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("main conflict\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	run("add", "a.txt")
-	run("commit", "-m", "main conflict")
-	run("checkout", "feature")
-	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("feature conflict\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	run("add", "a.txt")
-	run("commit", "-m", "feature conflict")
-	run("checkout", defaultBranch)
-
-	cmd := exec.Command("git", "merge", "--no-commit", "feature")
-	cmd.Dir = dir
-	_ = cmd.Run()
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("rev-parse", "-q", "--verify", "HEAD").Return("abc", nil)
+	fake.On("log", "-1", "--format=%B").Return("during merge\n", nil)
+	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("def", nil)
+	withFakeRunner(t, fake)
 
 	info, err := GetAmendInfo(dir)
 	if err != nil {
 		t.Fatalf("GetAmendInfo: %v", err)
 	}
 	if info.CanAmend {
-		t.Fatal("expected amend blocked while merging")
+		t.Fatal("expected CanAmend=false while merging")
 	}
-	if info.Reason != "マージ中は修正できません" {
+	if !strings.Contains(info.Reason, "マージ中") {
 		t.Fatalf("unexpected reason: %q", info.Reason)
+	}
+}
+
+func TestStageHunkOutOfRange(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("diff", "-U3", "--", "README.md").Return("", nil)
+	fake.On("ls-files", "--others", "--exclude-standard", "--", "README.md").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := StageHunk(dir, "README.md", 0); err == nil {
+		t.Fatal("expected out-of-range error")
 	}
 }

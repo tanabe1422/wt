@@ -187,6 +187,18 @@ func (a *App) GetCommitFileDiff(worktreePath, sha, file string) (git.FileDiff, e
 	})
 }
 
+func (a *App) ListRangeFiles(worktreePath, fromRef, toRef string) ([]git.CommitFileChange, error) {
+	return withWorktreeResult(worktreePath, func(dir string) ([]git.CommitFileChange, error) {
+		return git.ListRangeFiles(dir, fromRef, toRef)
+	})
+}
+
+func (a *App) GetRangeFileDiff(worktreePath, fromRef, toRef, file string) (git.FileDiff, error) {
+	return withWorktreeResult(worktreePath, func(dir string) (git.FileDiff, error) {
+		return git.GetRangeFileDiff(dir, fromRef, toRef, file)
+	})
+}
+
 func (a *App) SwitchBranch(worktreePath, branch string) error {
 	return withWorktree(worktreePath, func(dir string) error {
 		return git.SwitchBranch(dir, branch)

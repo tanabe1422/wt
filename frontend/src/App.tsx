@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react'
 import { MainLayout } from './components/layout/MainLayout'
 import { GitWorkspace } from './components/git/GitWorkspace'
 import { HistoryView } from './components/git/HistoryView'
+import type { CompareRange } from './components/git/CompareDetailPane'
 import { SettingsDialog } from './components/settings/SettingsDialog'
 import { BranchSidebar } from './components/sidebar/BranchSidebar'
 import { RepoTabBar } from './components/tabs/RepoTabBar'
@@ -20,8 +21,12 @@ function AppShell() {
   const [workspaceRevision, setWorkspaceRevision] = useState(0)
   const [workspaceBusy, setWorkspaceBusy] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [compareRequest, setCompareRequest] = useState<CompareRange | null>(null)
   const handleWorkspaceBusyChange = useCallback((busy: boolean) => {
     setWorkspaceBusy(busy)
+  }, [])
+  const handleCompareRequestConsumed = useCallback(() => {
+    setCompareRequest(null)
   }, [])
   const {
     settings,
@@ -59,6 +64,19 @@ function AppShell() {
     worktrees.find((worktree) => worktree.path === worktreePath)?.branch ??
     selectedBranch ??
     ''
+
+  const compareFromRef = currentBranch !== '' ? currentBranch : null
+
+  const handleCompareWithCurrent = useCallback(
+    (branch: string) => {
+      if (!compareFromRef) {
+        return
+      }
+      setCompareRequest({ fromRef: compareFromRef, toRef: branch })
+      setMainView('history')
+    },
+    [compareFromRef],
+  )
 
   const workspaceKey = `${worktreePath}-${workspaceRevision}`
 
@@ -124,6 +142,8 @@ function AppShell() {
             onSelectWorktree={setSelectedWorktree}
             onReload={reloadSidebar}
             onBranchChanged={() => setWorkspaceRevision((value) => value + 1)}
+            compareFromRef={compareFromRef}
+            onCompareWithCurrent={handleCompareWithCurrent}
           />
         }
       >
@@ -144,6 +164,8 @@ function AppShell() {
               key={workspaceKey}
               worktreePath={worktreePath}
               currentBranch={currentBranch}
+              compareRequest={compareRequest}
+              onCompareRequestConsumed={handleCompareRequestConsumed}
               onResetComplete={handleSyncComplete}
             />
           )
