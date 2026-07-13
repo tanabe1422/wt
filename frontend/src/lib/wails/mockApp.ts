@@ -210,6 +210,8 @@ let mockBranchList: BranchEntry[] = [
   { name: 'origin/main', isCurrent: false, isRemote: true, hasUpstream: false, aheadCount: 0, behindCount: 0 },
   { name: 'origin/feature/hoge', isCurrent: false, isRemote: true, hasUpstream: false, aheadCount: 0, behindCount: 0 },
   { name: 'origin/feature/bar', isCurrent: false, isRemote: true, hasUpstream: false, aheadCount: 0, behindCount: 0 },
+  { name: 'origin/feature/old-merged', isCurrent: false, isRemote: true, hasUpstream: false, aheadCount: 0, behindCount: 0 },
+  { name: 'origin/feature/squash-done', isCurrent: false, isRemote: true, hasUpstream: false, aheadCount: 0, behindCount: 0 },
 ]
 
 let mockWorktreeList: WorktreeEntry[] = []
@@ -718,6 +720,63 @@ export const mockApp: WailsApp = {
     }
     mockBranchList.splice(index, 1)
     console.info('[mock] DeleteBranch', name, force)
+  },
+
+  async DefaultRemoteBaseRef(_worktreePath: string) {
+    const remotes = mockBranchList.filter((entry) => entry.isRemote).map((entry) => entry.name)
+    if (remotes.includes('origin/main')) {
+      return 'origin/main'
+    }
+    if (remotes.includes('origin/master')) {
+      return 'origin/master'
+    }
+    if (remotes.length === 0) {
+      throw new Error('リモートブランチが見つかりません')
+    }
+    return remotes[0]
+  },
+
+  async ListRemoteMergeStatus(_worktreePath: string, baseRef: string, mode: string) {
+    const ancestryMerged = new Set([
+      'origin/feature/bar',
+      'origin/feature/old-merged',
+    ])
+    const contentMerged = new Set([
+      ...ancestryMerged,
+      'origin/feature/squash-done',
+    ])
+    const dates: Record<string, string> = {
+      'origin/feature/hoge': '2026-07-12T18:30:00+09:00',
+      'origin/feature/bar': '2026-06-20T11:00:00+09:00',
+      'origin/feature/old-merged': '2026-03-01T09:15:00+09:00',
+      'origin/feature/squash-done': '2026-05-15T14:45:00+09:00',
+    }
+    const mergedSet = mode === 'content' ? contentMerged : ancestryMerged
+    return mockBranchList
+      .filter((entry) => entry.isRemote && entry.name !== baseRef)
+      .map((entry) => ({
+        name: entry.name,
+        merged: mergedSet.has(entry.name),
+        lastCommitAt: dates[entry.name] ?? '2026-01-01T00:00:00+09:00',
+      }))
+      .sort((a, b) => b.lastCommitAt.localeCompare(a.lastCommitAt) || a.name.localeCompare(b.name))
+  },
+
+  async DeleteRemoteBranches(_worktreePath: string, remoteRefs: string[]) {
+    if (remoteRefs.length === 0) {
+      throw new Error('削除するブランチがありません')
+    }
+    for (const ref of remoteRefs) {
+      if (ref.endsWith('/HEAD')) {
+        throw new Error('リモート HEAD は削除できません')
+      }
+      const index = mockBranchList.findIndex((entry) => entry.isRemote && entry.name === ref)
+      if (index < 0) {
+        throw new Error(`リモートブランチ '${ref}' が見つかりません`)
+      }
+      mockBranchList.splice(index, 1)
+    }
+    console.info('[mock] DeleteRemoteBranches', remoteRefs)
   },
 
   async RenameBranch(_worktreePath: string, oldName: string, newName: string) {

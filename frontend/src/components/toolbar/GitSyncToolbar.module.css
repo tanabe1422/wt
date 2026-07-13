@@ -19,6 +19,7 @@
 .trailing {
   display: flex;
   align-items: center;
+  gap: 0.125rem;
   flex-shrink: 0;
   margin-left: auto;
 }

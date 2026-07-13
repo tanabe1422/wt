@@ -388,6 +388,22 @@ export namespace git {
 		    return a;
 		}
 	}
+	export class RemoteMergeEntry {
+	    name: string;
+	    merged: boolean;
+	    lastCommitAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RemoteMergeEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.merged = source["merged"];
+	        this.lastCommitAt = source["lastCommitAt"];
+	    }
+	}
 	export class StashEntry {
 	    index: number;
 	    ref: string;

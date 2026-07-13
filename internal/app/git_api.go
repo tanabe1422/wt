@@ -223,6 +223,22 @@ func (a *App) DeleteBranch(worktreePath, name string, force bool) error {
 	})
 }
 
+func (a *App) DefaultRemoteBaseRef(worktreePath string) (string, error) {
+	return withWorktreeResult(worktreePath, git.DefaultRemoteBaseRef)
+}
+
+func (a *App) ListRemoteMergeStatus(worktreePath, baseRef, mode string) ([]git.RemoteMergeEntry, error) {
+	return withWorktreeResult(worktreePath, func(dir string) ([]git.RemoteMergeEntry, error) {
+		return git.ListRemoteMergeStatus(dir, baseRef, mode)
+	})
+}
+
+func (a *App) DeleteRemoteBranches(worktreePath string, remoteRefs []string) error {
+	return withWorktree(worktreePath, func(dir string) error {
+		return git.DeleteRemoteBranches(dir, remoteRefs)
+	})
+}
+
 func (a *App) RenameBranch(worktreePath, oldName, newName string) error {
 	return withWorktree(worktreePath, func(dir string) error {
 		return git.RenameBranch(dir, oldName, newName)

@@ -10,6 +10,7 @@ import { GitBranchIcon, StashIcon } from '../sidebar/BranchIcons'
 import { GitSyncActionButton } from './GitSyncActionButton'
 import { type GitSyncAction } from './GitSyncIcons'
 import { MainViewToolbarTabs, type MainView } from './MainViewToolbarTabs'
+import { RemoteCleanupDialog } from './RemoteCleanupDialog'
 import { SidebarToggleButton } from './SidebarToggleButton'
 import { ToolbarActionButton } from './ToolbarActionButton'
 import styles from './GitSyncToolbar.module.css'
@@ -99,6 +100,53 @@ function ReloadIcon({ size = 20 }: { size?: number }) {
   )
 }
 
+function RemoteCleanupIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M4 7h12"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+      <path
+        d="M6 7v11a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V7"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 7V5a1 1 0 0 1 1-1h0a1 1 0 0 1 1 1v2"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15.5 11.5 20 16l-1.5 1.5-4.5-4.5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M18.5 13.5 20 12l2 2-1.5 1.5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 async function runSyncAction(action: GitSyncAction, worktreePath: string): Promise<void> {
   if (action === 'fetch') {
     await fetchRemote(worktreePath)
@@ -131,6 +179,7 @@ export function GitSyncToolbar({
   const [reloading, setReloading] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [stashOpen, setStashOpen] = useState(false)
+  const [cleanupOpen, setCleanupOpen] = useState(false)
   const [upstreamPushOpen, setUpstreamPushOpen] = useState(false)
   const actionErrorDialog = useErrorDialog(actionError)
   const toast = useToast()
@@ -316,6 +365,14 @@ export function GitSyncToolbar({
         </div>
       )}
       <div className={styles.trailing}>
+        {!settingsOnly && (
+          <ToolbarActionButton
+            label="リモート整理"
+            icon={<RemoteCleanupIcon size={20} />}
+            disabled={isDisabled}
+            onClick={() => setCleanupOpen(true)}
+          />
+        )}
         <ToolbarActionButton
           label="設定"
           icon={<SettingsIcon size={20} />}
@@ -343,6 +400,14 @@ export function GitSyncToolbar({
           void handleSaveStash(value)
         }}
         onCancel={() => setStashOpen(false)}
+      />
+      <RemoteCleanupDialog
+        open={cleanupOpen}
+        worktreePath={worktreePath}
+        onClose={() => setCleanupOpen(false)}
+        onDeleted={async () => {
+          await onActionComplete?.()
+        }}
       />
       <ConfirmDialog
         open={upstreamPushOpen}

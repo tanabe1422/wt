@@ -28,6 +28,15 @@ export interface BranchEntry {
   behindCount: number
 }
 
+export type MergeCheckMode = 'ancestry' | 'content'
+
+export interface RemoteMergeEntry {
+  name: string
+  merged: boolean
+  /** Tip committer date (ISO-8601). */
+  lastCommitAt: string
+}
+
 export interface WorktreeEntry {
   path: string
   branch: string

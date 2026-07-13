@@ -6,6 +6,7 @@ import type {
   FileDiff,
   FileStatus,
   ListCommitsResult,
+  RemoteMergeEntry,
   Settings,
   StashEntry,
   WorktreeEntry,
@@ -75,6 +76,13 @@ export interface WailsApp {
   CheckoutRemoteBranch(worktreePath: string, remoteRef: string): Promise<void>
   CreateBranch(worktreePath: string, name: string): Promise<void>
   DeleteBranch(worktreePath: string, name: string, force: boolean): Promise<void>
+  DefaultRemoteBaseRef(worktreePath: string): Promise<string>
+  ListRemoteMergeStatus(
+    worktreePath: string,
+    baseRef: string,
+    mode: string,
+  ): Promise<RemoteMergeEntry[]>
+  DeleteRemoteBranches(worktreePath: string, remoteRefs: string[]): Promise<void>
   RenameBranch(worktreePath: string, oldName: string, newName: string): Promise<void>
   MergeBranch(worktreePath: string, source: string): Promise<void>
   SquashMergeBranch(worktreePath: string, source: string): Promise<void>

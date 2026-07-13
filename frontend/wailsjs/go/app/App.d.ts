@@ -19,9 +19,13 @@ export function Commit(arg1:string,arg2:string):Promise<void>;
 
 export function CreateBranch(arg1:string,arg2:string):Promise<void>;
 
+export function DefaultRemoteBaseRef(arg1:string):Promise<string>;
+
 export function DefaultWorktreePath(arg1:string,arg2:string):Promise<string>;
 
 export function DeleteBranch(arg1:string,arg2:string,arg3:boolean):Promise<void>;
+
+export function DeleteRemoteBranches(arg1:string,arg2:Array<string>):Promise<void>;
 
 export function DeleteUntracked(arg1:string,arg2:Array<string>):Promise<void>;
 
@@ -60,6 +64,8 @@ export function ListCommitFiles(arg1:string,arg2:string):Promise<Array<git.Commi
 export function ListCommits(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<git.ListCommitsResult>;
 
 export function ListRangeFiles(arg1:string,arg2:string,arg3:string):Promise<Array<git.CommitFileChange>>;
+
+export function ListRemoteMergeStatus(arg1:string,arg2:string,arg3:string):Promise<Array<git.RemoteMergeEntry>>;
 
 export function ListStashes(arg1:string):Promise<Array<git.StashEntry>>;
 

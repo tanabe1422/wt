@@ -7,6 +7,7 @@ import type {
   FileStatus,
   HistoryScope,
   ListCommitsResult,
+  RemoteMergeEntry,
   Settings,
   StashEntry,
   WorktreeEntry,
@@ -303,6 +304,25 @@ export async function deleteBranch(
   force: boolean,
 ): Promise<void> {
   return callApp('DeleteBranch', worktreePath, name, force)
+}
+
+export async function defaultRemoteBaseRef(worktreePath: string): Promise<string> {
+  return callApp('DefaultRemoteBaseRef', worktreePath)
+}
+
+export async function listRemoteMergeStatus(
+  worktreePath: string,
+  baseRef: string,
+  mode: string,
+): Promise<RemoteMergeEntry[]> {
+  return callApp('ListRemoteMergeStatus', worktreePath, baseRef, mode)
+}
+
+export async function deleteRemoteBranches(
+  worktreePath: string,
+  remoteRefs: string[],
+): Promise<void> {
+  return callApp('DeleteRemoteBranches', worktreePath, remoteRefs)
 }
 
 export async function renameBranch(

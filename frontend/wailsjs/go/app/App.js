@@ -34,12 +34,20 @@ export function CreateBranch(arg1, arg2) {
   return window['go']['app']['App']['CreateBranch'](arg1, arg2);
 }
 
+export function DefaultRemoteBaseRef(arg1) {
+  return window['go']['app']['App']['DefaultRemoteBaseRef'](arg1);
+}
+
 export function DefaultWorktreePath(arg1, arg2) {
   return window['go']['app']['App']['DefaultWorktreePath'](arg1, arg2);
 }
 
 export function DeleteBranch(arg1, arg2, arg3) {
   return window['go']['app']['App']['DeleteBranch'](arg1, arg2, arg3);
+}
+
+export function DeleteRemoteBranches(arg1, arg2) {
+  return window['go']['app']['App']['DeleteRemoteBranches'](arg1, arg2);
 }
 
 export function DeleteUntracked(arg1, arg2) {
@@ -116,6 +124,10 @@ export function ListCommits(arg1, arg2, arg3, arg4, arg5) {
 
 export function ListRangeFiles(arg1, arg2, arg3) {
   return window['go']['app']['App']['ListRangeFiles'](arg1, arg2, arg3);
+}
+
+export function ListRemoteMergeStatus(arg1, arg2, arg3) {
+  return window['go']['app']['App']['ListRemoteMergeStatus'](arg1, arg2, arg3);
 }
 
 export function ListStashes(arg1) {
