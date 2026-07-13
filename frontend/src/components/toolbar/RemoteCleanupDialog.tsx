@@ -329,9 +329,10 @@ export function RemoteCleanupDialog({
                       checked={selected.has(entry.name)}
                       onChange={() => toggleOne(entry.name)}
                     />
-                    <span className={styles.rowMain}>
-                      <span className={styles.rowName}>{entry.name}</span>
-                      <span className={styles.rowDate}>{formatCommitAt(entry.lastCommitAt)}</span>
+                    <span className={styles.rowName}>{entry.name}</span>
+                    <span className={styles.rowMeta}>
+                      {formatCommitAt(entry.lastCommitAt)}
+                      {entry.lastAuthor ? ` · ${entry.lastAuthor}` : ''}
                     </span>
                     <span
                       className={`${styles.badge} ${

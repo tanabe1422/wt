@@ -392,6 +392,7 @@ export namespace git {
 	    name: string;
 	    merged: boolean;
 	    lastCommitAt: string;
+	    lastAuthor: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new RemoteMergeEntry(source);
@@ -402,6 +403,7 @@ export namespace git {
 	        this.name = source["name"];
 	        this.merged = source["merged"];
 	        this.lastCommitAt = source["lastCommitAt"];
+	        this.lastAuthor = source["lastAuthor"];
 	    }
 	}
 	export class StashEntry {

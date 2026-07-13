@@ -35,6 +35,8 @@ export interface RemoteMergeEntry {
   merged: boolean
   /** Tip committer date (ISO-8601). */
   lastCommitAt: string
+  /** Author of the tip commit. */
+  lastAuthor: string
 }
 
 export interface WorktreeEntry {

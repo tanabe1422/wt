@@ -24,11 +24,13 @@ type RemoteMergeEntry struct {
 	Name         string `json:"name"`
 	Merged       bool   `json:"merged"`
 	LastCommitAt string `json:"lastCommitAt"` // ISO-8601 committer date of tip commit
+	LastAuthor   string `json:"lastAuthor"`   // author of tip commit
 }
 
 type remoteRefInfo struct {
 	Name         string
 	LastCommitAt string
+	LastAuthor   string
 }
 
 // DefaultRemoteBaseRef resolves the default remote base (usually origin/main).
@@ -124,11 +126,12 @@ func ListRemoteMergeStatus(repoPath, baseRef, mode string) ([]RemoteMergeEntry, 
 			Name:         ref.Name,
 			Merged:       merged,
 			LastCommitAt: ref.LastCommitAt,
+			LastAuthor:   ref.LastAuthor,
 		})
 	}
 	sort.SliceStable(entries, func(i, j int) bool {
 		if entries[i].LastCommitAt != entries[j].LastCommitAt {
-			return entries[i].LastCommitAt > entries[j].LastCommitAt
+			return entries[i].LastCommitAt < entries[j].LastCommitAt
 		}
 		return entries[i].Name < entries[j].Name
 	})
@@ -183,7 +186,7 @@ func absRepoPath(repoPath string) (string, error) {
 }
 
 func listRemoteTrackingRefs(dir string) ([]remoteRefInfo, error) {
-	out, err := runGit(dir, "for-each-ref", "--format=%(refname:short)|%(committerdate:iso8601-strict)", "refs/remotes/")
+	out, err := runGit(dir, "for-each-ref", "--format=%(refname:short)|%(committerdate:iso8601-strict)|%(authorname)", "refs/remotes/")
 	if err != nil {
 		return nil, err
 	}
@@ -196,14 +199,23 @@ func listRemoteTrackingRefs(dir string) ([]remoteRefInfo, error) {
 		if line == "" {
 			continue
 		}
-		name, date, _ := strings.Cut(line, "|")
-		name = strings.TrimSpace(name)
+		parts := strings.SplitN(line, "|", 3)
+		name := strings.TrimSpace(parts[0])
 		if name == "" || strings.HasSuffix(name, "/HEAD") {
 			continue
 		}
+		date := ""
+		author := ""
+		if len(parts) > 1 {
+			date = strings.TrimSpace(parts[1])
+		}
+		if len(parts) > 2 {
+			author = strings.TrimSpace(parts[2])
+		}
 		refs = append(refs, remoteRefInfo{
 			Name:         name,
-			LastCommitAt: strings.TrimSpace(date),
+			LastCommitAt: date,
+			LastAuthor:   author,
 		})
 	}
 	sort.SliceStable(refs, func(i, j int) bool {

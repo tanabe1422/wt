@@ -751,6 +751,12 @@ export const mockApp: WailsApp = {
       'origin/feature/old-merged': '2026-03-01T09:15:00+09:00',
       'origin/feature/squash-done': '2026-05-15T14:45:00+09:00',
     }
+    const authors: Record<string, string> = {
+      'origin/feature/hoge': 'Alice',
+      'origin/feature/bar': 'Bob',
+      'origin/feature/old-merged': 'Carol',
+      'origin/feature/squash-done': 'Dave',
+    }
     const mergedSet = mode === 'content' ? contentMerged : ancestryMerged
     return mockBranchList
       .filter((entry) => entry.isRemote && entry.name !== baseRef)
@@ -758,8 +764,9 @@ export const mockApp: WailsApp = {
         name: entry.name,
         merged: mergedSet.has(entry.name),
         lastCommitAt: dates[entry.name] ?? '2026-01-01T00:00:00+09:00',
+        lastAuthor: authors[entry.name] ?? 'Unknown',
       }))
-      .sort((a, b) => b.lastCommitAt.localeCompare(a.lastCommitAt) || a.name.localeCompare(b.name))
+      .sort((a, b) => a.lastCommitAt.localeCompare(b.lastCommitAt) || a.name.localeCompare(b.name))
   },
 
   async DeleteRemoteBranches(_worktreePath: string, remoteRefs: string[]) {
