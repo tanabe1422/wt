@@ -17,6 +17,7 @@ type realRunner struct{}
 
 func (realRunner) Run(dir, stdin string, extraOKExit int, args ...string) (string, string, error) {
 	cmd := exec.Command("git", args...)
+	configureCmd(cmd)
 	cmd.Dir = dir
 	if stdin != "" {
 		cmd.Stdin = strings.NewReader(stdin)
