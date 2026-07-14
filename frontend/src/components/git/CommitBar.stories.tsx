@@ -27,9 +27,6 @@ function CommitBarDemo({ amendInfo }: { amendInfo: AmendInfo }) {
         onCommit={async (message, options) => {
           setLast(`${options.amend ? 'amend' : 'commit'}: ${message}`)
         }}
-        onPush={async () => {
-          setLast('push')
-        }}
       />
       {last ? (
         <p style={{ margin: '0.5rem 0.75rem', fontSize: '0.75rem', color: 'var(--color-slate-600)' }}>

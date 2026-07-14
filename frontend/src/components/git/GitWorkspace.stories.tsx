@@ -162,7 +162,6 @@ function ConflictWorkspaceDemo({
             headMessage: 'story tip message',
           }}
           onCommit={noopAsync}
-          onPush={noopAsync}
         />
       </div>
       {menu && (
@@ -183,6 +182,12 @@ function ConflictWorkspaceDemo({
                     console.info('[story] OpenDifftool', menu.path)
                   },
                 },
+            {
+              label: 'エクスプローラーで表示',
+              onClick: () => {
+                console.info('[story] ShowInExplorer', menu.path)
+              },
+            },
           ]}
           onClose={() => setMenu(null)}
         />

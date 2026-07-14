@@ -33,6 +33,10 @@ interface BranchTreeNodeProps {
   toneByWorktree?: boolean
   /** 行アイコンを fill 版にする */
   filledIcons?: boolean
+  /** 通常ブランチのアイコンを隠し、スロット幅だけ維持 */
+  hideIdleIcons?: boolean
+  /** ワークツリーあり行に WT バッジを出す（比較用） */
+  showWorktreeBadge?: boolean
   expansionThreshold?: number
   onActivate?: (fullName: string) => void
   onContextMenu?: (fullName: string, event: MouseEvent) => void
@@ -54,6 +58,20 @@ function rowToneClass(
   return styles.toneIdle
 }
 
+function renderBranchIcon(
+  marks: ReturnType<typeof getBranchMarkFlags>,
+  filledIcons: boolean,
+  hideIdleIcons: boolean,
+) {
+  if (marks.hasWorktree) {
+    return <HardDriveIcon />
+  }
+  if (hideIdleIcons) {
+    return null
+  }
+  return <GitBranchIcon filled={filledIcons} />
+}
+
 function renderBranchRow(
   fullName: string,
   label: string,
@@ -65,6 +83,8 @@ function renderBranchRow(
   worktreeBranches: Set<string>,
   toneByWorktree: boolean,
   filledIcons: boolean,
+  hideIdleIcons: boolean,
+  showWorktreeBadge: boolean,
   onSelect: (fullName: string) => void,
   onActivate?: (fullName: string) => void,
   onContextMenu?: (fullName: string, event: MouseEvent) => void,
@@ -101,9 +121,14 @@ function renderBranchRow(
         className={cx(styles.iconSlot, toneClass)}
         title={marks.hasWorktree ? 'ワークツリーあり' : undefined}
       >
-        {marks.hasWorktree ? <HardDriveIcon /> : <GitBranchIcon filled={filledIcons} />}
+        {renderBranchIcon(marks, filledIcons, hideIdleIcons)}
       </span>
       <span className={cx(styles.label, toneClass)}>{label}</span>
+      {showWorktreeBadge && marks.hasWorktree && (
+        <span className={styles.worktreeBadge} title="ワークツリーあり">
+          WT
+        </span>
+      )}
       <span className={styles.badgeGroup}>
         <CountBadge count={behindCount} variant="behind" />
         <CountBadge count={aheadCount} variant="ahead" />
@@ -121,6 +146,8 @@ export function BranchTreeNode({
   worktreeBranches,
   toneByWorktree = false,
   filledIcons = false,
+  hideIdleIcons = false,
+  showWorktreeBadge = false,
   expansionThreshold = 1,
   onActivate,
   onContextMenu,
@@ -142,6 +169,8 @@ export function BranchTreeNode({
       worktreeBranches,
       toneByWorktree,
       filledIcons,
+      hideIdleIcons,
+      showWorktreeBadge,
       onSelect,
       onActivate,
       onContextMenu,
@@ -180,6 +209,8 @@ export function BranchTreeNode({
               worktreeBranches={worktreeBranches}
               toneByWorktree={toneByWorktree}
               filledIcons={filledIcons}
+              hideIdleIcons={hideIdleIcons}
+              showWorktreeBadge={showWorktreeBadge}
               expansionThreshold={expansionThreshold}
               onActivate={onActivate}
               onContextMenu={onContextMenu}
@@ -201,6 +232,8 @@ export function BranchTreeNode({
       worktreeBranches,
       toneByWorktree,
       filledIcons,
+      hideIdleIcons,
+      showWorktreeBadge,
       onSelect,
       onActivate,
       onContextMenu,

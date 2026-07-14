@@ -252,6 +252,46 @@ func TestNormalizeSettingsNormalizesTools(t *testing.T) {
 	}
 }
 
+func TestNormalizeSettingsDefaultRemoteCleanupExcluded(t *testing.T) {
+	got, err := normalizeSettings(Settings{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"main", "master", "develop"}
+	if len(got.RemoteCleanupExcluded) != len(want) {
+		t.Fatalf("excluded=%v want %v", got.RemoteCleanupExcluded, want)
+	}
+	for i := range want {
+		if got.RemoteCleanupExcluded[i] != want[i] {
+			t.Fatalf("excluded=%v want %v", got.RemoteCleanupExcluded, want)
+		}
+	}
+}
+
+func TestNormalizeSettingsKeepsEmptyRemoteCleanupExcluded(t *testing.T) {
+	got, err := normalizeSettings(Settings{
+		RemoteCleanupExcluded: []string{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.RemoteCleanupExcluded == nil || len(got.RemoteCleanupExcluded) != 0 {
+		t.Fatalf("empty excluded should stay empty, got %v", got.RemoteCleanupExcluded)
+	}
+}
+
+func TestNormalizeSettingsDedupesRemoteCleanupExcluded(t *testing.T) {
+	got, err := normalizeSettings(Settings{
+		RemoteCleanupExcluded: []string{" main ", "develop", "main"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.RemoteCleanupExcluded) != 2 || got.RemoteCleanupExcluded[0] != "main" || got.RemoteCleanupExcluded[1] != "develop" {
+		t.Fatalf("excluded=%v", got.RemoteCleanupExcluded)
+	}
+}
+
 func TestNormalizePathEmpty(t *testing.T) {
 	for _, path := range []string{"", "  ", "\t"} {
 		got, err := normalizePath(path)

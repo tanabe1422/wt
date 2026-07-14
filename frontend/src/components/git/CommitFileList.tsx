@@ -1,3 +1,5 @@
+import type { MouseEvent } from 'react'
+
 import type { CommitFileChange } from '../../types'
 import { cx } from '../../utils/cx'
 import { Button } from '../ui/Button'
@@ -9,6 +11,8 @@ interface CommitFileListProps {
   loading?: boolean
   selectedPath: string | null
   onSelect: (path: string) => void
+  onFileHover?: (path: string) => void
+  onFileContextMenu?: (entry: CommitFileChange, event: MouseEvent) => void
 }
 
 export function CommitFileList({
@@ -16,6 +20,8 @@ export function CommitFileList({
   loading = false,
   selectedPath,
   onSelect,
+  onFileHover,
+  onFileContextMenu,
 }: CommitFileListProps) {
   return (
     <div className={styles.list}>
@@ -34,6 +40,8 @@ export function CommitFileList({
             <div
               key={`${entry.status}-${entry.path}`}
               className={cx(styles.row, isSelected && styles.selected)}
+              onMouseEnter={() => onFileHover?.(entry.path)}
+              onContextMenu={(event) => onFileContextMenu?.(entry, event)}
             >
               <Button
                 type="button"

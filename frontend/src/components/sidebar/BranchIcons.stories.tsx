@@ -582,7 +582,8 @@ export const RowIconColors: Story = {
   render: () => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: 640 }}>
     <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--color-slate-600)' }}>
-      サイドバーの装飾アイコンはすべて outline。色はブランチ状態（Active / WT / Idle）と連動します。
+      本番のローカルブランチは通常行のアイコンを非表示。ここでは比較のためアイコンありで表示。
+      色はブランチ状態（Active / WT / Idle）と連動します。
     </p>
     <SidebarStoryFrame>
       <BranchSection
@@ -593,6 +594,7 @@ export const RowIconColors: Story = {
         checkedOutBranch="feature/hoge"
         worktreeBranches={compositeWorktreeBranches}
         showWorktreeMarks
+        hideIdleIcons={false}
         defaultExpanded
         onSelect={() => {}}
       />

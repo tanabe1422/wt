@@ -10,6 +10,7 @@
 .header {
   display: flex;
   align-items: center;
+  gap: 0.75rem;
   flex-shrink: 0;
   min-height: var(--git-panel-header-min-height);
   padding: var(--git-panel-header-padding-y) 0.75rem;
@@ -19,6 +20,7 @@
 
 .fileName {
   margin: 0;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -27,11 +29,23 @@
   color: var(--color-slate-800);
 }
 
+.loadingHint {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: var(--font-size-git-file);
+  font-weight: 400;
+  color: var(--color-slate-500);
+}
+
 .content {
   flex: 1;
   min-height: 0;
   overflow: auto;
   padding-bottom: 0.5rem;
+}
+
+.contentUpdating {
+  opacity: 0.72;
 }
 
 .placeholder,

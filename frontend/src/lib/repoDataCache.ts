@@ -1,0 +1,107 @@
+import type { BranchEntry, FileStatus, WorktreeEntry } from '../types'
+
+export type SidebarSnapshot = {
+  branches: BranchEntry[]
+  worktrees: WorktreeEntry[]
+  selectedBranch: string | null
+  selectedWorktree: string | null
+}
+
+const MAX_SIDEBAR_ENTRIES = 12
+const MAX_STATUS_ENTRIES = 24
+
+const sidebarCache = new Map<string, SidebarSnapshot>()
+const statusCache = new Map<string, FileStatus[]>()
+
+function touch<T>(cache: Map<string, T>, key: string, value: T, max: number): void {
+  if (cache.has(key)) {
+    cache.delete(key)
+  }
+  cache.set(key, value)
+  while (cache.size > max) {
+    const oldest = cache.keys().next().value
+    if (oldest === undefined) {
+      break
+    }
+    cache.delete(oldest)
+  }
+}
+
+export function getSidebarCache(repoPath: string): SidebarSnapshot | undefined {
+  const value = sidebarCache.get(repoPath)
+  if (value === undefined) {
+    return undefined
+  }
+  sidebarCache.delete(repoPath)
+  sidebarCache.set(repoPath, value)
+  return value
+}
+
+export function setSidebarCache(repoPath: string, snapshot: SidebarSnapshot): void {
+  touch(sidebarCache, repoPath, snapshot, MAX_SIDEBAR_ENTRIES)
+}
+
+export function patchSidebarSelection(
+  repoPath: string,
+  selectedBranch: string | null,
+  selectedWorktree: string | null,
+): void {
+  const current = sidebarCache.get(repoPath)
+  if (!current) {
+    return
+  }
+  touch(
+    sidebarCache,
+    repoPath,
+    { ...current, selectedBranch, selectedWorktree },
+    MAX_SIDEBAR_ENTRIES,
+  )
+}
+
+export function invalidateSidebarCache(repoPath: string): void {
+  sidebarCache.delete(repoPath)
+}
+
+export function getStatusCache(worktreePath: string): FileStatus[] | undefined {
+  const value = statusCache.get(worktreePath)
+  if (value === undefined) {
+    return undefined
+  }
+  statusCache.delete(worktreePath)
+  statusCache.set(worktreePath, value)
+  return value
+}
+
+export function setStatusCache(worktreePath: string, entries: FileStatus[]): void {
+  touch(statusCache, worktreePath, entries, MAX_STATUS_ENTRIES)
+}
+
+export function invalidateStatusCache(worktreePath: string): void {
+  statusCache.delete(worktreePath)
+}
+
+export function invalidateRepoCaches(repoPath: string): void {
+  const sidebar = sidebarCache.get(repoPath)
+  if (sidebar) {
+    for (const worktree of sidebar.worktrees) {
+      statusCache.delete(worktree.path)
+    }
+  }
+  sidebarCache.delete(repoPath)
+}
+
+/** @internal test helper */
+export function _resetRepoDataCacheForTests(): void {
+  sidebarCache.clear()
+  statusCache.clear()
+}
+
+/** @internal test helper */
+export function _sidebarCacheSizeForTests(): number {
+  return sidebarCache.size
+}
+
+/** @internal test helper */
+export function _statusCacheSizeForTests(): number {
+  return statusCache.size
+}

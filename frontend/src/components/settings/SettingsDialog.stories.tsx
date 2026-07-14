@@ -18,6 +18,7 @@ const sampleSettings: Settings = {
     path: 'code',
     args: '--wait --merge $REMOTE $LOCAL $BASE $MERGED',
   },
+  remoteCleanupExcluded: ['main', 'master', 'develop'],
 }
 
 function InteractiveSettings(props: { initial?: Settings }) {

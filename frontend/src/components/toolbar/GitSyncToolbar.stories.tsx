@@ -1,8 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
-import { SidebarProvider } from '../layout/CollapsibleSidebar'
 import { ToastProvider } from '../../hooks/useToast'
+import { listBranches } from '../../lib/wails'
+import { seedMockSyncCounts } from '../../lib/wails/mockApp'
+import { MainLayout } from '../layout/MainLayout'
+import { SidebarProvider } from '../layout/CollapsibleSidebar'
 import { GitSyncToolbar } from './GitSyncToolbar'
 import type { MainView } from './MainViewToolbarTabs'
 
@@ -18,6 +21,107 @@ function InteractiveToolbar(
       <SidebarProvider>
         <GitSyncToolbar {...rest} mainView={mainView} onMainViewChange={setMainView} />
       </SidebarProvider>
+    </ToastProvider>
+  )
+}
+
+interface SyncBusyDemoProps {
+  worktreePath: string
+  currentBranch: string
+  aheadCount: number
+  behindCount: number
+  hasUpstream: boolean
+  hint: string
+}
+
+function SyncBusyDemo({
+  worktreePath,
+  currentBranch,
+  aheadCount: initialAhead,
+  behindCount: initialBehind,
+  hasUpstream: initialHasUpstream,
+  hint,
+}: SyncBusyDemoProps) {
+  const [mainView, setMainView] = useState<MainView>('files')
+  const [busy, setBusy] = useState(false)
+  const [aheadCount, setAheadCount] = useState(initialAhead)
+  const [behindCount, setBehindCount] = useState(initialBehind)
+  const [hasUpstream, setHasUpstream] = useState(initialHasUpstream)
+
+  useEffect(() => {
+    seedMockSyncCounts(initialAhead, initialBehind)
+    setAheadCount(initialAhead)
+    setBehindCount(initialBehind)
+    setHasUpstream(initialHasUpstream)
+  }, [initialAhead, initialBehind, initialHasUpstream])
+
+  const refreshCounts = useCallback(async () => {
+    const branches = await listBranches(worktreePath)
+    const current = branches.find((entry) => !entry.isRemote && entry.isCurrent)
+    if (!current) {
+      return
+    }
+    setAheadCount(current.aheadCount)
+    setBehindCount(current.behindCount)
+    setHasUpstream(current.hasUpstream)
+  }, [worktreePath])
+
+  return (
+    <ToastProvider>
+      <div
+        style={{
+          height: 420,
+          minHeight: 420,
+          border: '1px solid var(--color-slate-200)',
+          borderRadius: '0.375rem',
+          overflow: 'hidden',
+          background: 'var(--color-surface-main)',
+        }}
+      >
+        <MainLayout
+          busy={busy}
+          workspaceToolbar={
+            <GitSyncToolbar
+              worktreePath={worktreePath}
+              currentBranch={currentBranch}
+              aheadCount={aheadCount}
+              behindCount={behindCount}
+              hasUpstream={hasUpstream}
+              mainView={mainView}
+              onMainViewChange={setMainView}
+              onBusyChange={setBusy}
+              onActionComplete={refreshCounts}
+              onOpenSettings={() => console.info('[story] open settings')}
+            />
+          }
+          sidebar={
+            <div
+              style={{
+                padding: '0.75rem',
+                fontSize: '0.75rem',
+                color: 'var(--color-slate-500)',
+              }}
+            >
+              サイドバー（モック）
+            </div>
+          }
+        >
+          <div
+            style={{
+              padding: '1rem',
+              fontSize: '0.8125rem',
+              color: 'var(--color-slate-500)',
+              lineHeight: 1.6,
+            }}
+          >
+            <p style={{ margin: 0 }}>{hint}</p>
+            <p style={{ margin: '0.75rem 0 0' }}>
+              ahead: {aheadCount} / behind: {behindCount}
+              {busy ? ' — ローディング中…' : ''}
+            </p>
+          </div>
+        </MainLayout>
+      </div>
     </ToastProvider>
   )
 }
@@ -131,6 +235,36 @@ export const SettingsOnly: Story = {
     worktreePath: '',
     settingsOnly: true,
   },
+}
+
+export const PushBusy: Story = {
+  name: 'Push（ローディング）',
+  decorators: [],
+  render: () => (
+    <SyncBusyDemo
+      worktreePath="C:/dev/sample-repo"
+      currentBranch="feature/hoge"
+      aheadCount={23}
+      behindCount={0}
+      hasUpstream
+      hint="Push → 確認ダイアログで「プッシュ」すると busy オーバーレイが出ます（モックは約 1.2 秒後に ahead を 0 にします）。"
+    />
+  ),
+}
+
+export const PullBusy: Story = {
+  name: 'Pull（ローディング）',
+  decorators: [],
+  render: () => (
+    <SyncBusyDemo
+      worktreePath="C:/dev/sample-repo"
+      currentBranch="feature/hoge"
+      aheadCount={0}
+      behindCount={5}
+      hasUpstream
+      hint="Pull を押すと共通の busy オーバーレイが出ます（モックは約 1.2 秒後に behind を 0 にします）。"
+    />
+  ),
 }
 
 export const FullWidth: Story = {

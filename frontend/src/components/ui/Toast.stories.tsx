@@ -29,12 +29,14 @@ function StaticToastDemo({ items }: { items: ToastItem[] }) {
           fontSize: '0.875rem',
         }}
       >
-        上部中央にトーストが表示されます
+        メイン領域の中央上部にトーストが表示されます
       </p>
-      <ToastHost
-        items={toasts}
-        onDismiss={(id) => setToasts((prev) => prev.filter((item) => item.id !== id))}
-      />
+      <div className={styles.host}>
+        <ToastHost
+          items={toasts}
+          onDismiss={(id) => setToasts((prev) => prev.filter((item) => item.id !== id))}
+        />
+      </div>
     </div>
   )
 }
@@ -141,6 +143,7 @@ function SeedAppToasts({ preset }: { preset: AppToastPreset }) {
 
 function AppScreenWithToast({ preset }: { preset: AppToastPreset }) {
   const [mainView, setMainView] = useState<MainView>('files')
+  const [busy, setBusy] = useState(false)
 
   return (
     <ToastProvider>
@@ -154,6 +157,7 @@ function AppScreenWithToast({ preset }: { preset: AppToastPreset }) {
         }}
       >
         <MainLayout
+            busy={busy}
             toolbar={
               <RepoTabBar
                 repositories={['C:/dev/sample-repo', 'C:/dev/other-repo']}
@@ -172,6 +176,7 @@ function AppScreenWithToast({ preset }: { preset: AppToastPreset }) {
                 hasUpstream
                 mainView={mainView}
                 onMainViewChange={setMainView}
+                onBusyChange={setBusy}
                 onOpenSettings={() => undefined}
               />
             }

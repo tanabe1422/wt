@@ -41,16 +41,32 @@ func parseUpstreamTrack(track string) (ahead, behind int) {
 
 // ListBranches returns local and remote branches for the repository at repoPath.
 func ListBranches(repoPath string) ([]BranchEntry, error) {
-	localOut, err := runGit(repoPath, "for-each-ref", "--format=%(refname:short)|%(HEAD)|%(upstream:short)|%(upstream:track)", "refs/heads/")
+	out, err := runGit(
+		repoPath,
+		"for-each-ref",
+		"--format=%(refname)|%(HEAD)|%(upstream:short)|%(upstream:track)",
+		"refs/heads/",
+		"refs/remotes/",
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	entries := make([]BranchEntry, 0)
-	if localOut != "" {
-		for _, line := range strings.Split(localOut, "\n") {
-			parts := strings.SplitN(line, "|", 4)
-			name := strings.TrimSpace(parts[0])
+	if out == "" {
+		return entries, nil
+	}
+
+	for _, line := range strings.Split(out, "\n") {
+		parts := strings.SplitN(line, "|", 4)
+		ref := strings.TrimSpace(parts[0])
+		if ref == "" {
+			continue
+		}
+
+		switch {
+		case strings.HasPrefix(ref, "refs/heads/"):
+			name := strings.TrimPrefix(ref, "refs/heads/")
 			if name == "" {
 				continue
 			}
@@ -72,15 +88,8 @@ func ListBranches(repoPath string) ([]BranchEntry, error) {
 				AheadCount:  ahead,
 				BehindCount: behind,
 			})
-		}
-	}
-	remoteOut, err := runGit(repoPath, "for-each-ref", "--format=%(refname:short)", "refs/remotes/")
-	if err != nil {
-		return nil, err
-	}
-	if remoteOut != "" {
-		for _, line := range strings.Split(remoteOut, "\n") {
-			name := strings.TrimSpace(line)
+		case strings.HasPrefix(ref, "refs/remotes/"):
+			name := strings.TrimPrefix(ref, "refs/remotes/")
 			if name == "" || strings.HasSuffix(name, "/HEAD") {
 				continue
 			}

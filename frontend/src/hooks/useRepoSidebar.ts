@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import type { BranchEntry, WorktreeEntry } from '../types'
+import {
+  getSidebarCache,
+  patchSidebarSelection,
+  setSidebarCache,
+} from '../lib/repoDataCache'
 import { listBranches, listWorktrees } from '../lib/wails'
 
 export function useRepoSidebar(activeRepository: string) {
@@ -8,20 +13,23 @@ export function useRepoSidebar(activeRepository: string) {
   const [worktrees, setWorktrees] = useState<WorktreeEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedBranch, setSelectedBranch] = useState<string | null>(null)
-  const [selectedWorktree, setSelectedWorktree] = useState<string | null>(null)
+  const [selectedBranch, setSelectedBranchState] = useState<string | null>(null)
+  const [selectedWorktree, setSelectedWorktreeState] = useState<string | null>(null)
 
   const loadSidebar = useCallback(async (repoPath: string, preserveSelection = false) => {
     if (!repoPath) {
       setBranches([])
       setWorktrees([])
-      setSelectedBranch(null)
-      setSelectedWorktree(null)
+      setSelectedBranchState(null)
+      setSelectedWorktreeState(null)
       setError(null)
+      setLoading(false)
       return
     }
 
-    setLoading(true)
+    if (!preserveSelection) {
+      setLoading(true)
+    }
     setError(null)
     try {
       const [branchEntries, worktreeEntries] = await Promise.all([
@@ -31,10 +39,11 @@ export function useRepoSidebar(activeRepository: string) {
       setBranches(branchEntries)
       setWorktrees(worktreeEntries)
 
-      setSelectedWorktree((currentWorktree) => {
+      setSelectedWorktreeState((currentWorktree) => {
         const keepCurrent =
           preserveSelection &&
           currentWorktree !== null &&
+          currentWorktree !== '' &&
           worktreeEntries.some((entry) => entry.path === currentWorktree)
 
         const nextWorktree = keepCurrent
@@ -43,25 +52,32 @@ export function useRepoSidebar(activeRepository: string) {
             worktreeEntries[0]?.path ??
             null)
 
-        setSelectedBranch((currentBranch) => {
-          if (
+        setSelectedBranchState((currentBranch) => {
+          const nextBranch =
             preserveSelection &&
             currentBranch &&
             branchEntries.some((entry) => !entry.isRemote && entry.name === currentBranch)
-          ) {
-            return currentBranch
-          }
-          const worktree = worktreeEntries.find((entry) => entry.path === nextWorktree)
-          return worktree?.branch ?? null
+              ? currentBranch
+              : (worktreeEntries.find((entry) => entry.path === nextWorktree)?.branch ?? null)
+
+          setSidebarCache(repoPath, {
+            branches: branchEntries,
+            worktrees: worktreeEntries,
+            selectedBranch: nextBranch,
+            selectedWorktree: nextWorktree,
+          })
+          return nextBranch
         })
 
         return nextWorktree
       })
     } catch (err) {
-      setBranches([])
-      setWorktrees([])
-      setSelectedBranch(null)
-      setSelectedWorktree(null)
+      if (!preserveSelection) {
+        setBranches([])
+        setWorktrees([])
+        setSelectedBranchState(null)
+        setSelectedWorktreeState(null)
+      }
       setError(err instanceof Error ? err.message : 'リポジトリ情報の取得に失敗しました')
     } finally {
       setLoading(false)
@@ -69,8 +85,55 @@ export function useRepoSidebar(activeRepository: string) {
   }, [])
 
   useEffect(() => {
-    void loadSidebar(activeRepository)
+    if (!activeRepository) {
+      setBranches([])
+      setWorktrees([])
+      setSelectedBranchState(null)
+      setSelectedWorktreeState(null)
+      setError(null)
+      setLoading(false)
+      return
+    }
+
+    const cached = getSidebarCache(activeRepository)
+    if (cached) {
+      setBranches(cached.branches)
+      setWorktrees(cached.worktrees)
+      setSelectedBranchState(cached.selectedBranch)
+      setSelectedWorktreeState(cached.selectedWorktree)
+      setLoading(false)
+      setError(null)
+      void loadSidebar(activeRepository, true)
+      return
+    }
+
+    void loadSidebar(activeRepository, false)
   }, [activeRepository, loadSidebar])
+
+  const setSelectedBranch = useCallback(
+    (branch: string | null) => {
+      setSelectedBranchState(branch)
+      if (activeRepository) {
+        patchSidebarSelection(activeRepository, branch, selectedWorktree)
+      }
+    },
+    [activeRepository, selectedWorktree],
+  )
+
+  const setSelectedWorktree = useCallback(
+    (path: string | null) => {
+      setSelectedWorktreeState(path)
+      if (activeRepository) {
+        patchSidebarSelection(activeRepository, selectedBranch, path)
+      }
+    },
+    [activeRepository, selectedBranch],
+  )
+
+  const reload = useCallback(
+    () => loadSidebar(activeRepository, true),
+    [activeRepository, loadSidebar],
+  )
 
   return {
     branches,
@@ -81,6 +144,6 @@ export function useRepoSidebar(activeRepository: string) {
     setSelectedBranch,
     selectedWorktree,
     setSelectedWorktree,
-    reload: () => loadSidebar(activeRepository, true),
+    reload,
   }
 }

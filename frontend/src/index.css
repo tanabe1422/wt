@@ -98,3 +98,47 @@ body {
   background: var(--color-slate-100);
   color: var(--color-slate-900);
 }
+
+/*
+ * スクロールバー: トラックは背景と同色、上下三角なし。
+ * scrollbar-width / scrollbar-color は Chromium で ::-webkit-scrollbar-* を無効化し、
+ * Windows の三角付きネイティブ風バーに戻るため使わない。
+ */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-slate-300);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-slate-400);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-slate-300) transparent;
+  }
+}

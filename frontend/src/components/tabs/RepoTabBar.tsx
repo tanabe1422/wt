@@ -9,6 +9,7 @@ interface RepoTabBarProps {
   onActivate: (path: string) => void
   onClose: (path: string) => void
   onAdd: () => void
+  onPrefetch?: (path: string) => void
 }
 
 function baseName(path: string): string {
@@ -48,6 +49,7 @@ export function RepoTabBar({
   onActivate,
   onClose,
   onAdd,
+  onPrefetch,
 }: RepoTabBarProps) {
   const barRef = useRef<HTMLDivElement>(null)
   const tabRefs = useRef(new Map<string, HTMLDivElement>())
@@ -120,6 +122,11 @@ export function RepoTabBar({
               title={path}
               className={`${styles.tab}${isActive ? ` ${styles.active}` : ''}`}
               onClick={() => onActivate(path)}
+              onMouseEnter={() => {
+                if (!isActive) {
+                  onPrefetch?.(path)
+                }
+              }}
               onMouseDown={(event) => {
                 if (event.button === 1) {
                   event.preventDefault()

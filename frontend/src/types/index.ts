@@ -11,6 +11,8 @@ export interface Settings {
   activeRepository: string
   diffTool: ExternalTool
   mergeTool: ExternalTool
+  /** Local branch names excluded from remote cleanup (e.g. main, develop). */
+  remoteCleanupExcluded: string[]
 }
 
 export interface AmendInfo {

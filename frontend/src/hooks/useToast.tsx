@@ -8,10 +8,12 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 
 import { ToastHost, type ToastItem, type ToastVariant } from '../components/ui/Toast'
+import toastStyles from '../components/ui/Toast.module.css'
 
-const SUCCESS_DURATION_MS = 3000
+const SUCCESS_DURATION_MS = 1000
 
 interface ToastApi {
   success: (message: string) => string
@@ -19,7 +21,12 @@ interface ToastApi {
   dismiss: (id: string) => void
 }
 
+interface ToastRootApi {
+  setToastRoot: (el: HTMLElement | null) => void
+}
+
 const ToastContext = createContext<ToastApi | null>(null)
+const ToastRootContext = createContext<ToastRootApi | null>(null)
 
 let toastSeq = 0
 
@@ -30,7 +37,12 @@ function nextId(prefix: string): string {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([])
+  const [toastRoot, setToastRootState] = useState<HTMLElement | null>(null)
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  const setToastRoot = useCallback((el: HTMLElement | null) => {
+    setToastRootState(el)
+  }, [])
 
   const clearTimer = useCallback((id: string) => {
     const timer = timersRef.current.get(id)
@@ -103,12 +115,41 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [success, progress, dismiss],
   )
 
+  const rootApi = useMemo<ToastRootApi>(() => ({ setToastRoot }), [setToastRoot])
+
+  const host = toastRoot ? (
+    createPortal(<ToastHost items={items} onDismiss={dismiss} />, toastRoot)
+  ) : items.length > 0 ? (
+    <div className={toastStyles.hostFixed}>
+      <ToastHost items={items} onDismiss={dismiss} />
+    </div>
+  ) : null
+
   return (
     <ToastContext.Provider value={api}>
-      {children}
-      <ToastHost items={items} onDismiss={dismiss} />
+      <ToastRootContext.Provider value={rootApi}>
+        {children}
+        {host}
+      </ToastRootContext.Provider>
     </ToastContext.Provider>
   )
+}
+
+/** MainLayout のメイン領域に置き、トーストをツールバー下・中央上部へ出す */
+export function ToastRoot() {
+  const rootApi = useContext(ToastRootContext)
+  const setRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      rootApi?.setToastRoot(el)
+    },
+    [rootApi],
+  )
+
+  if (!rootApi) {
+    return null
+  }
+
+  return <div className={toastStyles.host} ref={setRef} />
 }
 
 export function useToast(): ToastApi {

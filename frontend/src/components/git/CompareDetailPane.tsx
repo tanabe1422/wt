@@ -1,10 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { MouseEvent } from 'react'
 
+import { useContextMenu } from '../../hooks/useContextMenu'
 import { useErrorDialog } from '../../hooks/useErrorDialog'
 import { useRangeFileDiff } from '../../hooks/useRangeFileDiff'
 import { useRangeFiles } from '../../hooks/useRangeFiles'
 import { useResizableSplit } from '../../hooks/useResizableSplit'
+import { useShowFileInExplorer } from '../../hooks/useShowFileInExplorer'
+import {
+  prefetchRangeDiffs,
+  prefetchRangeHover,
+  prefetchRangeNeighbors,
+} from '../../lib/diffPrefetch'
 import { cx } from '../../utils/cx'
+import { ContextMenu } from '../ui/ContextMenu'
 import { ErrorDialog } from '../ui/ErrorDialog'
 import { ResizeHandle } from '../ui/ResizeHandle'
 import { CommitFileList } from './CommitFileList'
@@ -40,6 +49,8 @@ export function CompareDetailPane({ worktreePath, range }: CompareDetailPaneProp
     loading: diffLoading,
     error: diffError,
   } = useRangeFileDiff(worktreePath, fromRef, toRef, selectedPath)
+  const { menu, openMenu, closeMenu } = useContextMenu()
+  const { showFileDir, errorDialog: explorerErrorDialog } = useShowFileInExplorer(worktreePath)
 
   const filesErrorDialog = useErrorDialog(filesError)
   const diffErrorDialog = useErrorDialog(diffError)
@@ -71,6 +82,56 @@ export function CompareDetailPane({ worktreePath, range }: CompareDetailPaneProp
     })
   }, [files, filesLoading])
 
+  useEffect(() => {
+    if (filesLoading || !worktreePath || !fromRef || !toRef || files.length === 0) {
+      return
+    }
+    return prefetchRangeDiffs(
+      worktreePath,
+      fromRef,
+      toRef,
+      files.map((file) => file.path),
+    )
+  }, [files, filesLoading, fromRef, toRef, worktreePath])
+
+  const filePaths = useMemo(() => files.map((file) => file.path), [files])
+
+  useEffect(() => {
+    if (!worktreePath || !fromRef || !toRef || filePaths.length === 0) {
+      return
+    }
+    prefetchRangeNeighbors(worktreePath, fromRef, toRef, filePaths, selectedPath)
+  }, [worktreePath, fromRef, toRef, filePaths, selectedPath])
+
+  const handleFileHover = useCallback(
+    (path: string) => {
+      if (!worktreePath || !fromRef || !toRef) {
+        return
+      }
+      prefetchRangeHover(worktreePath, fromRef, toRef, path)
+    },
+    [worktreePath, fromRef, toRef],
+  )
+
+  const handleFileContextMenu = useCallback(
+    (entry: { path: string }, event: MouseEvent) => {
+      event.preventDefault()
+      event.stopPropagation()
+      if (selectedPath !== entry.path) {
+        setSelectedPath(entry.path)
+      }
+      openMenu(event.clientX, event.clientY, [
+        {
+          label: 'エクスプローラーで表示',
+          onClick: () => {
+            showFileDir(entry.path)
+          },
+        },
+      ])
+    },
+    [openMenu, selectedPath, showFileDir],
+  )
+
   return (
     <div
       ref={splitRef}
@@ -100,6 +161,8 @@ export function CompareDetailPane({ worktreePath, range }: CompareDetailPaneProp
             loading={filesLoading}
             selectedPath={selectedPath}
             onSelect={setSelectedPath}
+            onFileHover={handleFileHover}
+            onFileContextMenu={handleFileContextMenu}
           />
         </div>
       </div>
@@ -117,6 +180,9 @@ export function CompareDetailPane({ worktreePath, range }: CompareDetailPaneProp
           file={selectedPath}
         />
       </div>
+      {menu && (
+        <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} />
+      )}
       <ErrorDialog
         open={filesErrorDialog.open}
         title="変更ファイルの取得に失敗しました"
@@ -128,6 +194,12 @@ export function CompareDetailPane({ worktreePath, range }: CompareDetailPaneProp
         title="差分の取得に失敗しました"
         message={diffErrorDialog.message}
         onClose={diffErrorDialog.dismiss}
+      />
+      <ErrorDialog
+        open={explorerErrorDialog.open}
+        title="エクスプローラーを開けませんでした"
+        message={explorerErrorDialog.message}
+        onClose={explorerErrorDialog.dismiss}
       />
     </div>
   )

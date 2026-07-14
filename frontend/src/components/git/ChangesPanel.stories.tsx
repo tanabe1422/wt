@@ -106,12 +106,24 @@ function ChangesPanelDemo({
                       console.info('[story] OpenMergetool', menu.path)
                     },
                   },
+                  {
+                    label: 'エクスプローラーで表示',
+                    onClick: () => {
+                      console.info('[story] ShowInExplorer', menu.path)
+                    },
+                  },
                 ]
               : [
                   {
                     label: '差分を外部ツールで開く',
                     onClick: () => {
                       console.info('[story] OpenDifftool', menu.path)
+                    },
+                  },
+                  {
+                    label: 'エクスプローラーで表示',
+                    onClick: () => {
+                      console.info('[story] ShowInExplorer', menu.path)
                     },
                   },
                   menu.untracked

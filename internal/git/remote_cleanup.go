@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // MergeCheckMode selects how "merged into base" is determined.
@@ -93,38 +95,36 @@ func ListRemoteMergeStatus(repoPath, baseRef, mode string) ([]RemoteMergeEntry, 
 		return nil, err
 	}
 
-	var mergedSet map[string]struct{}
-	var baseTree string
-	if checkMode == MergeCheckAncestry {
-		mergedSet, err = ancestryMergedRemotes(dir, baseRef)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		baseTree, err = runGit(dir, "rev-parse", baseRef+"^{tree}")
-		if err != nil {
-			return nil, err
-		}
-		baseTree = strings.TrimSpace(baseTree)
-	}
-
-	entries := make([]RemoteMergeEntry, 0, len(remotes))
+	candidates := make([]remoteRefInfo, 0, len(remotes))
 	for _, ref := range remotes {
 		if ref.Name == baseRef {
 			continue
 		}
-		var merged bool
-		if checkMode == MergeCheckAncestry {
-			_, merged = mergedSet[ref.Name]
-		} else {
-			merged, err = isContentMerged(dir, baseRef, ref.Name, baseTree)
-			if err != nil {
-				return nil, err
-			}
+		candidates = append(candidates, ref)
+	}
+
+	var mergedByName map[string]bool
+	if checkMode == MergeCheckAncestry {
+		mergedSet, err := ancestryMergedRemotes(dir, baseRef)
+		if err != nil {
+			return nil, err
 		}
+		mergedByName = make(map[string]bool, len(candidates))
+		for _, ref := range candidates {
+			_, mergedByName[ref.Name] = mergedSet[ref.Name]
+		}
+	} else {
+		mergedByName, err = contentMergedRemotes(dir, baseRef, candidates)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	entries := make([]RemoteMergeEntry, 0, len(candidates))
+	for _, ref := range candidates {
 		entries = append(entries, RemoteMergeEntry{
 			Name:         ref.Name,
-			Merged:       merged,
+			Merged:       mergedByName[ref.Name],
 			LastCommitAt: ref.LastCommitAt,
 			LastAuthor:   ref.LastAuthor,
 		})
@@ -136,6 +136,83 @@ func ListRemoteMergeStatus(repoPath, baseRef, mode string) ([]RemoteMergeEntry, 
 		return entries[i].Name < entries[j].Name
 	})
 	return entries, nil
+}
+
+// contentMergedRemotes marks candidates merged when their tip content is already in base.
+// Ancestry-merged refs skip merge-tree; the rest are checked in parallel.
+func contentMergedRemotes(dir, baseRef string, candidates []remoteRefInfo) (map[string]bool, error) {
+	result := make(map[string]bool, len(candidates))
+	if len(candidates) == 0 {
+		return result, nil
+	}
+
+	ancestrySet, err := ancestryMergedRemotes(dir, baseRef)
+	if err != nil {
+		return nil, err
+	}
+
+	needCheck := make([]remoteRefInfo, 0, len(candidates))
+	for _, ref := range candidates {
+		if _, ok := ancestrySet[ref.Name]; ok {
+			result[ref.Name] = true
+			continue
+		}
+		needCheck = append(needCheck, ref)
+	}
+	if len(needCheck) == 0 {
+		return result, nil
+	}
+
+	baseTree, err := runGit(dir, "rev-parse", baseRef+"^{tree}")
+	if err != nil {
+		return nil, err
+	}
+	baseTree = strings.TrimSpace(baseTree)
+
+	workers := runtime.NumCPU()
+	if workers < 2 {
+		workers = 2
+	}
+	if workers > 8 {
+		workers = 8
+	}
+	if workers > len(needCheck) {
+		workers = len(needCheck)
+	}
+
+	type checkResult struct {
+		name   string
+		merged bool
+	}
+	jobs := make(chan remoteRefInfo, len(needCheck))
+	out := make(chan checkResult, len(needCheck))
+
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for range workers {
+		go func() {
+			defer wg.Done()
+			for ref := range jobs {
+				merged, _ := isContentMerged(dir, baseRef, ref.Name, baseTree)
+				out <- checkResult{name: ref.Name, merged: merged}
+			}
+		}()
+	}
+
+	for _, ref := range needCheck {
+		jobs <- ref
+	}
+	close(jobs)
+
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	for item := range out {
+		result[item.name] = item.merged
+	}
+	return result, nil
 }
 
 // DeleteRemoteBranches deletes remote branches via `git push <remote> --delete ...`.

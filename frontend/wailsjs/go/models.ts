@@ -21,6 +21,7 @@ export namespace config {
 	    activeRepository: string;
 	    diffTool: ExternalTool;
 	    mergeTool: ExternalTool;
+	    remoteCleanupExcluded: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -32,6 +33,7 @@ export namespace config {
 	        this.activeRepository = source["activeRepository"];
 	        this.diffTool = this.convertValues(source["diffTool"], ExternalTool);
 	        this.mergeTool = this.convertValues(source["mergeTool"], ExternalTool);
+	        this.remoteCleanupExcluded = source["remoteCleanupExcluded"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

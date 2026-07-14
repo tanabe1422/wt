@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { invalidateWorktreeDiffs } from '../lib/diffCache'
+import { getStatusCache, setStatusCache } from '../lib/repoDataCache'
 import {
   getStatus,
   hasStagedChange,
@@ -10,10 +12,17 @@ import {
 import type { FileStatus } from '../types'
 
 export function useGitStatus(worktreePath: string) {
-  const [entries, setEntries] = useState<FileStatus[]>([])
-  const [loading, setLoading] = useState(() => !!worktreePath)
+  const [entries, setEntries] = useState<FileStatus[]>(() =>
+    worktreePath ? (getStatusCache(worktreePath) ?? []) : [],
+  )
+  const [loading, setLoading] = useState(() => {
+    if (!worktreePath) {
+      return false
+    }
+    return getStatusCache(worktreePath) === undefined
+  })
   const [error, setError] = useState<string | null>(null)
-  const hasLoadedRef = useRef(false)
+  const hasLoadedRef = useRef(worktreePath ? getStatusCache(worktreePath) !== undefined : false)
 
   const reload = useCallback(async () => {
     if (!worktreePath) {
@@ -32,10 +41,12 @@ export function useGitStatus(worktreePath: string) {
     try {
       const status = await getStatus(worktreePath)
       setEntries(status)
+      setStatusCache(worktreePath, status)
       hasLoadedRef.current = true
     } catch (err) {
-      setEntries([])
-      hasLoadedRef.current = false
+      if (!hasLoadedRef.current) {
+        setEntries([])
+      }
       setError(err instanceof Error ? err.message : 'ステータスの取得に失敗しました')
     } finally {
       setLoading(false)
@@ -43,9 +54,25 @@ export function useGitStatus(worktreePath: string) {
   }, [worktreePath])
 
   useEffect(() => {
-    hasLoadedRef.current = false
+    if (!worktreePath) {
+      hasLoadedRef.current = false
+      setEntries([])
+      setLoading(false)
+      setError(null)
+      return
+    }
+
+    const cached = getStatusCache(worktreePath)
+    if (cached) {
+      setEntries(cached)
+      hasLoadedRef.current = true
+      setLoading(false)
+      setError(null)
+    } else {
+      hasLoadedRef.current = false
+    }
     void reload()
-  }, [reload])
+  }, [reload, worktreePath])
 
   const staged = entries.filter(hasStagedChange)
   const unstaged = entries.filter(hasUnstagedChange)
@@ -56,6 +83,7 @@ export function useGitStatus(worktreePath: string) {
         return
       }
       await stageFiles(worktreePath, paths)
+      invalidateWorktreeDiffs(worktreePath)
       await reload()
     },
     [worktreePath, reload],
@@ -67,6 +95,7 @@ export function useGitStatus(worktreePath: string) {
         return
       }
       await unstageFiles(worktreePath, paths)
+      invalidateWorktreeDiffs(worktreePath)
       await reload()
     },
     [worktreePath, reload],

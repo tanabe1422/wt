@@ -96,23 +96,48 @@ func parsePorcelainStatus(out string) []FileStatus {
 }
 
 func enrichStatusEntries(dir string, entries []FileStatus) {
+	candidates := make([]string, 0, len(entries))
 	for i := range entries {
 		if entries[i].IsDirectory {
 			continue
 		}
-		if isStagedGitlink(dir, entries[i].Path) {
+		candidates = append(candidates, entries[i].Path)
+	}
+	if len(candidates) == 0 {
+		return
+	}
+
+	args := append([]string{"ls-files", "-s", "--"}, candidates...)
+	out, err := runGit(dir, args...)
+	if err != nil || strings.TrimSpace(out) == "" {
+		return
+	}
+
+	gitlinks := stagedGitlinkPaths(out)
+	for i := range entries {
+		if entries[i].IsDirectory {
+			continue
+		}
+		if gitlinks[entries[i].Path] {
 			entries[i].IsDirectory = true
 		}
 	}
 }
 
-func isStagedGitlink(dir, path string) bool {
-	out, err := runGit(dir, "ls-files", "-s", "--", path)
-	if err != nil || strings.TrimSpace(out) == "" {
-		return false
+// stagedGitlinkPaths parses `git ls-files -s` output and returns paths with mode 160000.
+func stagedGitlinkPaths(out string) map[string]bool {
+	result := make(map[string]bool)
+	for _, line := range strings.Split(out, "\n") {
+		if !strings.HasPrefix(line, "160000 ") {
+			continue
+		}
+		tab := strings.IndexByte(line, '\t')
+		if tab < 0 || tab+1 >= len(line) {
+			continue
+		}
+		result[line[tab+1:]] = true
 	}
-	line := strings.SplitN(out, "\n", 2)[0]
-	return strings.HasPrefix(line, "160000 ")
+	return result
 }
 
 // IsConflict reports whether the entry is an unmerged (conflict) path.

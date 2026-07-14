@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 
+import { ToastRoot } from '../../hooks/useToast'
 import { CollapsibleSidebar, SidebarProvider } from './CollapsibleSidebar'
 import styles from './MainLayout.module.css'
 
@@ -25,7 +26,10 @@ export function MainLayout({
         {workspaceToolbar}
         <div className={styles.body} aria-busy={busy || undefined}>
           <CollapsibleSidebar>{sidebar}</CollapsibleSidebar>
-          <main className={styles.main}>{children}</main>
+          <main className={styles.main}>
+            {children}
+            <ToastRoot />
+          </main>
           {busy && (
             <div className={styles.busyOverlay} role="status" aria-live="polite" aria-label="更新中">
               <span className={styles.spinner} aria-hidden="true" />

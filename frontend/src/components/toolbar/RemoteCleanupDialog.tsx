@@ -3,9 +3,13 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   defaultRemoteBaseRef,
   deleteRemoteBranches,
+  getSettings,
   listRemoteMergeStatus,
+  saveSettings,
 } from '../../lib/wails'
 import type { MergeCheckMode, RemoteMergeEntry } from '../../types'
+import { localBranchFromRemote } from '../../utils/branchTree'
+import { isRemoteCleanupExcluded } from '../../utils/remoteCleanupExcluded'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { IconButton } from '../ui/IconButton'
@@ -50,6 +54,71 @@ function formatCommitAt(iso: string): string {
   }).format(date)
 }
 
+function ExcludedListDialog({
+  open,
+  excluded,
+  busy,
+  onRemove,
+  onClose,
+}: {
+  open: boolean
+  excluded: string[]
+  busy: boolean
+  onRemove: (name: string) => void
+  onClose: () => void
+}) {
+  if (!open) {
+    return null
+  }
+
+  return (
+    <div className={styles.backdrop} onClick={onClose}>
+      <div
+        className={styles.excludedDialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="excluded-list-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className={styles.header}>
+          <h2 id="excluded-list-title">除外リスト</h2>
+          <IconButton type="button" aria-label="閉じる" onClick={onClose}>
+            <CloseIcon />
+          </IconButton>
+        </div>
+        <div className={styles.excludedBody}>
+          <p className={styles.excludedHint}>
+            これらのローカルブランチ名に一致するリモートは整理一覧に表示されません。
+          </p>
+          {excluded.length === 0 ? (
+            <p className={styles.empty}>除外中のブランチはありません</p>
+          ) : (
+            <ul className={styles.excludedList}>
+              {excluded.map((name) => (
+                <li key={name} className={styles.excludedRow}>
+                  <span className={styles.excludedName}>{name}</span>
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => onRemove(name)}
+                  >
+                    削除
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className={styles.footer}>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            閉じる
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function RemoteCleanupDialog({
   open,
   worktreePath,
@@ -62,11 +131,14 @@ export function RemoteCleanupDialog({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('merged')
   const [nameFilter, setNameFilter] = useState('')
   const [entries, setEntries] = useState<RemoteMergeEntry[]>([])
+  const [excluded, setExcluded] = useState<string[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [savingExcluded, setSavingExcluded] = useState(false)
   const [error, setError] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [excludedOpen, setExcludedOpen] = useState(false)
 
   useEffect(() => {
     if (!open || !worktreePath) {
@@ -79,14 +151,19 @@ export function RemoteCleanupDialog({
     setNameFilter('')
     setStatusFilter('merged')
     setMode('ancestry')
+    setExcludedOpen(false)
 
     void (async () => {
       try {
-        const base = await defaultRemoteBaseRef(worktreePath)
+        const [base, settings] = await Promise.all([
+          defaultRemoteBaseRef(worktreePath),
+          getSettings(),
+        ])
         if (cancelled) {
           return
         }
         setBaseRef(base)
+        setExcluded([...(settings.remoteCleanupExcluded ?? [])])
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : '基準ブランチの取得に失敗しました')
@@ -139,6 +216,9 @@ export function RemoteCleanupDialog({
   const visible = useMemo(() => {
     const q = nameFilter.trim().toLowerCase()
     return entries.filter((entry) => {
+      if (isRemoteCleanupExcluded(entry.name, excluded)) {
+        return false
+      }
       if (statusFilter === 'merged' && !entry.merged) {
         return false
       }
@@ -150,7 +230,7 @@ export function RemoteCleanupDialog({
       }
       return true
     })
-  }, [entries, nameFilter, statusFilter])
+  }, [entries, excluded, nameFilter, statusFilter])
 
   const allVisibleSelected =
     visible.length > 0 && visible.every((entry) => selected.has(entry.name))
@@ -188,8 +268,66 @@ export function RemoteCleanupDialog({
     [selected],
   )
 
+  async function persistExcluded(nextExcluded: string[]) {
+    setSavingExcluded(true)
+    setError('')
+    try {
+      const settings = await getSettings()
+      const saved = await saveSettings({
+        ...settings,
+        remoteCleanupExcluded: nextExcluded,
+      })
+      setExcluded([...(saved.remoteCleanupExcluded ?? nextExcluded)])
+      setSelected((prev) => {
+        const next = new Set<string>()
+        for (const name of prev) {
+          if (!isRemoteCleanupExcluded(name, nextExcluded)) {
+            next.add(name)
+          }
+        }
+        return next
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '除外リストの保存に失敗しました')
+    } finally {
+      setSavingExcluded(false)
+    }
+  }
+
+  async function handleAddExcluded() {
+    if (selectedNames.length === 0) {
+      return
+    }
+    const next = [...excluded]
+    const seen = new Set(next)
+    for (const remoteRef of selectedNames) {
+      let localName: string
+      try {
+        localName = localBranchFromRemote(remoteRef)
+      } catch {
+        localName = remoteRef
+      }
+      if (!seen.has(localName)) {
+        seen.add(localName)
+        next.push(localName)
+      }
+    }
+    next.sort((a, b) => a.localeCompare(b))
+    await persistExcluded(next)
+  }
+
+  async function handleRemoveExcluded(name: string) {
+    await persistExcluded(excluded.filter((entry) => entry !== name))
+  }
+
   async function handleDelete() {
     if (selectedNames.length === 0 || !worktreePath) {
+      return
+    }
+    const blocked = selectedNames.filter((name) => isRemoteCleanupExcluded(name, excluded))
+    if (blocked.length > 0) {
+      setConfirmOpen(false)
+      setError(`除外リストのブランチは削除できません: ${blocked.join(', ')}`)
       return
     }
     setDeleting(true)
@@ -215,6 +353,8 @@ export function RemoteCleanupDialog({
   if (!open) {
     return null
   }
+
+  const busy = deleting || savingExcluded
 
   return (
     <>
@@ -305,15 +445,24 @@ export function RemoteCleanupDialog({
                 {loading ? '読み込み中…' : `${visible.length} 件`}
                 {selectedNames.length > 0 ? ` / ${selectedNames.length} 選択` : ''}
               </span>
-              <label className={styles.selectAll}>
-                <input
-                  type="checkbox"
-                  checked={allVisibleSelected}
-                  disabled={loading || visible.length === 0}
-                  onChange={toggleAllVisible}
-                />
-                表示中をすべて選択
-              </label>
+              <div className={styles.listHeaderActions}>
+                <Button
+                  variant="ghost"
+                  disabled={selectedNames.length === 0 || busy || loading}
+                  onClick={() => {
+                    void handleAddExcluded()
+                  }}
+                >
+                  除外に追加
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => setExcludedOpen(true)}
+                >
+                  除外リスト
+                </Button>
+              </div>
             </div>
 
             <div className={styles.list}>
@@ -322,27 +471,57 @@ export function RemoteCleanupDialog({
               ) : visible.length === 0 ? (
                 <p className={styles.empty}>該当するリモートブランチはありません</p>
               ) : (
-                visible.map((entry) => (
-                  <label key={entry.name} className={styles.row}>
-                    <input
-                      type="checkbox"
-                      checked={selected.has(entry.name)}
-                      onChange={() => toggleOne(entry.name)}
-                    />
-                    <span className={styles.rowName}>{entry.name}</span>
-                    <span className={styles.rowMeta}>
-                      {formatCommitAt(entry.lastCommitAt)}
-                      {entry.lastAuthor ? ` · ${entry.lastAuthor}` : ''}
-                    </span>
-                    <span
-                      className={`${styles.badge} ${
-                        entry.merged ? styles.badgeMerged : styles.badgeUnmerged
-                      }`}
-                    >
-                      {entry.merged ? 'マージ済み' : '未マージ'}
-                    </span>
-                  </label>
-                ))
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th className={styles.colCheck}>
+                        <input
+                          type="checkbox"
+                          checked={allVisibleSelected}
+                          disabled={loading || visible.length === 0}
+                          onChange={toggleAllVisible}
+                          aria-label="表示中をすべて選択"
+                        />
+                      </th>
+                      <th className={styles.colBranch}>ブランチ</th>
+                      <th className={styles.colDate}>最終コミット</th>
+                      <th className={styles.colAuthor}>作者</th>
+                      <th className={styles.colStatus}>状態</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map((entry) => (
+                      <tr
+                        key={entry.name}
+                        className={styles.tableRow}
+                        onClick={() => toggleOne(entry.name)}
+                      >
+                        <td className={styles.colCheck}>
+                          <input
+                            type="checkbox"
+                            checked={selected.has(entry.name)}
+                            onChange={() => toggleOne(entry.name)}
+                            onClick={(event) => event.stopPropagation()}
+                          />
+                        </td>
+                        <td className={styles.colBranch}>
+                          <span className={styles.branchName}>{entry.name}</span>
+                        </td>
+                        <td className={styles.colDate}>{formatCommitAt(entry.lastCommitAt)}</td>
+                        <td className={styles.colAuthor}>{entry.lastAuthor || '—'}</td>
+                        <td className={styles.colStatus}>
+                          <span
+                            className={`${styles.badge} ${
+                              entry.merged ? styles.badgeMerged : styles.badgeUnmerged
+                            }`}
+                          >
+                            {entry.merged ? 'マージ済み' : '未マージ'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
 
@@ -350,12 +529,12 @@ export function RemoteCleanupDialog({
           </div>
 
           <div className={styles.footer}>
-            <Button variant="ghost" onClick={onClose} disabled={deleting}>
+            <Button variant="ghost" onClick={onClose} disabled={busy}>
               閉じる
             </Button>
             <Button
               variant="danger"
-              disabled={selectedNames.length === 0 || loading || deleting}
+              disabled={selectedNames.length === 0 || loading || busy}
               onClick={() => setConfirmOpen(true)}
             >
               選択を削除
@@ -363,6 +542,16 @@ export function RemoteCleanupDialog({
           </div>
         </div>
       </div>
+
+      <ExcludedListDialog
+        open={excludedOpen}
+        excluded={excluded}
+        busy={savingExcluded}
+        onRemove={(name) => {
+          void handleRemoveExcluded(name)
+        }}
+        onClose={() => setExcludedOpen(false)}
+      />
 
       <ConfirmDialog
         open={confirmOpen}

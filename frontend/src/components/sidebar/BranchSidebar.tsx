@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useErrorDialog } from '../../hooks/useErrorDialog'
 import { useBranchActions } from '../../hooks/useBranchActions'
@@ -28,6 +28,7 @@ interface BranchSidebarProps {
   onSelectWorktree: (path: string) => void
   onReload: () => void | Promise<void>
   onBranchChanged?: () => void
+  onBusyChange?: (busy: boolean) => void
   compareFromRef?: string | null
   onCompareWithCurrent?: (branch: string) => void
 }
@@ -44,12 +45,18 @@ export function BranchSidebar({
   onSelectWorktree,
   onReload,
   onBranchChanged,
+  onBusyChange,
   compareFromRef,
   onCompareWithCurrent,
 }: BranchSidebarProps) {
   const errorDialog = useErrorDialog(error)
   const checkedOutBranch = getSelectedWorktreeBranch(worktrees, selectedWorktree)
   const worktreeBranches = useMemo(() => collectWorktreeBranches(worktrees), [worktrees])
+  const actionWorktreePath =
+    selectedWorktree ||
+    worktrees.find((entry) => entry.isMain)?.path ||
+    worktrees[0]?.path ||
+    null
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [forceDelete, setForceDelete] = useState(false)
@@ -62,7 +69,7 @@ export function BranchSidebar({
   }, [onBranchChanged, onReload])
 
   const branchActions = useBranchActions({
-    worktreePath: selectedWorktree,
+    worktreePath: actionWorktreePath,
     onSuccess: handleBranchSuccess,
   })
   const actionErrorDialog = useErrorDialog(branchActions.error)
@@ -79,10 +86,18 @@ export function BranchSidebar({
   const worktreeErrorDialog = useErrorDialog(worktreeDialogs.worktreeError)
 
   const stashActions = useStashActions({
-    worktreePath: selectedWorktree,
-    reloadToken: `${activeRepository}:${selectedWorktree ?? ''}:${loading ? '1' : '0'}`,
+    worktreePath: actionWorktreePath,
+    reloadToken: `${activeRepository}:${actionWorktreePath ?? ''}:${loading ? '1' : '0'}`,
     onSuccess: handleBranchSuccess,
   })
+
+  const sidebarBusy =
+    branchActions.busy || worktreeDialogs.worktreeBusy || stashActions.busy
+
+  useEffect(() => {
+    onBusyChange?.(sidebarBusy)
+    return () => onBusyChange?.(false)
+  }, [onBusyChange, sidebarBusy])
 
   const handleSelectWorktree = useCallback(
     (path: string) => {

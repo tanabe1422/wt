@@ -187,12 +187,8 @@ func TestParseBranchRefLine(t *testing.T) {
 
 func TestListBranches(t *testing.T) {
 	fake := newFakeRunner()
-	fake.On("for-each-ref", "--format=%(refname:short)|%(HEAD)|%(upstream:short)|%(upstream:track)", "refs/heads/").Return(
-		"main|*|origin/main|[ahead 1]\nfeature/foo| |||",
-		nil,
-	)
-	fake.On("for-each-ref", "--format=%(refname:short)", "refs/remotes/").Return(
-		"origin/HEAD\norigin/main\norigin/feature/foo",
+	fake.On("for-each-ref", "--format=%(refname)|%(HEAD)|%(upstream:short)|%(upstream:track)", "refs/heads/", "refs/remotes/").Return(
+		"refs/heads/main|*|origin/main|[ahead 1]\nrefs/heads/feature/foo| |||\nrefs/remotes/origin/HEAD| |||\nrefs/remotes/origin/main| |||\nrefs/remotes/origin/feature/foo| |||",
 		nil,
 	)
 	withFakeRunner(t, fake)

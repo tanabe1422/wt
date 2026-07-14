@@ -16,10 +16,36 @@ type ExternalTool struct {
 }
 
 type Settings struct {
-	Repositories     []string     `json:"repositories"`
-	ActiveRepository string       `json:"activeRepository"`
-	DiffTool         ExternalTool `json:"diffTool"`
-	MergeTool        ExternalTool `json:"mergeTool"`
+	Repositories           []string     `json:"repositories"`
+	ActiveRepository       string       `json:"activeRepository"`
+	DiffTool               ExternalTool `json:"diffTool"`
+	MergeTool              ExternalTool `json:"mergeTool"`
+	RemoteCleanupExcluded  []string     `json:"remoteCleanupExcluded"`
+}
+
+// DefaultRemoteCleanupExcluded is applied when remoteCleanupExcluded is unset (nil).
+var DefaultRemoteCleanupExcluded = []string{"main", "master", "develop"}
+
+func normalizeRemoteCleanupExcluded(excluded []string) []string {
+	if excluded == nil {
+		out := make([]string, len(DefaultRemoteCleanupExcluded))
+		copy(out, DefaultRemoteCleanupExcluded)
+		return out
+	}
+	seen := make(map[string]struct{}, len(excluded))
+	out := make([]string, 0, len(excluded))
+	for _, name := range excluded {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		if _, exists := seen[name]; exists {
+			continue
+		}
+		seen[name] = struct{}{}
+		out = append(out, name)
+	}
+	return out
 }
 
 func configPath() (string, error) {
@@ -161,10 +187,11 @@ func normalizeSettings(settings Settings) (Settings, error) {
 	}
 
 	return Settings{
-		Repositories:     repositories,
-		ActiveRepository: active,
-		DiffTool:         normalizeExternalTool(settings.DiffTool),
-		MergeTool:        normalizeExternalTool(settings.MergeTool),
+		Repositories:          repositories,
+		ActiveRepository:      active,
+		DiffTool:              normalizeExternalTool(settings.DiffTool),
+		MergeTool:             normalizeExternalTool(settings.MergeTool),
+		RemoteCleanupExcluded: normalizeRemoteCleanupExcluded(settings.RemoteCleanupExcluded),
 	}, nil
 }
 

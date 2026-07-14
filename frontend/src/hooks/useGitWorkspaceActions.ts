@@ -2,9 +2,22 @@ import { useCallback, useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
 
 import type { ContextMenuEntry, ContextMenuItem } from '../components/ui/ContextMenu'
-import { commit, discardHunk, getAmendInfo, isMerging, openDifftool, openMergetool, push, stageHunk, unstageHunk, amendCommit } from '../lib/wails'
+import { invalidateWorktreeDiffs } from '../lib/diffCache'
+import {
+  amendCommit,
+  commit,
+  discardHunk,
+  getAmendInfo,
+  isMerging,
+  openDifftool,
+  openMergetool,
+  showInExplorer,
+  stageHunk,
+  unstageHunk,
+} from '../lib/wails'
 import type { AmendInfo, FileStatus } from '../types'
 import { isConflict, isUntracked } from '../utils/gitStatus'
+import { worktreeFileDir } from '../utils/worktreePaths'
 import { useToast } from './useToast'
 
 interface UseGitWorkspaceActionsOptions {
@@ -165,23 +178,11 @@ export function useGitWorkspaceActions({
           toast.success('コミットしました')
         }
         clearAll()
-        await reload()
-        await refreshSidebar()
-        await refreshAmendInfo()
+        await Promise.all([reload(), refreshSidebar(), refreshAmendInfo()])
       })
     },
     [clearAll, refreshAmendInfo, refreshSidebar, runBusy, toast, worktreePath, reload],
   )
-
-  const handlePush = useCallback(async () => {
-    await runBusy(async () => {
-      await push(worktreePath)
-      await reload()
-      await refreshSidebar()
-      await refreshAmendInfo()
-      toast.success('プッシュしました')
-    })
-  }, [refreshAmendInfo, refreshSidebar, runBusy, toast, worktreePath, reload])
 
   const handleStageHunk = useCallback(
     async (hunkIndex: number) => {
@@ -190,9 +191,8 @@ export function useGitWorkspaceActions({
       }
       await runBusy(async () => {
         await stageHunk(worktreePath, focusFile.path, hunkIndex)
-        await reload()
-        await refreshSidebar()
-        await reloadDiff()
+        invalidateWorktreeDiffs(worktreePath)
+        await Promise.all([reload(), refreshSidebar(), reloadDiff()])
       })
     },
     [focusFile?.path, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
@@ -205,9 +205,8 @@ export function useGitWorkspaceActions({
       }
       await runBusy(async () => {
         await unstageHunk(worktreePath, focusFile.path, hunkIndex)
-        await reload()
-        await refreshSidebar()
-        await reloadDiff()
+        invalidateWorktreeDiffs(worktreePath)
+        await Promise.all([reload(), refreshSidebar(), reloadDiff()])
       })
     },
     [focusFile?.path, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
@@ -220,9 +219,8 @@ export function useGitWorkspaceActions({
       }
       await runBusy(async () => {
         await discardHunk(worktreePath, focusFile.path, hunkIndex, focusFile.staged)
-        await reload()
-        await refreshSidebar()
-        await reloadDiff()
+        invalidateWorktreeDiffs(worktreePath)
+        await Promise.all([reload(), refreshSidebar(), reloadDiff()])
       })
     },
     [focusFile, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
@@ -234,10 +232,8 @@ export function useGitWorkspaceActions({
       await runBusy(async () => {
         try {
           await openMergetool(worktreePath, path)
-          await reload()
-          await refreshSidebar()
-          await reloadDiff()
-          await refreshMergeState()
+          invalidateWorktreeDiffs(worktreePath)
+          await Promise.all([reload(), refreshSidebar(), reloadDiff(), refreshMergeState()])
         } catch (err) {
           setExternalToolError(
             err instanceof Error ? err.message : '外部ツールの起動に失敗しました',
@@ -264,6 +260,21 @@ export function useGitWorkspaceActions({
     [runBusy, worktreePath],
   )
 
+  const handleShowInExplorer = useCallback(
+    (relativePath: string) => {
+      void (async () => {
+        try {
+          await showInExplorer(worktreeFileDir(worktreePath, relativePath))
+        } catch (err) {
+          setExternalToolError(
+            err instanceof Error ? err.message : 'エクスプローラーを開けませんでした',
+          )
+        }
+      })()
+    },
+    [worktreePath],
+  )
+
   const handleFileContextMenu = useCallback(
     (entry: FileStatus, event: MouseEvent, mode: 'staged' | 'unstaged') => {
       if (entry.isDirectory) {
@@ -271,6 +282,21 @@ export function useGitWorkspaceActions({
       }
       event.preventDefault()
       event.stopPropagation()
+      const selectionPaths =
+        mode === 'staged' ? stagedSelectionPaths : unstagedSelectionPaths
+      const isSelected =
+        selectionPaths instanceof Set
+          ? selectionPaths.has(entry.path)
+          : [...selectionPaths].includes(entry.path)
+      if (!isSelected) {
+        setFocus(mode, entry.path)
+      }
+      const showInExplorerItem: ContextMenuItem = {
+        label: 'エクスプローラーで表示',
+        onClick: () => {
+          handleShowInExplorer(entry.path)
+        },
+      }
       if (isConflict(entry)) {
         openMenu(event.clientX, event.clientY, [
           {
@@ -279,6 +305,7 @@ export function useGitWorkspaceActions({
               void handleOpenMergetool(entry.path)
             },
           },
+          showInExplorerItem,
         ])
         return
       }
@@ -289,6 +316,7 @@ export function useGitWorkspaceActions({
             void handleOpenDifftool(entry.path, mode === 'staged')
           },
         },
+        showInExplorerItem,
       ]
       if (mode === 'unstaged') {
         if (isUntracked(entry)) {
@@ -312,9 +340,13 @@ export function useGitWorkspaceActions({
     [
       handleOpenDifftool,
       handleOpenMergetool,
+      handleShowInExplorer,
       openMenu,
       requestDeletePaths,
       requestDiscardTrackedPaths,
+      setFocus,
+      stagedSelectionPaths,
+      unstagedSelectionPaths,
     ],
   )
 
@@ -330,7 +362,6 @@ export function useGitWorkspaceActions({
     handleStageAll,
     handleUnstageAll,
     handleCommit,
-    handlePush,
     handleStageHunk,
     handleUnstageHunk,
     handleDiscardHunk,

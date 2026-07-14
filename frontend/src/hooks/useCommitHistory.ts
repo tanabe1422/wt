@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { getHistoryScope, setHistoryScope } from '../lib/historyScopeStorage'
 import { listBranchHeads, listCommits } from '../lib/wails'
 import type { BranchHead, CommitLogEntry, HistoryScope } from '../types'
 
@@ -11,7 +12,7 @@ interface UseCommitHistoryOptions {
 }
 
 export function useCommitHistory({ worktreePath, currentBranch }: UseCommitHistoryOptions) {
-  const [scope, setScopeState] = useState<HistoryScope>('all')
+  const [scope, setScopeState] = useState<HistoryScope>(() => getHistoryScope(worktreePath))
   const [commits, setCommits] = useState<CommitLogEntry[]>([])
   const [labels, setLabels] = useState<BranchHead[]>([])
   const [hasMore, setHasMore] = useState(false)
@@ -21,6 +22,10 @@ export function useCommitHistory({ worktreePath, currentBranch }: UseCommitHisto
 
   const nextSkipRef = useRef(0)
   const loadingRef = useRef(false)
+
+  useEffect(() => {
+    setScopeState(getHistoryScope(worktreePath))
+  }, [worktreePath])
 
   const resetAndLoad = useCallback(
     async (nextScope: HistoryScope) => {
@@ -64,9 +69,13 @@ export function useCommitHistory({ worktreePath, currentBranch }: UseCommitHisto
     void resetAndLoad(scope)
   }, [resetAndLoad, scope])
 
-  const setScope = useCallback((nextScope: HistoryScope) => {
-    setScopeState(nextScope)
-  }, [])
+  const setScope = useCallback(
+    (nextScope: HistoryScope) => {
+      setScopeState(nextScope)
+      setHistoryScope(worktreePath, nextScope)
+    },
+    [worktreePath],
+  )
 
   const loadMore = useCallback(async () => {
     if (!worktreePath || !hasMore || loadingRef.current) {

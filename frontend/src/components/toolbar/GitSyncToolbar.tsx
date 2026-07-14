@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useErrorDialog } from '../../hooks/useErrorDialog'
 import { useToast } from '../../hooks/useToast'
-import { createBranch, fetchRemote, fetchRemotePrune, pull, push, pushSetUpstream, saveStash } from '../../lib/wails'
+import { createBranch, fetchRemote, fetchRemotePrune, pull, push, pushSetUpstream, saveStash, showInExplorer } from '../../lib/wails'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ErrorDialog } from '../ui/ErrorDialog'
 import { PromptDialog } from '../ui/PromptDialog'
@@ -27,6 +27,8 @@ interface GitSyncToolbarProps {
   onActionComplete?: () => void | Promise<void>
   onReload?: () => void | Promise<void>
   onOpenSettings?: () => void
+  /** MainLayout busy overlay（push / pull など同期操作中） */
+  onBusyChange?: (busy: boolean) => void
   /** When true, only show the trailing settings control (no repo selected). */
   settingsOnly?: boolean
 }
@@ -40,14 +42,39 @@ const actionTitles: Record<GitSyncAction, string> = {
 }
 
 const progressMessages = {
-  push: 'プッシュしています…',
+  createBranch: 'ブランチを作成しています…',
+  stash: 'スタッシュに退避しています…',
 } as const
 
 const successMessages = {
   push: 'プッシュしました',
+  pull: 'プルしました',
 } as const
 
 const SYNC_PROGRESS_ID = 'git-sync'
+
+function usesBusyOverlay(action: GitSyncAction): boolean {
+  return action === 'push' || action === 'pull'
+}
+
+function ExplorerIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
 function SettingsIcon({ size = 20 }: { size?: number }) {
   return (
@@ -171,18 +198,26 @@ export function GitSyncToolbar({
   onActionComplete,
   onReload,
   onOpenSettings,
+  onBusyChange,
   settingsOnly = false,
 }: GitSyncToolbarProps) {
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionTitle, setActionTitle] = useState('操作に失敗しました')
   const [acting, setActing] = useState(false)
+  const [overlayBusy, setOverlayBusy] = useState(false)
   const [reloading, setReloading] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [stashOpen, setStashOpen] = useState(false)
   const [cleanupOpen, setCleanupOpen] = useState(false)
+  const [pushConfirmOpen, setPushConfirmOpen] = useState(false)
   const [upstreamPushOpen, setUpstreamPushOpen] = useState(false)
   const actionErrorDialog = useErrorDialog(actionError)
   const toast = useToast()
+
+  useEffect(() => {
+    onBusyChange?.(overlayBusy)
+    return () => onBusyChange?.(false)
+  }, [overlayBusy, onBusyChange])
 
   const handleReload = async () => {
     if (!onReload || reloading) {
@@ -196,50 +231,74 @@ export function GitSyncToolbar({
     }
   }
 
-  const run = async (action: GitSyncAction) => {
-    if (action === 'push' && !hasUpstream) {
-      setUpstreamPushOpen(true)
-      return
-    }
-    const showToast = action === 'push'
+  const runPush = async () => {
     setActionError(null)
     setActing(true)
-    if (showToast) {
-      toast.progress(SYNC_PROGRESS_ID, progressMessages.push)
+    setOverlayBusy(true)
+    try {
+      await push(worktreePath)
+      toast.success(successMessages.push)
+    } catch (err) {
+      setActionTitle(actionTitles.push)
+      setActionError(err instanceof Error ? err.message : 'プッシュに失敗しました')
+    } finally {
+      await onActionComplete?.()
+      setOverlayBusy(false)
+      setActing(false)
+    }
+  }
+
+  const run = async (action: GitSyncAction) => {
+    if (action === 'push') {
+      if (!hasUpstream) {
+        setUpstreamPushOpen(true)
+        return
+      }
+      setPushConfirmOpen(true)
+      return
+    }
+    const showOverlay = usesBusyOverlay(action)
+    setActionError(null)
+    setActing(true)
+    if (showOverlay) {
+      setOverlayBusy(true)
     }
     try {
       await runSyncAction(action, worktreePath)
-      if (showToast) {
-        toast.dismiss(SYNC_PROGRESS_ID)
-        toast.success(successMessages.push)
+      if (action === 'pull') {
+        toast.success(successMessages.pull)
       }
     } catch (err) {
-      if (showToast) {
-        toast.dismiss(SYNC_PROGRESS_ID)
-      }
       setActionTitle(actionTitles[action])
       setActionError(err instanceof Error ? err.message : '操作に失敗しました')
     } finally {
       await onActionComplete?.()
+      if (showOverlay) {
+        setOverlayBusy(false)
+      }
       setActing(false)
     }
+  }
+
+  const handlePushConfirm = () => {
+    setPushConfirmOpen(false)
+    void runPush()
   }
 
   const handlePushSetUpstream = async () => {
     setUpstreamPushOpen(false)
     setActionError(null)
     setActing(true)
-    toast.progress(SYNC_PROGRESS_ID, progressMessages.push)
+    setOverlayBusy(true)
     try {
       await pushSetUpstream(worktreePath, 'origin')
-      toast.dismiss(SYNC_PROGRESS_ID)
       toast.success(successMessages.push)
     } catch (err) {
-      toast.dismiss(SYNC_PROGRESS_ID)
       setActionTitle(actionTitles.push)
       setActionError(err instanceof Error ? err.message : 'プッシュに失敗しました')
     } finally {
       await onActionComplete?.()
+      setOverlayBusy(false)
       setActing(false)
     }
   }
@@ -269,7 +328,7 @@ export function GitSyncToolbar({
     setCreateOpen(false)
     setActionError(null)
     setActing(true)
-    toast.progress(SYNC_PROGRESS_ID, 'ブランチを作成しています…')
+    toast.progress(SYNC_PROGRESS_ID, progressMessages.createBranch)
     try {
       await createBranch(worktreePath, trimmed)
       toast.dismiss(SYNC_PROGRESS_ID)
@@ -288,7 +347,7 @@ export function GitSyncToolbar({
     setStashOpen(false)
     setActionError(null)
     setActing(true)
-    toast.progress(SYNC_PROGRESS_ID, 'スタッシュに退避しています…')
+    toast.progress(SYNC_PROGRESS_ID, progressMessages.stash)
     try {
       await saveStash(worktreePath, message, true)
       toast.dismiss(SYNC_PROGRESS_ID)
@@ -300,6 +359,18 @@ export function GitSyncToolbar({
     } finally {
       await onActionComplete?.()
       setActing(false)
+    }
+  }
+
+  const handleOpenExplorer = async () => {
+    if (!worktreePath) {
+      return
+    }
+    try {
+      await showInExplorer(worktreePath)
+    } catch (err) {
+      setActionTitle('エクスプローラーを開けませんでした')
+      setActionError(err instanceof Error ? err.message : 'エクスプローラーを開けませんでした')
     }
   }
 
@@ -373,6 +444,16 @@ export function GitSyncToolbar({
             onClick={() => setCleanupOpen(true)}
           />
         )}
+        {!settingsOnly && (
+          <ToolbarActionButton
+            label="エクスプローラー"
+            icon={<ExplorerIcon size={20} />}
+            disabled={isDisabled}
+            onClick={() => {
+              void handleOpenExplorer()
+            }}
+          />
+        )}
         <ToolbarActionButton
           label="設定"
           icon={<SettingsIcon size={20} />}
@@ -408,6 +489,22 @@ export function GitSyncToolbar({
         onDeleted={async () => {
           await onActionComplete?.()
         }}
+      />
+      <ConfirmDialog
+        open={pushConfirmOpen}
+        title="プッシュの確認"
+        message={
+          currentBranch
+            ? aheadCount > 0
+              ? `ブランチ「${currentBranch}」をリモートにプッシュしますか？（${aheadCount} コミット先行）`
+              : `ブランチ「${currentBranch}」をリモートにプッシュしますか？`
+            : aheadCount > 0
+              ? `リモートにプッシュしますか？（${aheadCount} コミット先行）`
+              : 'リモートにプッシュしますか？'
+        }
+        confirmLabel="プッシュ"
+        onConfirm={handlePushConfirm}
+        onCancel={() => setPushConfirmOpen(false)}
       />
       <ConfirmDialog
         open={upstreamPushOpen}

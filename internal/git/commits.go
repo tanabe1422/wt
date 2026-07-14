@@ -137,10 +137,11 @@ func ListBranchHeads(worktreePath string) ([]BranchHead, error) {
 		return nil, errors.New("ワークツリーが指定されていません")
 	}
 
+	// %(*objectname) peels annotated tags to the underlying commit in one pass.
 	out, err := runGit(
 		worktreePath,
 		"for-each-ref",
-		"--format=%(refname:short)|%(objecttype)|%(objectname)",
+		"--format=%(refname:short)|%(objectname)|%(*objectname)",
 		"refs/heads/",
 		"refs/remotes/",
 		"refs/tags/",
@@ -160,28 +161,20 @@ func ListBranchHeads(worktreePath string) ([]BranchHead, error) {
 		if name == "" || strings.HasSuffix(name, "/HEAD") {
 			continue
 		}
-		objectType := ""
 		objectName := ""
 		if len(parts) > 1 {
-			objectType = strings.TrimSpace(parts[1])
+			objectName = strings.TrimSpace(parts[1])
 		}
+		peeled := ""
 		if len(parts) > 2 {
-			objectName = strings.TrimSpace(parts[2])
+			peeled = strings.TrimSpace(parts[2])
 		}
-		if objectName == "" {
-			continue
-		}
-
 		sha := objectName
-		if objectType == "tag" {
-			resolved, err := runGit(worktreePath, "rev-parse", name+"^{commit}")
-			if err != nil {
-				continue
-			}
-			sha = strings.TrimSpace(resolved)
-			if sha == "" {
-				continue
-			}
+		if peeled != "" {
+			sha = peeled
+		}
+		if sha == "" {
+			continue
 		}
 
 		heads = append(heads, BranchHead{

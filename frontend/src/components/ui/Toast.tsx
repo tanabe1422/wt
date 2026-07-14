@@ -76,11 +76,11 @@ export function ToastHost({ items, onDismiss, appearance = 'soft' }: ToastHostPr
   }
 
   return (
-    <div className={styles.host}>
+    <>
       {items.map((item) => (
         <Toast key={item.id} item={item} onDismiss={onDismiss} appearance={appearance} />
       ))}
-    </div>
+    </>
   )
 }
 

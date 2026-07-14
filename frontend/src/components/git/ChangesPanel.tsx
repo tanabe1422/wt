@@ -4,7 +4,6 @@ import type { FileStatus } from '../../types'
 import type { SectionMode, SectionSelection } from '../../hooks/useSectionSelection'
 import { cx } from '../../utils/cx'
 import { FileList } from './FileList'
-import { GitAreaIcon } from './GitIcons'
 import styles from './ChangesPanel.module.css'
 
 interface ChangesPanelProps {
@@ -31,6 +30,7 @@ interface ChangesPanelProps {
   onDiscardSelected?: () => void
   onDiscardAll?: () => void
   onAbortMerge?: () => void
+  onFileHover?: (path: string, mode: 'staged' | 'unstaged') => void
   onFileContextMenu?: (
     entry: FileStatus,
     event: MouseEvent,
@@ -56,6 +56,7 @@ export function ChangesPanel({
   onDiscardSelected,
   onDiscardAll,
   onAbortMerge,
+  onFileHover,
   onFileContextMenu,
 }: ChangesPanelProps) {
   const showMergeBanner = merging || conflictCount > 0
@@ -80,10 +81,7 @@ export function ChangesPanel({
       )}
       <section className={styles.section}>
         <h2 className={styles.heading}>
-          <span className={styles.headingStart}>
-            <GitAreaIcon area="staged" />
-            ステージ済み
-          </span>
+          <span className={styles.headingStart}>ステージ済み</span>
           <span className={styles.headingActions}>
             <button
               type="button"
@@ -112,16 +110,14 @@ export function ChangesPanel({
           onFileClick={(path, index, event) =>
             onFileClick(path, index, 'staged', staged, event)
           }
+          onFileHover={onFileHover}
           onFileContextMenu={(entry, event) => onFileContextMenu?.(entry, event, 'staged')}
           onUnstage={onUnstage}
         />
       </section>
       <section className={styles.section}>
         <h2 className={styles.heading}>
-          <span className={styles.headingStart}>
-            <GitAreaIcon area="changes" />
-            変更
-          </span>
+          <span className={styles.headingStart}>変更</span>
           <span className={styles.headingActions}>
             {onDiscardAll && (
               <button
@@ -171,6 +167,7 @@ export function ChangesPanel({
           onFileClick={(path, index, event) =>
             onFileClick(path, index, 'unstaged', unstaged, event)
           }
+          onFileHover={onFileHover}
           onFileContextMenu={(entry, event) => onFileContextMenu?.(entry, event, 'unstaged')}
           onStage={onStage}
         />

@@ -22,13 +22,13 @@ type Story = StoryObj<typeof meta>
 const VARIANTS: { variant: CountBadgeVariant; title: string; description: string }[] = [
   {
     variant: 'ahead',
-    title: 'プッシュ待ち（↑）',
-    description: 'リモートより先行しているコミット数',
+    title: 'プッシュ待ち（↑ 左）',
+    description: 'リモートより先行しているコミット数（矢印は左側）',
   },
   {
     variant: 'behind',
-    title: 'プル待ち（↓）',
-    description: 'リモートより遅れているコミット数',
+    title: 'プル待ち（↓ 右）',
+    description: 'リモートより遅れているコミット数（矢印は右側）',
   },
   {
     variant: 'changes',

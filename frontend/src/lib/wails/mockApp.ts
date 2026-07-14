@@ -18,6 +18,7 @@ let mockSettings: Settings = {
   activeRepository: '',
   diffTool: { preset: 'custom', path: '', args: '' },
   mergeTool: { preset: 'custom', path: '', args: '' },
+  remoteCleanupExcluded: ['main', 'master', 'develop'],
 }
 
 let mockStatus: FileStatus[] = [
@@ -49,6 +50,25 @@ const mockDiff: FileDiff = {
 
 const mockStagedHunks = new Map<string, Set<number>>()
 const mockDiscardedHunks = new Map<string, Set<number>>()
+
+const SYNC_MOCK_DELAY_MS = 1200
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+function updateCurrentBranchCounts(patch: Partial<Pick<BranchEntry, 'aheadCount' | 'behindCount' | 'hasUpstream'>>) {
+  mockBranchList = mockBranchList.map((entry) =>
+    entry.isCurrent && !entry.isRemote ? { ...entry, ...patch } : entry,
+  )
+}
+
+/** Storybook 用: 現在ブランチの ahead/behind を初期化 */
+export function seedMockSyncCounts(aheadCount: number, behindCount: number) {
+  updateCurrentBranchCounts({ aheadCount, behindCount })
+}
 
 const mockCommitCatalog: CommitLogEntry[] = [
   {
@@ -228,6 +248,7 @@ export const mockApp: WailsApp = {
       repositories: [...mockSettings.repositories],
       diffTool: { ...mockSettings.diffTool },
       mergeTool: { ...mockSettings.mergeTool },
+      remoteCleanupExcluded: [...(mockSettings.remoteCleanupExcluded ?? [])],
     }
   },
 
@@ -236,6 +257,7 @@ export const mockApp: WailsApp = {
       ...mockSettings,
       diffTool: { ...settings.diffTool },
       mergeTool: { ...settings.mergeTool },
+      remoteCleanupExcluded: [...(settings.remoteCleanupExcluded ?? [])],
     }
     return mockApp.GetSettings()
   },
@@ -586,18 +608,21 @@ export const mockApp: WailsApp = {
 
   async Pull(_worktreePath: string) {
     console.info('[mock] Pull')
+    await delay(SYNC_MOCK_DELAY_MS)
+    updateCurrentBranchCounts({ behindCount: 0 })
   },
 
   async Push(_worktreePath: string) {
     console.info('[mock] Push')
+    await delay(SYNC_MOCK_DELAY_MS)
+    updateCurrentBranchCounts({ aheadCount: 0 })
   },
 
   async PushSetUpstream(_worktreePath: string, remote: string) {
     const name = remote.trim() || 'origin'
-    mockBranchList = mockBranchList.map((entry) =>
-      entry.isCurrent && !entry.isRemote ? { ...entry, hasUpstream: true } : entry,
-    )
     console.info('[mock] PushSetUpstream', name)
+    await delay(SYNC_MOCK_DELAY_MS)
+    updateCurrentBranchCounts({ hasUpstream: true, aheadCount: 0 })
   },
 
   async OpenMergetool(_worktreePath: string, file: string) {

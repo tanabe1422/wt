@@ -13,14 +13,8 @@ export interface CountBadgeProps {
 function UpArrowIcon() {
   return (
     <span className={styles.icon} aria-hidden="true">
-      <svg width="9" height="9" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M12 19V5M12 5l-6 6M12 5l6 6"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+      <svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 1.5 2.5 8.2h3.3V14.5h4.4V8.2h3.3L8 1.5Z" />
       </svg>
     </span>
   )
@@ -29,14 +23,8 @@ function UpArrowIcon() {
 function DownArrowIcon() {
   return (
     <span className={styles.icon} aria-hidden="true">
-      <svg width="9" height="9" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M12 5v14M12 19l-6-6M12 19l6-6"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+      <svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 14.5 13.5 7.8h-3.3V1.5H5.8v6.3H2.5L8 14.5Z" />
       </svg>
     </span>
   )
@@ -61,8 +49,8 @@ export function CountBadge({ count, variant, className, showIcon = true }: Count
   return (
     <span className={cx(styles.badge, className)} aria-label={ariaLabel(count, variant)}>
       {showIcon && variant === 'ahead' && <UpArrowIcon />}
-      {showIcon && variant === 'behind' && <DownArrowIcon />}
       {count}
+      {showIcon && variant === 'behind' && <DownArrowIcon />}
     </span>
   )
 }

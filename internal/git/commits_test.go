@@ -122,11 +122,10 @@ func TestListBranchHeads(t *testing.T) {
 	dir := t.TempDir()
 	mergeSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	fake := newFakeRunner()
-	fake.On("for-each-ref", "--format=%(refname:short)|%(objecttype)|%(objectname)", "refs/heads/", "refs/remotes/", "refs/tags/").Return(
-		"feature|commit|"+mergeSHA+"\nv-light|commit|"+mergeSHA+"\nv-annotated|tag|bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\norigin/HEAD|commit|"+mergeSHA,
+	fake.On("for-each-ref", "--format=%(refname:short)|%(objectname)|%(*objectname)", "refs/heads/", "refs/remotes/", "refs/tags/").Return(
+		"feature|"+mergeSHA+"|\nv-light|"+mergeSHA+"|\nv-annotated|bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb|"+mergeSHA+"\norigin/HEAD|"+mergeSHA+"|",
 		nil,
 	)
-	fake.On("rev-parse", "v-annotated^{commit}").Return(mergeSHA, nil)
 	withFakeRunner(t, fake)
 
 	heads, err := ListBranchHeads(dir)

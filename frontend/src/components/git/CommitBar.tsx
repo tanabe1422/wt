@@ -16,7 +16,6 @@ interface CommitBarProps {
   busy: boolean
   amendInfo: AmendInfo | null
   onCommit: (message: string, options: CommitOptions) => Promise<void>
-  onPush: () => Promise<void>
 }
 
 const emptyAmendInfo: AmendInfo = {
@@ -25,7 +24,7 @@ const emptyAmendInfo: AmendInfo = {
   headMessage: '',
 }
 
-export function CommitBar({ disabled, busy, amendInfo, onCommit, onPush }: CommitBarProps) {
+export function CommitBar({ disabled, busy, amendInfo, onCommit }: CommitBarProps) {
   const info = amendInfo ?? emptyAmendInfo
   const [message, setMessage] = useState('')
   const [amend, setAmend] = useState(false)
@@ -56,19 +55,6 @@ export function CommitBar({ disabled, busy, amendInfo, onCommit, onPush }: Commi
     }
   }
 
-  const runPush = async () => {
-    setActionError(null)
-    setActing(true)
-    try {
-      await onPush()
-    } catch (err) {
-      setActionTitle('プッシュに失敗しました')
-      setActionError(err instanceof Error ? err.message : '操作に失敗しました')
-    } finally {
-      setActing(false)
-    }
-  }
-
   const handleAmendChange = (checked: boolean) => {
     setAmend(checked)
     if (checked && !message.trim() && info.headMessage) {
@@ -88,15 +74,15 @@ export function CommitBar({ disabled, busy, amendInfo, onCommit, onPush }: Commi
 
   return (
     <div className={styles.bar}>
-      <div className={styles.messageColumn}>
-        <textarea
-          className={styles.input}
-          placeholder="コミットメッセージ"
-          value={message}
-          disabled={isDisabled}
-          rows={3}
-          onChange={(event) => setMessage(event.target.value)}
-        />
+      <textarea
+        className={styles.input}
+        placeholder="コミットメッセージ"
+        value={message}
+        disabled={isDisabled}
+        rows={3}
+        onChange={(event) => setMessage(event.target.value)}
+      />
+      <div className={styles.footer}>
         <label
           className={styles.amendLabel}
           title={!info.canAmend && info.reason ? info.reason : undefined}
@@ -113,8 +99,6 @@ export function CommitBar({ disabled, busy, amendInfo, onCommit, onPush }: Commi
             <span className={styles.amendHint}>{info.reason}</span>
           ) : null}
         </label>
-      </div>
-      <div className={styles.actions}>
         <Button
           type="button"
           className={styles.commitButton}
@@ -122,14 +106,6 @@ export function CommitBar({ disabled, busy, amendInfo, onCommit, onPush }: Commi
           onClick={handlePrimaryClick}
         >
           {amend ? 'Amend' : 'Commit'}
-        </Button>
-        <Button
-          type="button"
-          className={styles.pushButton}
-          disabled={isDisabled}
-          onClick={() => void runPush()}
-        >
-          Push
         </Button>
       </div>
       <ConfirmDialog

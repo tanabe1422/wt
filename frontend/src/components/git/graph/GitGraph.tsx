@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 
 import { GRAPH_NODE_RADIUS } from '../../../utils/commitGraph'
 
@@ -98,7 +98,7 @@ function buildGraph(
   const { colorPalette, rowHeight, laneWidth, padding, renderNode, renderEdge } = options
   const nodes: ReactNode[] = []
   const edges: ReactNode[] = []
-  let branchPool: BranchPool = {}
+  const branchPool: BranchPool = {}
   const completedPaths: CompletedPath[] = []
   let colorCounter = 0
   let maxWidth = 0
@@ -340,6 +340,27 @@ function buildGraph(
 
   sorted.forEach((commit) => processNode(commit))
 
+  // Parents outside the loaded window leave unfinished lanes in branchPool.
+  // Extend those stubs to the bottom of the graph so lines don't look cut off.
+  const endY = sorted.length * rowHeight + padding.top
+  for (const [key, info] of Object.entries(branchPool)) {
+    const targetX = info.xIndex * laneWidth + padding.left
+    maxWidth = Math.max(maxWidth, targetX)
+    if (info.lastxy.y !== endY || info.lastxy.x !== targetX) {
+      if (info.lastxy.x !== targetX) {
+        info.pathStr += getCurveTop(info.lastxy.x, info.lastxy.y, targetX, endY)
+      } else {
+        info.pathStr += ` L ${targetX} ${endY}`
+      }
+    }
+    completedPaths.push({
+      d: info.pathStr,
+      color: info.color,
+      from: info.from,
+      to: { id: key, message: '', author: '', date: '', parents: [] },
+    })
+  }
+
   for (const path of completedPaths) {
     if (renderEdge) {
       edges.push(
@@ -360,7 +381,7 @@ function buildGraph(
     }
   }
 
-  return { nodes, edges, width: maxWidth + padding.right }
+  return { nodes, edges, width: maxWidth + GRAPH_NODE_RADIUS + padding.right }
 }
 
 export function GitGraph({
@@ -373,7 +394,6 @@ export function GitGraph({
   renderEdge,
 }: GitGraphProps) {
   const resolvedPadding = normalizePadding(padding)
-  const [svgWidth, setSvgWidth] = useState(0)
 
   const { nodes, edges, width } = useMemo(
     () =>
@@ -388,18 +408,16 @@ export function GitGraph({
     [commits, colorPalette, rowHeight, laneWidth, resolvedPadding, renderNode, renderEdge],
   )
 
-  useEffect(() => {
-    setSvgWidth(width)
-  }, [width])
-
   if (commits.length === 0) {
     return null
   }
 
   return (
     <svg
-      width={svgWidth}
-      height={commits.length * rowHeight + resolvedPadding.bottom}
+      width={width}
+      height={
+        commits.length * rowHeight + resolvedPadding.top + resolvedPadding.bottom
+      }
       aria-hidden="true"
     >
       {edges}

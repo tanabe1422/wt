@@ -1,11 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { MouseEvent } from 'react'
 
 import { useCommitFileDiff } from '../../hooks/useCommitFileDiff'
 import { useCommitFiles } from '../../hooks/useCommitFiles'
+import { useContextMenu } from '../../hooks/useContextMenu'
 import { useErrorDialog } from '../../hooks/useErrorDialog'
 import { useResizableSplit } from '../../hooks/useResizableSplit'
+import { useShowFileInExplorer } from '../../hooks/useShowFileInExplorer'
+import {
+  prefetchCommitDiffs,
+  prefetchCommitHover,
+  prefetchCommitNeighbors,
+} from '../../lib/diffPrefetch'
 import type { CommitLogEntry } from '../../types'
 import { cx } from '../../utils/cx'
+import { ContextMenu } from '../ui/ContextMenu'
 import { ErrorDialog } from '../ui/ErrorDialog'
 import { ResizeHandle } from '../ui/ResizeHandle'
 import { CommitFileList } from './CommitFileList'
@@ -32,6 +41,8 @@ export function CommitDetailPane({ worktreePath, commit }: CommitDetailPaneProps
     loading: diffLoading,
     error: diffError,
   } = useCommitFileDiff(worktreePath, sha, selectedPath)
+  const { menu, openMenu, closeMenu } = useContextMenu()
+  const { showFileDir, errorDialog: explorerErrorDialog } = useShowFileInExplorer(worktreePath)
 
   const filesErrorDialog = useErrorDialog(filesError)
   const diffErrorDialog = useErrorDialog(diffError)
@@ -63,6 +74,55 @@ export function CommitDetailPane({ worktreePath, commit }: CommitDetailPaneProps
     })
   }, [files, filesLoading])
 
+  useEffect(() => {
+    if (filesLoading || !worktreePath || !sha || files.length === 0) {
+      return
+    }
+    return prefetchCommitDiffs(
+      worktreePath,
+      sha,
+      files.map((file) => file.path),
+    )
+  }, [files, filesLoading, sha, worktreePath])
+
+  const filePaths = useMemo(() => files.map((file) => file.path), [files])
+
+  useEffect(() => {
+    if (!worktreePath || !sha || filePaths.length === 0) {
+      return
+    }
+    prefetchCommitNeighbors(worktreePath, sha, filePaths, selectedPath)
+  }, [worktreePath, sha, filePaths, selectedPath])
+
+  const handleFileHover = useCallback(
+    (path: string) => {
+      if (!worktreePath || !sha) {
+        return
+      }
+      prefetchCommitHover(worktreePath, sha, path)
+    },
+    [worktreePath, sha],
+  )
+
+  const handleFileContextMenu = useCallback(
+    (entry: { path: string }, event: MouseEvent) => {
+      event.preventDefault()
+      event.stopPropagation()
+      if (selectedPath !== entry.path) {
+        setSelectedPath(entry.path)
+      }
+      openMenu(event.clientX, event.clientY, [
+        {
+          label: 'エクスプローラーで表示',
+          onClick: () => {
+            showFileDir(entry.path)
+          },
+        },
+      ])
+    },
+    [openMenu, selectedPath, showFileDir],
+  )
+
   if (!commit) {
     return (
       <div className={styles.root}>
@@ -87,6 +147,8 @@ export function CommitDetailPane({ worktreePath, commit }: CommitDetailPaneProps
             loading={filesLoading}
             selectedPath={selectedPath}
             onSelect={setSelectedPath}
+            onFileHover={handleFileHover}
+            onFileContextMenu={handleFileContextMenu}
           />
         </div>
       </div>
@@ -104,6 +166,9 @@ export function CommitDetailPane({ worktreePath, commit }: CommitDetailPaneProps
           file={selectedPath}
         />
       </div>
+      {menu && (
+        <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} />
+      )}
       <ErrorDialog
         open={filesErrorDialog.open}
         title="変更ファイルの取得に失敗しました"
@@ -115,6 +180,12 @@ export function CommitDetailPane({ worktreePath, commit }: CommitDetailPaneProps
         title="差分の取得に失敗しました"
         message={diffErrorDialog.message}
         onClose={diffErrorDialog.dismiss}
+      />
+      <ErrorDialog
+        open={explorerErrorDialog.open}
+        title="エクスプローラーを開けませんでした"
+        message={explorerErrorDialog.message}
+        onClose={explorerErrorDialog.dismiss}
       />
     </div>
   )

@@ -36,17 +36,26 @@ export function DiffView({
     )
   }
 
+  const diffMatchesFile = diff !== null && diff.path === file
+  const showInitialLoading = loading && !diffMatchesFile && !error
+  const showStaleWhileLoading = loading && diffMatchesFile
+
   return (
     <div className={styles.panel}>
       <header className={styles.header}>
         <h2 className={styles.fileName}>{file}</h2>
+        {showStaleWhileLoading && (
+          <span className={styles.loadingHint} aria-live="polite">
+            更新中…
+          </span>
+        )}
       </header>
-      <div className={styles.content}>
-        {loading ? (
+      <div className={cx(styles.content, showStaleWhileLoading && styles.contentUpdating)}>
+        {showInitialLoading ? (
           <p className={styles.placeholder}>読み込み中…</p>
         ) : error ? (
           <p className={styles.placeholder}>差分を表示できません</p>
-        ) : !diff || diff.hunks.length === 0 ? (
+        ) : !diffMatchesFile || diff.hunks.length === 0 ? (
           <p className={styles.placeholder}>
             {conflict
               ? '競合中のファイルです。右クリックから「外部ツールで競合を解決」を選んでください。'

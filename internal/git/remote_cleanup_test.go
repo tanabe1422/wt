@@ -83,6 +83,7 @@ func TestListRemoteMergeStatusContent(t *testing.T) {
 	fake.On("for-each-ref", "--format=%(refname:short)|%(committerdate:iso8601-strict)|%(authorname)", "refs/remotes/").Return(
 		"origin/squashed|2026-05-01T00:00:00+09:00|Alice\norigin/main|2026-07-01T00:00:00+09:00|Bob\norigin/active|2026-07-05T00:00:00+09:00|Carol", nil,
 	)
+	fake.On("for-each-ref", "--format=%(refname:short)", "--merged=origin/main", "refs/remotes/").Return("", nil)
 	fake.On("rev-parse", "origin/main^{tree}").Return("tree-main", nil)
 	fake.On("merge-tree", "--write-tree", "origin/main", "origin/active").Return("tree-other", nil)
 	fake.On("merge-tree", "--write-tree", "origin/main", "origin/squashed").Return("tree-main", nil)
@@ -106,12 +107,42 @@ func TestListRemoteMergeStatusContent(t *testing.T) {
 	}
 }
 
+func TestListRemoteMergeStatusContentSkipsAncestryMerged(t *testing.T) {
+	fake := newFakeRunner()
+	fake.On("rev-parse", "--verify", "origin/main").Return("abc", nil)
+	fake.On("for-each-ref", "--format=%(refname:short)|%(committerdate:iso8601-strict)|%(authorname)", "refs/remotes/").Return(
+		"origin/done|2026-05-01T00:00:00+09:00|Alice\norigin/main|2026-07-01T00:00:00+09:00|Bob\norigin/squash|2026-06-01T00:00:00+09:00|Carol", nil,
+	)
+	fake.On("for-each-ref", "--format=%(refname:short)", "--merged=origin/main", "refs/remotes/").Return(
+		"origin/done\norigin/main", nil,
+	)
+	fake.On("rev-parse", "origin/main^{tree}").Return("tree-main", nil)
+	fake.On("merge-tree", "--write-tree", "origin/main", "origin/squash").Return("tree-main", nil)
+	withFakeRunner(t, fake)
+
+	entries, err := ListRemoteMergeStatus("/repo", "origin/main", "content")
+	if err != nil {
+		t.Fatalf("ListRemoteMergeStatus: %v", err)
+	}
+	want := map[string]bool{"origin/done": true, "origin/squash": true}
+	if len(entries) != 2 {
+		t.Fatalf("entries=%v want 2", entries)
+	}
+	for _, e := range entries {
+		if e.Merged != want[e.Name] {
+			t.Fatalf("%s merged=%v want %v", e.Name, e.Merged, want[e.Name])
+		}
+	}
+	fake.AssertNotCalledPrefix(t, "merge-tree", "--write-tree", "origin/main", "origin/done")
+}
+
 func TestListRemoteMergeStatusContentConflictIsUnmerged(t *testing.T) {
 	fake := newFakeRunner()
 	fake.On("rev-parse", "--verify", "origin/main").Return("abc", nil)
 	fake.On("for-each-ref", "--format=%(refname:short)|%(committerdate:iso8601-strict)|%(authorname)", "refs/remotes/").Return(
 		"origin/conflict|2026-04-01T00:00:00+09:00|Alice\norigin/main|2026-07-01T00:00:00+09:00|Bob", nil,
 	)
+	fake.On("for-each-ref", "--format=%(refname:short)", "--merged=origin/main", "refs/remotes/").Return("", nil)
 	fake.On("rev-parse", "origin/main^{tree}").Return("tree-main", nil)
 	fake.On("merge-tree", "--write-tree", "origin/main", "origin/conflict").Return("", errors.New("conflict"))
 	withFakeRunner(t, fake)

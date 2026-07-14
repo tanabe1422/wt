@@ -87,6 +87,11 @@ export function useWorktreeDialogs({
     }
     const target = removeWorktreeTarget
     const force = forceRemoveWorktree
+    const wasSelected = selectedWorktree === target.path
+    const fallbackPath =
+      worktrees.find((entry) => entry.isMain && entry.path !== target.path)?.path ??
+      worktrees.find((entry) => entry.path !== target.path)?.path ??
+      null
     setRemoveWorktreeTarget(null)
     setForceRemoveWorktree(false)
     setWorktreeBusy(true)
@@ -95,9 +100,8 @@ export function useWorktreeDialogs({
     void (async () => {
       try {
         await removeWorktree(activeRepository, target.path, force)
-        if (selectedWorktree === target.path) {
-          const main = worktrees.find((entry) => entry.isMain)
-          onSelectWorktree(main?.path ?? '')
+        if (wasSelected && fallbackPath) {
+          onSelectWorktree(fallbackPath)
         }
         await onReload()
         onBranchChanged?.()

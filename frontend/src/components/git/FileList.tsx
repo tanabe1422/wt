@@ -17,6 +17,7 @@ interface FileListProps {
   selectedPaths: ReadonlySet<string>
   focusPath: string | null
   onFileClick: (path: string, index: number, event: MouseEvent) => void
+  onFileHover?: (path: string, mode: 'staged' | 'unstaged') => void
   onFileContextMenu?: (
     entry: FileStatus,
     event: MouseEvent,
@@ -40,6 +41,7 @@ export function FileList({
   selectedPaths,
   focusPath,
   onFileClick,
+  onFileHover,
   onFileContextMenu,
   onStage,
   onUnstage,
@@ -62,6 +64,7 @@ export function FileList({
             <div
               key={`${mode}-${entry.path}`}
               className={cx(styles.row, isSelected && styles.selected, isFocus && styles.focused)}
+              onMouseEnter={() => onFileHover?.(entry.path, mode)}
               onContextMenu={(event) => onFileContextMenu?.(entry, event, mode)}
             >
               <Button

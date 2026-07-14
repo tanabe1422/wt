@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { useBusy } from '../../hooks/useBusy'
 import { useErrorDialog } from '../../hooks/useErrorDialog'
@@ -9,7 +9,13 @@ import { useGitDiff } from '../../hooks/useGitDiff'
 import { useGitStatus } from '../../hooks/useGitStatus'
 import { useGitWorkspaceActions } from '../../hooks/useGitWorkspaceActions'
 import { useSectionSelection } from '../../hooks/useSectionSelection'
-import { isConflict } from '../../utils/gitStatus'
+import { invalidateWorktreeDiffs } from '../../lib/diffCache'
+import {
+  prefetchWorktreeDiffs,
+  prefetchWorktreeHover,
+  prefetchWorktreeNeighbors,
+} from '../../lib/diffPrefetch'
+import { hasStagedChange, hasUnstagedChange, isConflict } from '../../utils/gitStatus'
 import { ContextMenu } from '../ui/ContextMenu'
 import { ResizeHandle } from '../ui/ResizeHandle'
 import { cx } from '../../utils/cx'
@@ -45,6 +51,7 @@ export function GitWorkspace({
     setFocus,
   } = useSectionSelection()
   const {
+    entries,
     staged,
     unstaged,
     loading,
@@ -73,6 +80,45 @@ export function GitWorkspace({
     worktreePath,
     focusFile?.path ?? null,
     focusFile?.staged ?? false,
+  )
+
+  const prefetchTargets = useMemo(
+    () => [
+      ...entries.filter(hasStagedChange).map((entry) => ({ path: entry.path, staged: true as const })),
+      ...entries
+        .filter(hasUnstagedChange)
+        .map((entry) => ({ path: entry.path, staged: false as const })),
+    ],
+    [entries],
+  )
+
+  useEffect(() => {
+    if (loading || !worktreePath || prefetchTargets.length === 0) {
+      return
+    }
+    return prefetchWorktreeDiffs(worktreePath, prefetchTargets)
+  }, [loading, worktreePath, prefetchTargets])
+
+  useEffect(() => {
+    if (!worktreePath || prefetchTargets.length === 0) {
+      return
+    }
+    prefetchWorktreeNeighbors(
+      worktreePath,
+      prefetchTargets,
+      focusFile?.path ?? null,
+      focusFile?.staged ?? null,
+    )
+  }, [worktreePath, prefetchTargets, focusFile?.path, focusFile?.staged])
+
+  const handleFileHover = useCallback(
+    (path: string, mode: 'staged' | 'unstaged') => {
+      if (!worktreePath) {
+        return
+      }
+      prefetchWorktreeHover(worktreePath, path, mode === 'staged')
+    },
+    [worktreePath],
   )
 
   const statusErrorDialog = useErrorDialog(error)
@@ -104,10 +150,13 @@ export function GitWorkspace({
     clearAll,
     clearUnstaged,
     afterDestructive: async () => {
-      await reload()
-      await refreshSidebar()
-      await reloadDiff()
-      await refreshMergeStateRef.current()
+      invalidateWorktreeDiffs(worktreePath)
+      await Promise.all([
+        reload(),
+        refreshSidebar(),
+        reloadDiff(),
+        refreshMergeStateRef.current(),
+      ])
     },
   })
 
@@ -160,6 +209,7 @@ export function GitWorkspace({
             conflictCount={conflictCount}
             merging={actions.merging}
             onFileClick={handleClick}
+            onFileHover={handleFileHover}
             onFileContextMenu={actions.handleFileContextMenu}
             onStage={(path) => void actions.handleStage(path)}
             onUnstage={(path) => void actions.handleUnstage(path)}
@@ -200,7 +250,6 @@ export function GitWorkspace({
         busy={loading || busy}
         amendInfo={actions.amendInfo}
         onCommit={actions.handleCommit}
-        onPush={actions.handlePush}
       />
       {menu && (
         <ContextMenu

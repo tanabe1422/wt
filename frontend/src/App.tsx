@@ -14,16 +14,26 @@ import { useErrorDialog } from './hooks/useErrorDialog'
 import { ToastProvider } from './hooks/useToast'
 import { useRepoSidebar } from './hooks/useRepoSidebar'
 import { useRepoTabs } from './hooks/useRepoTabs'
+import { invalidateRepoCaches } from './lib/repoDataCache'
+import { prefetchRepo } from './lib/repoPrefetch'
 import styles from './App.module.css'
 
 function AppShell() {
   const [mainView, setMainView] = useState<MainView>('files')
   const [workspaceRevision, setWorkspaceRevision] = useState(0)
   const [workspaceBusy, setWorkspaceBusy] = useState(false)
+  const [toolbarBusy, setToolbarBusy] = useState(false)
+  const [sidebarBusy, setSidebarBusy] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [compareRequest, setCompareRequest] = useState<CompareRange | null>(null)
   const handleWorkspaceBusyChange = useCallback((busy: boolean) => {
     setWorkspaceBusy(busy)
+  }, [])
+  const handleToolbarBusyChange = useCallback((busy: boolean) => {
+    setToolbarBusy(busy)
+  }, [])
+  const handleSidebarBusyChange = useCallback((busy: boolean) => {
+    setSidebarBusy(busy)
   }, [])
   const handleCompareRequestConsumed = useCallback(() => {
     setCompareRequest(null)
@@ -39,6 +49,18 @@ function AppShell() {
     addRepo,
     updateSettings,
   } = useRepoTabs()
+
+  const handleCloseRepo = useCallback(
+    async (path: string) => {
+      invalidateRepoCaches(path)
+      await closeRepo(path)
+    },
+    [closeRepo],
+  )
+
+  const handlePrefetchRepo = useCallback((path: string) => {
+    prefetchRepo(path)
+  }, [])
 
   const {
     branches,
@@ -95,14 +117,15 @@ function AppShell() {
   return (
     <>
       <MainLayout
-        busy={workspaceBusy}
+        busy={workspaceBusy || toolbarBusy || sidebarBusy}
         toolbar={
           <RepoTabBar
             repositories={repositories}
             activeRepository={activeRepository}
             onActivate={activateRepo}
-            onClose={closeRepo}
+            onClose={handleCloseRepo}
             onAdd={addRepo}
+            onPrefetch={handlePrefetchRepo}
           />
         }
         workspaceToolbar={
@@ -117,6 +140,7 @@ function AppShell() {
               onMainViewChange={setMainView}
               onActionComplete={handleSyncComplete}
               onReload={handleSyncComplete}
+              onBusyChange={handleToolbarBusyChange}
               onOpenSettings={() => setSettingsOpen(true)}
             />
           ) : (
@@ -142,6 +166,7 @@ function AppShell() {
             onSelectWorktree={setSelectedWorktree}
             onReload={reloadSidebar}
             onBranchChanged={() => setWorkspaceRevision((value) => value + 1)}
+            onBusyChange={handleSidebarBusyChange}
             compareFromRef={compareFromRef}
             onCompareWithCurrent={handleCompareWithCurrent}
           />

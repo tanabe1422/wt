@@ -99,6 +99,37 @@ export const worktreesComposite: WorktreeEntry[] = [
   worktree('wt-sync', 'feature/sync-badge', { changedFileCount: 2 }),
 ]
 
+/** ブランチ区別（ToneDistinction）比較用 — 多めのローカル + WT 混在 */
+export const branchesToneDistinction: BranchEntry[] = [
+  branch('main', { behindCount: 3 }),
+  branch('develop', { aheadCount: 2, behindCount: 1 }),
+  branch('release/1.2', { aheadCount: 1 }),
+  branch('feature/hoge', { isCurrent: true, aheadCount: 23 }),
+  branch('feature/bar', { behindCount: 5 }),
+  branch('feature/sync-badge', { aheadCount: 12, behindCount: 3 }),
+  branch('feature/login-form'),
+  branch('feature/settings-panel', { aheadCount: 4 }),
+  branch('feature/dark-theme', { behindCount: 2 }),
+  branch('bugfix/xyz', { aheadCount: 2, behindCount: 1 }),
+  branch('bugfix/null-crash', { behindCount: 1 }),
+  branch('bugfix/scroll-jump'),
+  branch('chore/deps-bump', { aheadCount: 6 }),
+  branch('chore/ci-cache'),
+  branch('hotfix/auth-token', { aheadCount: 1, behindCount: 1 }),
+  remoteBranch('origin/main'),
+  remoteBranch('origin/develop'),
+  remoteBranch('origin/feature/hoge'),
+  remoteBranch('origin/feature/bar'),
+]
+
+export const worktreesToneDistinction: WorktreeEntry[] = [
+  worktree('', 'feature/hoge', { isMain: true, changedFileCount: 7 }),
+  worktree('wt-feature-bar', 'feature/bar', { changedFileCount: 0 }),
+  worktree('wt-sync', 'feature/sync-badge', { changedFileCount: 2 }),
+  worktree('wt-login', 'feature/login-form', { changedFileCount: 1 }),
+  worktree('wt-hotfix', 'hotfix/auth-token', { changedFileCount: 0 }),
+]
+
 /** フルサイドバー用（CountBadge ストーリー InSidebarContext 相当） */
 export const branchesFullSidebar: BranchEntry[] = branchesComposite
 export const worktreesFullSidebar: WorktreeEntry[] = worktreesComposite

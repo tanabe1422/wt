@@ -21,6 +21,42 @@ func TestGetStatus(t *testing.T) {
 		t.Fatalf("unexpected entries: %+v", entries)
 	}
 	fake.AssertCalledPrefix(t, "status", "--porcelain=v1", "-u")
+	fake.AssertCalled(t, "ls-files", "-s", "--", "status-test-tmp.txt")
+}
+
+func TestGetStatusMarksGitlinksAsDirectory(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("status", "--porcelain=v1", "-u").Return("M  vendor/lib\n M README.md", nil)
+	fake.On("ls-files", "-s", "--", "vendor/lib", "README.md").Return(
+		"160000 abcdef0123456789abcdef0123456789abcdef01 0\tvendor/lib\n100644 deadbeefdeadbeefdeadbeefdeadbeefdeadbeef 0\tREADME.md",
+		nil,
+	)
+	withFakeRunner(t, fake)
+
+	entries, err := GetStatus(dir)
+	if err != nil {
+		t.Fatalf("GetStatus: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("unexpected entries: %+v", entries)
+	}
+	if !entries[0].IsDirectory || entries[0].Path != "vendor/lib" {
+		t.Fatalf("expected gitlink marked as directory, got %+v", entries[0])
+	}
+	if entries[1].IsDirectory || entries[1].Path != "README.md" {
+		t.Fatalf("expected regular file, got %+v", entries[1])
+	}
+	if n := len(fake.Calls()); n != 2 {
+		t.Fatalf("expected 2 git calls (status + one ls-files), got %d: %v", n, fake.ArgsList())
+	}
+}
+
+func TestStagedGitlinkPaths(t *testing.T) {
+	got := stagedGitlinkPaths("160000 abc 0\tsub/mod\n100644 def 0\tfile.go\n160000 ghi 0\tother")
+	if !got["sub/mod"] || !got["other"] || got["file.go"] {
+		t.Fatalf("unexpected gitlinks: %#v", got)
+	}
 }
 
 func TestStageCommit(t *testing.T) {

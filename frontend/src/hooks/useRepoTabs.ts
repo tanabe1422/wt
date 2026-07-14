@@ -16,6 +16,7 @@ const emptySettings: Settings = {
   activeRepository: '',
   diffTool: emptyExternalTool(),
   mergeTool: emptyExternalTool(),
+  remoteCleanupExcluded: ['main', 'master', 'develop'],
 }
 
 function normalizeLoadedSettings(settings: Settings): Settings {
@@ -25,6 +26,7 @@ function normalizeLoadedSettings(settings: Settings): Settings {
     activeRepository: settings.activeRepository ?? '',
     diffTool: migrateExternalTool({ ...emptyExternalTool(), ...settings.diffTool }),
     mergeTool: migrateExternalTool({ ...emptyExternalTool(), ...settings.mergeTool }),
+    remoteCleanupExcluded: settings.remoteCleanupExcluded ?? ['main', 'master', 'develop'],
   }
 }
 
