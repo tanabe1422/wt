@@ -222,6 +222,10 @@ export function SetActiveRepository(arg1) {
   return window['go']['app']['App']['SetActiveRepository'](arg1);
 }
 
+export function SetPushAfterCommit(arg1, arg2) {
+  return window['go']['app']['App']['SetPushAfterCommit'](arg1, arg2);
+}
+
 export function ShowInExplorer(arg1) {
   return window['go']['app']['App']['ShowInExplorer'](arg1);
 }

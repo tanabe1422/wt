@@ -19,6 +19,7 @@ export interface WailsApp {
   AddRepository(path: string): Promise<Settings>
   RemoveRepository(path: string): Promise<Settings>
   SetActiveRepository(path: string): Promise<Settings>
+  SetPushAfterCommit(repoPath: string, enabled: boolean): Promise<Settings>
   PickDirectory(): Promise<string>
   PickFile(): Promise<string>
   ShowInExplorer(path: string): Promise<void>

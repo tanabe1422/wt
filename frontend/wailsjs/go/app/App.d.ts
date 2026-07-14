@@ -113,6 +113,8 @@ export function SaveStash(arg1:string,arg2:string,arg3:boolean):Promise<void>;
 
 export function SetActiveRepository(arg1:string):Promise<config.Settings>;
 
+export function SetPushAfterCommit(arg1:string,arg2:boolean):Promise<config.Settings>;
+
 export function ShowInExplorer(arg1:string):Promise<void>;
 
 export function SquashMergeBranch(arg1:string,arg2:string):Promise<void>;

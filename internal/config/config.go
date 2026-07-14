@@ -16,11 +16,12 @@ type ExternalTool struct {
 }
 
 type Settings struct {
-	Repositories           []string     `json:"repositories"`
-	ActiveRepository       string       `json:"activeRepository"`
-	DiffTool               ExternalTool `json:"diffTool"`
-	MergeTool              ExternalTool `json:"mergeTool"`
-	RemoteCleanupExcluded  []string     `json:"remoteCleanupExcluded"`
+	Repositories          []string        `json:"repositories"`
+	ActiveRepository      string          `json:"activeRepository"`
+	DiffTool              ExternalTool    `json:"diffTool"`
+	MergeTool             ExternalTool    `json:"mergeTool"`
+	RemoteCleanupExcluded []string        `json:"remoteCleanupExcluded"`
+	PushAfterCommit       map[string]bool `json:"pushAfterCommit,omitempty"`
 }
 
 // DefaultRemoteCleanupExcluded is applied when remoteCleanupExcluded is unset (nil).
@@ -192,7 +193,31 @@ func normalizeSettings(settings Settings) (Settings, error) {
 		DiffTool:              normalizeExternalTool(settings.DiffTool),
 		MergeTool:             normalizeExternalTool(settings.MergeTool),
 		RemoteCleanupExcluded: normalizeRemoteCleanupExcluded(settings.RemoteCleanupExcluded),
+		PushAfterCommit:       normalizePushAfterCommit(settings.PushAfterCommit, repositories),
 	}, nil
+}
+
+func normalizePushAfterCommit(raw map[string]bool, repositories []string) map[string]bool {
+	repoSet := make(map[string]struct{}, len(repositories))
+	for _, repo := range repositories {
+		repoSet[repo] = struct{}{}
+	}
+
+	out := make(map[string]bool)
+	for key, enabled := range raw {
+		if !enabled {
+			continue
+		}
+		normalized, err := normalizePath(key)
+		if err != nil || normalized == "" {
+			continue
+		}
+		if _, exists := repoSet[normalized]; !exists {
+			continue
+		}
+		out[normalized] = true
+	}
+	return out
 }
 
 func AddRepository(settings Settings, path string) (Settings, error) {
@@ -235,6 +260,10 @@ func RemoveRepository(settings Settings, path string) (Settings, error) {
 		settings.ActiveRepository = ""
 	}
 
+	if settings.PushAfterCommit != nil {
+		delete(settings.PushAfterCommit, normalized)
+	}
+
 	return normalizeSettings(settings)
 }
 
@@ -249,6 +278,27 @@ func SetActiveRepository(settings Settings, path string) (Settings, error) {
 			settings.ActiveRepository = normalized
 			return normalizeSettings(settings)
 		}
+	}
+
+	return normalizeSettings(settings)
+}
+
+func SetPushAfterCommit(settings Settings, path string, enabled bool) (Settings, error) {
+	normalized, err := normalizePath(path)
+	if err != nil {
+		return Settings{}, err
+	}
+	if normalized == "" {
+		return normalizeSettings(settings)
+	}
+
+	if settings.PushAfterCommit == nil {
+		settings.PushAfterCommit = map[string]bool{}
+	}
+	if enabled {
+		settings.PushAfterCommit[normalized] = true
+	} else {
+		delete(settings.PushAfterCommit, normalized)
 	}
 
 	return normalizeSettings(settings)

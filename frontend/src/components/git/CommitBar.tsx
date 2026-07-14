@@ -9,12 +9,15 @@ import styles from './CommitBar.module.css'
 
 export interface CommitOptions {
   amend: boolean
+  pushAfterCommit: boolean
 }
 
 interface CommitBarProps {
   disabled: boolean
   busy: boolean
   amendInfo: AmendInfo | null
+  pushAfterCommit: boolean
+  onPushAfterCommitChange: (enabled: boolean) => void
   onCommit: (message: string, options: CommitOptions) => Promise<void>
 }
 
@@ -24,7 +27,14 @@ const emptyAmendInfo: AmendInfo = {
   headMessage: '',
 }
 
-export function CommitBar({ disabled, busy, amendInfo, onCommit }: CommitBarProps) {
+export function CommitBar({
+  disabled,
+  busy,
+  amendInfo,
+  pushAfterCommit,
+  onPushAfterCommitChange,
+  onCommit,
+}: CommitBarProps) {
   const info = amendInfo ?? emptyAmendInfo
   const [message, setMessage] = useState('')
   const [amend, setAmend] = useState(false)
@@ -44,12 +54,20 @@ export function CommitBar({ disabled, busy, amendInfo, onCommit }: CommitBarProp
     setActionError(null)
     setActing(true)
     try {
-      await onCommit(message, { amend: useAmend })
+      await onCommit(message, { amend: useAmend, pushAfterCommit })
       setMessage('')
       setAmend(false)
     } catch (err) {
-      setActionTitle(useAmend ? 'コミットの修正に失敗しました' : 'コミットに失敗しました')
-      setActionError(err instanceof Error ? err.message : '操作に失敗しました')
+      const message = err instanceof Error ? err.message : '操作に失敗しました'
+      const pushFailed = message.startsWith('push:')
+      setActionTitle(
+        pushFailed
+          ? 'プッシュに失敗しました'
+          : useAmend
+            ? 'コミットの修正に失敗しました'
+            : 'コミットに失敗しました',
+      )
+      setActionError(pushFailed ? message.slice('push:'.length) : message)
     } finally {
       setActing(false)
     }
@@ -83,22 +101,34 @@ export function CommitBar({ disabled, busy, amendInfo, onCommit }: CommitBarProp
         onChange={(event) => setMessage(event.target.value)}
       />
       <div className={styles.footer}>
-        <label
-          className={styles.amendLabel}
-          title={!info.canAmend && info.reason ? info.reason : undefined}
-        >
-          <input
-            type="checkbox"
-            className={styles.amendCheckbox}
-            checked={amend}
-            disabled={isDisabled || !info.canAmend}
-            onChange={(event) => handleAmendChange(event.target.checked)}
-          />
-          Amend
-          {!info.canAmend && info.reason ? (
-            <span className={styles.amendHint}>{info.reason}</span>
-          ) : null}
-        </label>
+        <div className={styles.footerOptions}>
+          <label className={styles.optionLabel} title="コミット後にすぐプッシュします">
+            <input
+              type="checkbox"
+              className={styles.optionCheckbox}
+              checked={pushAfterCommit}
+              disabled={isDisabled}
+              onChange={(event) => onPushAfterCommitChange(event.target.checked)}
+            />
+            Push
+          </label>
+          <label
+            className={styles.optionLabel}
+            title={!info.canAmend && info.reason ? info.reason : undefined}
+          >
+            <input
+              type="checkbox"
+              className={styles.optionCheckbox}
+              checked={amend}
+              disabled={isDisabled || !info.canAmend}
+              onChange={(event) => handleAmendChange(event.target.checked)}
+            />
+            Amend
+            {!info.canAmend && info.reason ? (
+              <span className={styles.amendHint}>{info.reason}</span>
+            ) : null}
+          </label>
+        </div>
         <Button
           type="button"
           className={styles.commitButton}

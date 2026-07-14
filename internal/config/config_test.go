@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -320,5 +321,56 @@ func TestNormalizePathAbs(t *testing.T) {
 	}
 	if got != want {
 		t.Fatalf("got %q want %q (GOOS=%s)", got, want, runtime.GOOS)
+	}
+}
+
+func TestSetPushAfterCommit(t *testing.T) {
+	dir := t.TempDir()
+	repoA := filepath.Join(dir, "repo-a")
+	repoB := filepath.Join(dir, "repo-b")
+	if err := os.Mkdir(repoA, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(repoB, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	settings, err := AddRepository(Settings{}, repoA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings, err = AddRepository(settings, repoB)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	settings, err = SetPushAfterCommit(settings, repoA, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	absA, _ := filepath.Abs(filepath.Clean(repoA))
+	if !settings.PushAfterCommit[absA] {
+		t.Fatalf("expected push after commit enabled for %q", absA)
+	}
+
+	settings, err = SetPushAfterCommit(settings, repoA, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings.PushAfterCommit[absA] {
+		t.Fatalf("expected push after commit disabled for %q", absA)
+	}
+
+	settings, err = RemoveRepository(settings, repoB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	absB, _ := filepath.Abs(filepath.Clean(repoB))
+	settings, err = SetPushAfterCommit(settings, repoB, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings.PushAfterCommit[absB] {
+		t.Fatalf("removed repo should not keep push preference: %v", settings.PushAfterCommit)
 	}
 }

@@ -12,6 +12,8 @@ import {
   isMerging,
   openDifftool,
   openMergetool,
+  push,
+  pushSetUpstream,
   showInExplorer,
   stageAll,
   stageHunk,
@@ -26,6 +28,7 @@ import { worktreeFileDir } from '../utils/worktreePaths'
 
 interface UseGitWorkspaceActionsOptions {
   worktreePath: string
+  hasUpstream: boolean
   staged: FileStatus[]
   unstaged: FileStatus[]
   stagedSelectionPaths: Iterable<string>
@@ -47,6 +50,7 @@ interface UseGitWorkspaceActionsOptions {
 
 export function useGitWorkspaceActions({
   worktreePath,
+  hasUpstream,
   staged,
   unstaged,
   stagedSelectionPaths,
@@ -191,7 +195,7 @@ export function useGitWorkspaceActions({
   }, [clearSection, refreshSidebar, reload, runBusy, staged.length, worktreePath])
 
   const handleCommit = useCallback(
-    async (message: string, options: { amend: boolean }) => {
+    async (message: string, options: { amend: boolean; pushAfterCommit: boolean }) => {
       await runBusy(async () => {
         if (options.amend) {
           await amendCommit(worktreePath, message)
@@ -200,9 +204,22 @@ export function useGitWorkspaceActions({
         }
         clearAll()
         await Promise.all([reload(), refreshSidebar(), refreshAmendInfo()])
+        if (options.pushAfterCommit) {
+          try {
+            if (hasUpstream) {
+              await push(worktreePath)
+            } else {
+              await pushSetUpstream(worktreePath, 'origin')
+            }
+          } catch (err) {
+            const detail = err instanceof Error ? err.message : 'プッシュに失敗しました'
+            throw new Error(`push:${detail}`)
+          }
+          await refreshSidebar()
+        }
       })
     },
-    [clearAll, refreshAmendInfo, refreshSidebar, runBusy, worktreePath, reload],
+    [clearAll, hasUpstream, refreshAmendInfo, refreshSidebar, runBusy, worktreePath, reload],
   )
 
   const handleStageHunk = useCallback(

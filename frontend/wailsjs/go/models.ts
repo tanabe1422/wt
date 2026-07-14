@@ -22,6 +22,7 @@ export namespace config {
 	    diffTool: ExternalTool;
 	    mergeTool: ExternalTool;
 	    remoteCleanupExcluded: string[];
+	    pushAfterCommit?: Record<string, boolean>;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -34,6 +35,7 @@ export namespace config {
 	        this.diffTool = this.convertValues(source["diffTool"], ExternalTool);
 	        this.mergeTool = this.convertValues(source["mergeTool"], ExternalTool);
 	        this.remoteCleanupExcluded = source["remoteCleanupExcluded"];
+	        this.pushAfterCommit = source["pushAfterCommit"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

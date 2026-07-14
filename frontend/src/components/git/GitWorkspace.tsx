@@ -27,6 +27,9 @@ import styles from './GitWorkspace.module.css'
 
 interface GitWorkspaceProps {
   worktreePath: string
+  hasUpstream: boolean
+  pushAfterCommit: boolean
+  onPushAfterCommitChange: (enabled: boolean) => void
   onSidebarReload?: () => void | Promise<void>
   onBusyChange?: (busy: boolean) => void
 }
@@ -38,6 +41,9 @@ const FILES_SPLIT_MAX_RATIO = 0.75
 
 export function GitWorkspace({
   worktreePath,
+  hasUpstream,
+  pushAfterCommit,
+  onPushAfterCommitChange,
   onSidebarReload,
   onBusyChange,
 }: GitWorkspaceProps) {
@@ -162,6 +168,7 @@ export function GitWorkspace({
 
   const actions = useGitWorkspaceActions({
     worktreePath,
+    hasUpstream,
     staged,
     unstaged,
     stagedSelectionPaths: stagedSelection.paths,
@@ -252,6 +259,8 @@ export function GitWorkspace({
         disabled={!worktreePath}
         busy={loading || busy}
         amendInfo={actions.amendInfo}
+        pushAfterCommit={pushAfterCommit}
+        onPushAfterCommitChange={onPushAfterCommitChange}
         onCommit={actions.handleCommit}
       />
       {menu && (

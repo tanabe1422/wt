@@ -159,6 +159,8 @@ function ConflictWorkspaceDemo({
             reason: '',
             headMessage: 'story tip message',
           }}
+          pushAfterCommit={false}
+          onPushAfterCommitChange={() => undefined}
           onCommit={noopAsync}
         />
       </div>
@@ -225,7 +227,12 @@ export const WithMockApi: Story = {
         overflow: 'hidden',
       }}
     >
-      <GitWorkspace worktreePath="C:/dev/sample-repo" />
+      <GitWorkspace
+        worktreePath="C:/dev/sample-repo"
+        hasUpstream
+        pushAfterCommit={false}
+        onPushAfterCommitChange={() => undefined}
+      />
     </div>
   ),
 }

@@ -8,6 +8,7 @@ import {
   removeRepository,
   saveSettings,
   setActiveRepository,
+  setPushAfterCommit,
 } from '../lib/wails'
 import type { Settings } from '../types'
 
@@ -17,6 +18,7 @@ const emptySettings: Settings = {
   diffTool: emptyExternalTool(),
   mergeTool: emptyExternalTool(),
   remoteCleanupExcluded: ['main', 'master', 'develop'],
+  pushAfterCommit: {},
 }
 
 function normalizeLoadedSettings(settings: Settings): Settings {
@@ -27,6 +29,7 @@ function normalizeLoadedSettings(settings: Settings): Settings {
     diffTool: migrateExternalTool({ ...emptyExternalTool(), ...settings.diffTool }),
     mergeTool: migrateExternalTool({ ...emptyExternalTool(), ...settings.mergeTool }),
     remoteCleanupExcluded: settings.remoteCleanupExcluded ?? ['main', 'master', 'develop'],
+    pushAfterCommit: settings.pushAfterCommit ?? {},
   }
 }
 
@@ -85,6 +88,16 @@ export function useRepoTabs() {
     return saved
   }, [])
 
+  const updatePushAfterCommit = useCallback(async (repoPath: string, enabled: boolean) => {
+    try {
+      setError(null)
+      const next = await setPushAfterCommit(repoPath, enabled)
+      setSettings(normalizeLoadedSettings(next))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [])
+
   return {
     settings,
     repositories: settings.repositories,
@@ -95,5 +108,6 @@ export function useRepoTabs() {
     closeRepo,
     addRepo,
     updateSettings,
+    updatePushAfterCommit,
   }
 }

@@ -47,6 +47,7 @@ function AppShell() {
     closeRepo,
     addRepo,
     updateSettings,
+    updatePushAfterCommit,
   } = useRepoTabs()
 
   const handleCloseRepo = useCallback(
@@ -108,6 +109,19 @@ function AppShell() {
   const aheadCount = currentBranchEntry?.aheadCount ?? 0
   const behindCount = currentBranchEntry?.behindCount ?? 0
   const hasUpstream = currentBranchEntry?.hasUpstream ?? false
+  const pushAfterCommit = activeRepository
+    ? (settings.pushAfterCommit?.[activeRepository] ?? false)
+    : false
+
+  const handlePushAfterCommitChange = useCallback(
+    (enabled: boolean) => {
+      if (!activeRepository) {
+        return
+      }
+      void updatePushAfterCommit(activeRepository, enabled)
+    },
+    [activeRepository, updatePushAfterCommit],
+  )
 
   const handleSyncComplete = async (scope: 'sidebar' | 'workspace' = 'workspace') => {
     if (scope === 'sidebar') {
@@ -186,6 +200,9 @@ function AppShell() {
             <GitWorkspace
               key={workspaceKey}
               worktreePath={worktreePath}
+              hasUpstream={hasUpstream}
+              pushAfterCommit={pushAfterCommit}
+              onPushAfterCommitChange={handlePushAfterCommitChange}
               onSidebarReload={reloadSidebar}
               onBusyChange={handleWorkspaceBusyChange}
             />

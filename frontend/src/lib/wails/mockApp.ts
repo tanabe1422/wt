@@ -20,6 +20,7 @@ let mockSettings: Settings = {
   diffTool: { preset: 'custom', path: '', args: '' },
   mergeTool: { preset: 'custom', path: '', args: '' },
   remoteCleanupExcluded: ['main', 'master', 'develop'],
+  pushAfterCommit: {},
 }
 
 let mockStatus: FileStatus[] = [
@@ -283,6 +284,7 @@ export const mockApp: WailsApp = {
       diffTool: { ...mockSettings.diffTool },
       mergeTool: { ...mockSettings.mergeTool },
       remoteCleanupExcluded: [...(mockSettings.remoteCleanupExcluded ?? [])],
+      pushAfterCommit: { ...(mockSettings.pushAfterCommit ?? {}) },
     }
   },
 
@@ -292,6 +294,7 @@ export const mockApp: WailsApp = {
       diffTool: { ...settings.diffTool },
       mergeTool: { ...settings.mergeTool },
       remoteCleanupExcluded: [...(settings.remoteCleanupExcluded ?? [])],
+      pushAfterCommit: { ...(mockSettings.pushAfterCommit ?? {}) },
     }
     return mockApp.GetSettings()
   },
@@ -336,6 +339,22 @@ export const mockApp: WailsApp = {
     const normalized = normalizePath(path)
     if (mockSettings.repositories.some((repo) => normalizePath(repo) === normalized)) {
       mockSettings.activeRepository = path
+    }
+    return mockApp.GetSettings()
+  },
+
+  async SetPushAfterCommit(repoPath: string, enabled: boolean) {
+    const normalized = normalizePath(repoPath)
+    if (!normalized) {
+      return mockApp.GetSettings()
+    }
+    if (!mockSettings.pushAfterCommit) {
+      mockSettings.pushAfterCommit = {}
+    }
+    if (enabled) {
+      mockSettings.pushAfterCommit[normalized] = true
+    } else {
+      delete mockSettings.pushAfterCommit[normalized]
     }
     return mockApp.GetSettings()
   },

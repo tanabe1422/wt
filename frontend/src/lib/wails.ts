@@ -80,6 +80,10 @@ export async function setActiveRepository(path: string): Promise<Settings> {
   return callApp('SetActiveRepository', path)
 }
 
+export async function setPushAfterCommit(repoPath: string, enabled: boolean): Promise<Settings> {
+  return callApp('SetPushAfterCommit', repoPath, enabled)
+}
+
 export async function pickDirectory(): Promise<string> {
   return callApp('PickDirectory')
 }

@@ -13,6 +13,8 @@ export interface Settings {
   mergeTool: ExternalTool
   /** Local branch names excluded from remote cleanup (e.g. main, develop). */
   remoteCleanupExcluded: string[]
+  /** Commit 後に自動プッシュするリポジトリ（キーはリポジトリルートパス）。 */
+  pushAfterCommit?: Record<string, boolean>
 }
 
 export interface AmendInfo {

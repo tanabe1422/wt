@@ -18,14 +18,19 @@ const alreadyPushed: AmendInfo = {
 
 function CommitBarDemo({ amendInfo }: { amendInfo: AmendInfo }) {
   const [last, setLast] = useState('')
+  const [pushAfterCommit, setPushAfterCommit] = useState(false)
   return (
     <div style={{ width: 560, border: '1px solid var(--color-slate-200)' }}>
       <CommitBar
         disabled={false}
         busy={false}
         amendInfo={amendInfo}
+        pushAfterCommit={pushAfterCommit}
+        onPushAfterCommitChange={setPushAfterCommit}
         onCommit={async (message, options) => {
-          setLast(`${options.amend ? 'amend' : 'commit'}: ${message}`)
+          setLast(
+            `${options.amend ? 'amend' : 'commit'}${options.pushAfterCommit ? '+push' : ''}: ${message}`,
+          )
         }}
       />
       {last ? (

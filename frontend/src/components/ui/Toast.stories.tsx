@@ -192,7 +192,12 @@ function AppScreenWithToast({ preset }: { preset: AppToastPreset }) {
               </div>
             }
           >
-            <GitWorkspace worktreePath="C:/dev/sample-repo" />
+            <GitWorkspace
+              worktreePath="C:/dev/sample-repo"
+              hasUpstream
+              pushAfterCommit={false}
+              onPushAfterCommitChange={() => undefined}
+            />
           </MainLayout>
       </div>
     </ToastProvider>

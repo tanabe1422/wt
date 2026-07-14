@@ -24,6 +24,7 @@ func (a *App) SaveSettings(settings config.Settings) (config.Settings, error) {
 	// Preserve repository list from disk; UI saves tool settings only.
 	settings.Repositories = current.Repositories
 	settings.ActiveRepository = current.ActiveRepository
+	settings.PushAfterCommit = current.PushAfterCommit
 
 	if err := config.Save(settings); err != nil {
 		return config.Settings{}, err
@@ -100,6 +101,24 @@ func (a *App) SetActiveRepository(path string) (config.Settings, error) {
 	}
 
 	settings, err = config.SetActiveRepository(settings, path)
+	if err != nil {
+		return config.Settings{}, err
+	}
+
+	if err := config.Save(settings); err != nil {
+		return config.Settings{}, err
+	}
+
+	return settings, nil
+}
+
+func (a *App) SetPushAfterCommit(path string, enabled bool) (config.Settings, error) {
+	settings, err := config.Load()
+	if err != nil {
+		return config.Settings{}, err
+	}
+
+	settings, err = config.SetPushAfterCommit(settings, path, enabled)
 	if err != nil {
 		return config.Settings{}, err
 	}
