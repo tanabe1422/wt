@@ -1,7 +1,8 @@
-import type { MouseEvent } from 'react'
+import { useMemo, type MouseEvent } from 'react'
 
 import type { CommitFileChange } from '../../types'
 import { cx } from '../../utils/cx'
+import { sortCommitFileChanges } from '../../utils/gitStatus'
 import { Button } from '../ui/Button'
 import { GitPorcelainIcon } from './GitIcons'
 import styles from './CommitFileList.module.css'
@@ -23,14 +24,16 @@ export function CommitFileList({
   onFileHover,
   onFileContextMenu,
 }: CommitFileListProps) {
+  const sortedFiles = useMemo(() => sortCommitFileChanges(files), [files])
+
   return (
     <div className={styles.list}>
       {loading ? (
         <p className={styles.empty}>読み込み中…</p>
-      ) : files.length === 0 ? (
+      ) : sortedFiles.length === 0 ? (
         <p className={styles.empty}>変更ファイルなし</p>
       ) : (
-        files.map((entry) => {
+        sortedFiles.map((entry) => {
           const isSelected = selectedPath === entry.path
           const label =
             entry.oldPath && entry.oldPath !== entry.path

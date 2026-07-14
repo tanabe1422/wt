@@ -1,8 +1,9 @@
-import type { MouseEvent } from 'react'
+import { useMemo, type MouseEvent } from 'react'
 
 import type { FileStatus } from '../../types'
 import type { SectionMode, SectionSelection } from '../../hooks/useSectionSelection'
 import { cx } from '../../utils/cx'
+import { sortFileStatuses } from '../../utils/gitStatus'
 import { FileList } from './FileList'
 import styles from './ChangesPanel.module.css'
 
@@ -62,6 +63,8 @@ export function ChangesPanel({
   const showMergeBanner = merging || conflictCount > 0
   const hasAnyChanges = staged.length > 0 || unstaged.length > 0
   const showDiscardActions = Boolean(onDiscardAll || onDiscardSelected)
+  const sortedStaged = useMemo(() => sortFileStatuses(staged, 'staged'), [staged])
+  const sortedUnstaged = useMemo(() => sortFileStatuses(unstaged, 'unstaged'), [unstaged])
 
   return (
     <div className={styles.panel}>
@@ -86,7 +89,7 @@ export function ChangesPanel({
             <button
               type="button"
               className={styles.headingAction}
-              disabled={staged.length === 0}
+              disabled={sortedStaged.length === 0}
               onClick={onUnstageAll}
             >
               すべて除く
@@ -102,13 +105,13 @@ export function ChangesPanel({
           </span>
         </h2>
         <FileList
-          files={staged}
+          files={sortedStaged}
           mode="staged"
           loading={loading}
           selectedPaths={stagedSelection.paths}
           focusPath={stagedSelection.focus}
           onFileClick={(path, index, event) =>
-            onFileClick(path, index, 'staged', staged, event)
+            onFileClick(path, index, 'staged', sortedStaged, event)
           }
           onFileHover={onFileHover}
           onFileContextMenu={(entry, event) => onFileContextMenu?.(entry, event, 'staged')}
@@ -143,7 +146,7 @@ export function ChangesPanel({
             <button
               type="button"
               className={styles.headingAction}
-              disabled={unstaged.length === 0}
+              disabled={sortedUnstaged.length === 0}
               onClick={onStageAll}
             >
               すべて追加
@@ -159,13 +162,13 @@ export function ChangesPanel({
           </span>
         </h2>
         <FileList
-          files={unstaged}
+          files={sortedUnstaged}
           mode="unstaged"
           loading={loading}
           selectedPaths={unstagedSelection.paths}
           focusPath={unstagedSelection.focus}
           onFileClick={(path, index, event) =>
-            onFileClick(path, index, 'unstaged', unstaged, event)
+            onFileClick(path, index, 'unstaged', sortedUnstaged, event)
           }
           onFileHover={onFileHover}
           onFileContextMenu={(entry, event) => onFileContextMenu?.(entry, event, 'unstaged')}
