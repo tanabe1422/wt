@@ -58,6 +58,15 @@ export function patchSidebarSelection(
   )
 }
 
+/** Push/Fetch など作業ツリーが変わらない更新向け。worktrees はそのまま残す。 */
+export function patchSidebarBranches(repoPath: string, branches: BranchEntry[]): void {
+  const current = sidebarCache.get(repoPath)
+  if (!current) {
+    return
+  }
+  touch(sidebarCache, repoPath, { ...current, branches }, MAX_SIDEBAR_ENTRIES)
+}
+
 export function invalidateSidebarCache(repoPath: string): void {
   sidebarCache.delete(repoPath)
 }

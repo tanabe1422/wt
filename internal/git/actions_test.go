@@ -76,6 +76,49 @@ func TestStageCommit(t *testing.T) {
 	fake.AssertCalled(t, "commit", "-m", "test commit from unit")
 }
 
+func TestStageAll(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("ls-files", "-u").Return("", nil)
+	fake.On("add", "-A").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := StageAll(dir); err != nil {
+		t.Fatalf("StageAll: %v", err)
+	}
+	fake.AssertCalled(t, "ls-files", "-u")
+	fake.AssertCalled(t, "add", "-A")
+}
+
+func TestStageAllExcludesUnmerged(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("ls-files", "-u").Return(
+		"100644 aaa 1\tconflict.txt\n100644 bbb 2\tconflict.txt\n100644 ccc 3\tconflict.txt\n"+
+			"100644 ddd 1\tother.go\n100644 eee 2\tother.go\n100644 fff 3\tother.go\n",
+		nil,
+	)
+	fake.On("add", "-A", "--", ".", ":(exclude)conflict.txt", ":(exclude)other.go").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := StageAll(dir); err != nil {
+		t.Fatalf("StageAll: %v", err)
+	}
+	fake.AssertCalled(t, "add", "-A", "--", ".", ":(exclude)conflict.txt", ":(exclude)other.go")
+}
+
+func TestUnstageAll(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("restore", "--staged", ".").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := UnstageAll(dir); err != nil {
+		t.Fatalf("UnstageAll: %v", err)
+	}
+	fake.AssertCalled(t, "restore", "--staged", ".")
+}
+
 func TestFetchArgs(t *testing.T) {
 	args := fetchArgs(false)
 	if len(args) != 1 || args[0] != "fetch" {
@@ -219,6 +262,40 @@ func TestOpenDifftoolArgs(t *testing.T) {
 	}
 	if cached[len(cached)-3] != "--cached" {
 		t.Fatalf("staged args missing --cached: %v", cached)
+	}
+}
+
+func TestOpenDifftoolBetweenArgs(t *testing.T) {
+	args, err := openDifftoolBetweenArgs(
+		"abc123^",
+		"abc123",
+		"src/App.tsx",
+		"code",
+		"--wait --diff $LOCAL $REMOTE",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"-c", "diff.tool=wtmanager",
+		"-c", "difftool.wtmanager.cmd=code --wait --diff $LOCAL $REMOTE",
+		"-c", "difftool.prompt=false",
+		"difftool", "--no-prompt",
+		"abc123^", "abc123",
+		"--", "src/App.tsx",
+	}
+	if len(args) != len(want) {
+		t.Fatalf("openDifftoolBetweenArgs()=%v want %v", args, want)
+	}
+	for i := range want {
+		if args[i] != want[i] {
+			t.Fatalf("openDifftoolBetweenArgs()[%d]=%q want %q\nfull=%v", i, args[i], want[i], args)
+		}
+	}
+
+	_, err = openDifftoolBetweenArgs("a", "b", "f.txt", "", "$LOCAL $REMOTE")
+	if err == nil {
+		t.Fatal("expected error for empty tool path")
 	}
 }
 

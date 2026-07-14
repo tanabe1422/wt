@@ -73,9 +73,13 @@ export function ListWorktrees(arg1:string):Promise<Array<git.WorktreeEntry>>;
 
 export function MergeBranch(arg1:string,arg2:string):Promise<void>;
 
+export function OpenCommitDifftool(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function OpenDifftool(arg1:string,arg2:string,arg3:boolean):Promise<void>;
 
 export function OpenMergetool(arg1:string,arg2:string):Promise<void>;
+
+export function OpenRangeDifftool(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function OpenTerminal(arg1:string):Promise<void>;
 
@@ -111,11 +115,15 @@ export function ShowInExplorer(arg1:string):Promise<void>;
 
 export function SquashMergeBranch(arg1:string,arg2:string):Promise<void>;
 
+export function StageAll(arg1:string):Promise<void>;
+
 export function StageFiles(arg1:string,arg2:Array<string>):Promise<void>;
 
 export function StageHunk(arg1:string,arg2:string,arg3:number):Promise<void>;
 
 export function SwitchBranch(arg1:string,arg2:string):Promise<void>;
+
+export function UnstageAll(arg1:string):Promise<void>;
 
 export function UnstageFiles(arg1:string,arg2:Array<string>):Promise<void>;
 

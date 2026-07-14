@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { BranchEntry, WorktreeEntry } from '../types'
 import {
   getSidebarCache,
+  patchSidebarBranches,
   patchSidebarSelection,
   setSidebarCache,
 } from '../lib/repoDataCache'
@@ -135,6 +136,21 @@ export function useRepoSidebar(activeRepository: string) {
     [activeRepository, loadSidebar],
   )
 
+  /** ahead/behind などブランチ情報だけ更新。全 WT の status は走らせない。 */
+  const reloadBranches = useCallback(async () => {
+    if (!activeRepository) {
+      return
+    }
+    setError(null)
+    try {
+      const branchEntries = await listBranches(activeRepository)
+      setBranches(branchEntries)
+      patchSidebarBranches(activeRepository, branchEntries)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ブランチ情報の取得に失敗しました')
+    }
+  }, [activeRepository])
+
   return {
     branches,
     worktrees,
@@ -145,5 +161,6 @@ export function useRepoSidebar(activeRepository: string) {
     selectedWorktree,
     setSelectedWorktree,
     reload,
+    reloadBranches,
   }
 }

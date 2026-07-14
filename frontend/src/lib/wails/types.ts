@@ -36,7 +36,9 @@ export interface WailsApp {
   GetStatus(worktreePath: string): Promise<FileStatus[]>
   GetFileDiff(worktreePath: string, file: string, staged: boolean): Promise<FileDiff>
   StageFiles(worktreePath: string, paths: string[]): Promise<void>
+  StageAll(worktreePath: string): Promise<void>
   UnstageFiles(worktreePath: string, paths: string[]): Promise<void>
+  UnstageAll(worktreePath: string): Promise<void>
   StageHunk(worktreePath: string, file: string, hunkIndex: number): Promise<void>
   UnstageHunk(worktreePath: string, file: string, hunkIndex: number): Promise<void>
   DiscardHunk(worktreePath: string, file: string, hunkIndex: number, staged: boolean): Promise<void>
@@ -55,6 +57,13 @@ export interface WailsApp {
   PushSetUpstream(worktreePath: string, remote: string): Promise<void>
   OpenMergetool(worktreePath: string, file: string): Promise<void>
   OpenDifftool(worktreePath: string, file: string, staged: boolean): Promise<void>
+  OpenCommitDifftool(worktreePath: string, sha: string, file: string): Promise<void>
+  OpenRangeDifftool(
+    worktreePath: string,
+    fromRef: string,
+    toRef: string,
+    file: string,
+  ): Promise<void>
   ListCommits(
     worktreePath: string,
     scope: string,

@@ -461,6 +461,23 @@ export const mockApp: WailsApp = {
     })
   },
 
+  async StageAll(worktreePath: string) {
+    const paths = mockStatus
+      .filter((entry) => {
+        const conflict =
+          entry.index === 'U' ||
+          entry.workTree === 'U' ||
+          (entry.index === 'A' && entry.workTree === 'A') ||
+          (entry.index === 'D' && entry.workTree === 'D')
+        if (conflict) {
+          return false
+        }
+        return entry.index === '?' || entry.workTree !== ' '
+      })
+      .map((entry) => entry.path)
+    await this.StageFiles(worktreePath, paths)
+  },
+
   async UnstageFiles(_worktreePath: string, paths: string[]) {
     mockStatus = mockStatus
       .map((entry) => {
@@ -479,6 +496,13 @@ export const mockApp: WailsApp = {
         }
       })
       .filter((entry) => entry.index !== ' ' || entry.workTree !== ' ')
+  },
+
+  async UnstageAll(worktreePath: string) {
+    const paths = mockStatus
+      .filter((entry) => entry.index !== ' ' && entry.index !== '?')
+      .map((entry) => entry.path)
+    await this.UnstageFiles(worktreePath, paths)
   },
 
   async StageHunk(_worktreePath: string, file: string, hunkIndex: number) {
@@ -636,6 +660,29 @@ export const mockApp: WailsApp = {
     console.info('[mock] OpenDifftool', file, staged, mockSettings.diffTool)
     if (!mockSettings.diffTool.path.trim()) {
       throw new Error('??????????????????????????????????????')
+    }
+  },
+
+  async OpenCommitDifftool(_worktreePath: string, sha: string, file: string) {
+    console.info('[mock] OpenCommitDifftool', sha, file, mockSettings.diffTool)
+    if (!mockSettings.diffTool.path.trim()) {
+      throw new Error(
+        '外部ツールが設定されていません。設定画面でアプリと開き方を設定してください。',
+      )
+    }
+  },
+
+  async OpenRangeDifftool(
+    _worktreePath: string,
+    fromRef: string,
+    toRef: string,
+    file: string,
+  ) {
+    console.info('[mock] OpenRangeDifftool', fromRef, toRef, file, mockSettings.diffTool)
+    if (!mockSettings.diffTool.path.trim()) {
+      throw new Error(
+        '外部ツールが設定されていません。設定画面でアプリと開き方を設定してください。',
+      )
     }
   },
 

@@ -53,10 +53,18 @@ func (a *App) StageFiles(worktreePath string, paths []string) error {
 	})
 }
 
+func (a *App) StageAll(worktreePath string) error {
+	return withWorktree(worktreePath, git.StageAll)
+}
+
 func (a *App) UnstageFiles(worktreePath string, paths []string) error {
 	return withWorktree(worktreePath, func(dir string) error {
 		return git.UnstageFiles(dir, paths)
 	})
+}
+
+func (a *App) UnstageAll(worktreePath string) error {
+	return withWorktree(worktreePath, git.UnstageAll)
 }
 
 func (a *App) StageHunk(worktreePath, file string, hunkIndex int) error {
@@ -156,6 +164,26 @@ func (a *App) OpenDifftool(worktreePath, file string, staged bool) error {
 			return err
 		}
 		return git.OpenDifftool(dir, file, staged, settings.DiffTool.Path, settings.DiffTool.Args)
+	})
+}
+
+func (a *App) OpenCommitDifftool(worktreePath, sha, file string) error {
+	return withWorktree(worktreePath, func(dir string) error {
+		settings, err := config.Load()
+		if err != nil {
+			return err
+		}
+		return git.OpenCommitDifftool(dir, sha, file, settings.DiffTool.Path, settings.DiffTool.Args)
+	})
+}
+
+func (a *App) OpenRangeDifftool(worktreePath, fromRef, toRef, file string) error {
+	return withWorktree(worktreePath, func(dir string) error {
+		settings, err := config.Load()
+		if err != nil {
+			return err
+		}
+		return git.OpenRangeDifftool(dir, fromRef, toRef, file, settings.DiffTool.Path, settings.DiffTool.Args)
 	})
 }
 

@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { MouseEvent } from 'react'
 
 import { useCommitFileDiff } from '../../hooks/useCommitFileDiff'
 import { useCommitFiles } from '../../hooks/useCommitFiles'
-import { useContextMenu } from '../../hooks/useContextMenu'
 import { useErrorDialog } from '../../hooks/useErrorDialog'
+import { useHistoryFileContextMenu } from '../../hooks/useHistoryFileContextMenu'
 import { useResizableSplit } from '../../hooks/useResizableSplit'
-import { useShowFileInExplorer } from '../../hooks/useShowFileInExplorer'
 import {
   prefetchCommitDiffs,
   prefetchCommitHover,
   prefetchCommitNeighbors,
 } from '../../lib/diffPrefetch'
+import { openCommitDifftool } from '../../lib/wails'
 import type { CommitLogEntry } from '../../types'
 import { cx } from '../../utils/cx'
 import { ContextMenu } from '../ui/ContextMenu'
@@ -41,8 +40,29 @@ export function CommitDetailPane({ worktreePath, commit }: CommitDetailPaneProps
     loading: diffLoading,
     error: diffError,
   } = useCommitFileDiff(worktreePath, sha, selectedPath)
-  const { menu, openMenu, closeMenu } = useContextMenu()
-  const { showFileDir, errorDialog: explorerErrorDialog } = useShowFileInExplorer(worktreePath)
+
+  const openDifftoolForFile = useCallback(
+    async (path: string) => {
+      if (!sha) {
+        return
+      }
+      await openCommitDifftool(worktreePath, sha, path)
+    },
+    [sha, worktreePath],
+  )
+
+  const {
+    menu,
+    closeMenu,
+    handleFileContextMenu,
+    explorerErrorDialog,
+    toolErrorDialog,
+  } = useHistoryFileContextMenu({
+    worktreePath,
+    selectedPath,
+    setSelectedPath,
+    openDifftool: openDifftoolForFile,
+  })
 
   const filesErrorDialog = useErrorDialog(filesError)
   const diffErrorDialog = useErrorDialog(diffError)
@@ -102,25 +122,6 @@ export function CommitDetailPane({ worktreePath, commit }: CommitDetailPaneProps
       prefetchCommitHover(worktreePath, sha, path)
     },
     [worktreePath, sha],
-  )
-
-  const handleFileContextMenu = useCallback(
-    (entry: { path: string }, event: MouseEvent) => {
-      event.preventDefault()
-      event.stopPropagation()
-      if (selectedPath !== entry.path) {
-        setSelectedPath(entry.path)
-      }
-      openMenu(event.clientX, event.clientY, [
-        {
-          label: 'エクスプローラーで表示',
-          onClick: () => {
-            showFileDir(entry.path)
-          },
-        },
-      ])
-    },
-    [openMenu, selectedPath, showFileDir],
   )
 
   if (!commit) {
@@ -186,6 +187,12 @@ export function CommitDetailPane({ worktreePath, commit }: CommitDetailPaneProps
         title="エクスプローラーを開けませんでした"
         message={explorerErrorDialog.message}
         onClose={explorerErrorDialog.dismiss}
+      />
+      <ErrorDialog
+        open={toolErrorDialog.open}
+        title="外部ツールの起動に失敗しました"
+        message={toolErrorDialog.message}
+        onClose={toolErrorDialog.dismiss}
       />
     </div>
   )

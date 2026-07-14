@@ -135,7 +135,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   )
 }
 
-/** MainLayout のメイン領域に置き、トーストをツールバー下・中央上部へ出す */
+/** MainLayout の body（サイドバー含む）に置き、トーストを画面中央上部へ出す */
 export function ToastRoot() {
   const rootApi = useContext(ToastRootContext)
   const setRef = useCallback(

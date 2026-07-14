@@ -142,12 +142,20 @@ export function MergeBranch(arg1, arg2) {
   return window['go']['app']['App']['MergeBranch'](arg1, arg2);
 }
 
+export function OpenCommitDifftool(arg1, arg2, arg3) {
+  return window['go']['app']['App']['OpenCommitDifftool'](arg1, arg2, arg3);
+}
+
 export function OpenDifftool(arg1, arg2, arg3) {
   return window['go']['app']['App']['OpenDifftool'](arg1, arg2, arg3);
 }
 
 export function OpenMergetool(arg1, arg2) {
   return window['go']['app']['App']['OpenMergetool'](arg1, arg2);
+}
+
+export function OpenRangeDifftool(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['OpenRangeDifftool'](arg1, arg2, arg3, arg4);
 }
 
 export function OpenTerminal(arg1) {
@@ -218,6 +226,10 @@ export function SquashMergeBranch(arg1, arg2) {
   return window['go']['app']['App']['SquashMergeBranch'](arg1, arg2);
 }
 
+export function StageAll(arg1) {
+  return window['go']['app']['App']['StageAll'](arg1);
+}
+
 export function StageFiles(arg1, arg2) {
   return window['go']['app']['App']['StageFiles'](arg1, arg2);
 }
@@ -228,6 +240,10 @@ export function StageHunk(arg1, arg2, arg3) {
 
 export function SwitchBranch(arg1, arg2) {
   return window['go']['app']['App']['SwitchBranch'](arg1, arg2);
+}
+
+export function UnstageAll(arg1) {
+  return window['go']['app']['App']['UnstageAll'](arg1);
 }
 
 export function UnstageFiles(arg1, arg2) {

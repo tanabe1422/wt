@@ -10,6 +10,7 @@ import {
   invalidateRepoCaches,
   invalidateSidebarCache,
   invalidateStatusCache,
+  patchSidebarBranches,
   patchSidebarSelection,
   setSidebarCache,
   setStatusCache,
@@ -72,6 +73,22 @@ describe('repoDataCache', () => {
     expect(cached?.selectedBranch).toBe('feature')
     expect(cached?.selectedWorktree).toBe('/repo-a-feature')
     expect(cached?.branches).toHaveLength(2)
+  })
+
+  it('patches branches without dropping worktrees or selection', () => {
+    setSidebarCache('/repo-a', {
+      branches: [sampleBranch('main')],
+      worktrees: [sampleWorktree('/repo-a', 'main', true)],
+      selectedBranch: 'main',
+      selectedWorktree: '/repo-a',
+    })
+    const updated = { ...sampleBranch('main'), aheadCount: 0, behindCount: 2 }
+    patchSidebarBranches('/repo-a', [updated, sampleBranch('feature')])
+    const cached = getSidebarCache('/repo-a')
+    expect(cached?.branches).toHaveLength(2)
+    expect(cached?.branches[0]?.behindCount).toBe(2)
+    expect(cached?.worktrees).toHaveLength(1)
+    expect(cached?.selectedBranch).toBe('main')
   })
 
   it('stores status per worktree and invalidates with the repo', () => {

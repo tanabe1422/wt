@@ -15,6 +15,12 @@ import { SidebarToggleButton } from './SidebarToggleButton'
 import { ToolbarActionButton } from './ToolbarActionButton'
 import styles from './GitSyncToolbar.module.css'
 
+/** 同期操作後の再読込範囲。
+ * - sidebar: ブランチ情報のみ（ahead/behind）。全 WT の status は走らせない
+ * - workspace: サイドバー全体 + ワークスペース再読込
+ */
+export type SyncRefreshScope = 'sidebar' | 'workspace'
+
 interface GitSyncToolbarProps {
   worktreePath: string
   currentBranch?: string
@@ -24,7 +30,7 @@ interface GitSyncToolbarProps {
   hasUpstream?: boolean
   mainView: MainView
   onMainViewChange: (view: MainView) => void
-  onActionComplete?: () => void | Promise<void>
+  onActionComplete?: (scope?: SyncRefreshScope) => void | Promise<void>
   onReload?: () => void | Promise<void>
   onOpenSettings?: () => void
   /** MainLayout busy overlay（push / pull など同期操作中） */
@@ -231,6 +237,16 @@ export function GitSyncToolbar({
     }
   }
 
+  /** 全画面スピナーは git 操作中だけ。再読込は acting でボタン無効のまま裏で実行する。 */
+  const finishAction = async (scope: SyncRefreshScope) => {
+    setOverlayBusy(false)
+    try {
+      await onActionComplete?.(scope)
+    } finally {
+      setActing(false)
+    }
+  }
+
   const runPush = async () => {
     setActionError(null)
     setActing(true)
@@ -242,9 +258,7 @@ export function GitSyncToolbar({
       setActionTitle(actionTitles.push)
       setActionError(err instanceof Error ? err.message : 'プッシュに失敗しました')
     } finally {
-      await onActionComplete?.()
-      setOverlayBusy(false)
-      setActing(false)
+      await finishAction('sidebar')
     }
   }
 
@@ -272,11 +286,8 @@ export function GitSyncToolbar({
       setActionTitle(actionTitles[action])
       setActionError(err instanceof Error ? err.message : '操作に失敗しました')
     } finally {
-      await onActionComplete?.()
-      if (showOverlay) {
-        setOverlayBusy(false)
-      }
-      setActing(false)
+      // pull は作業ツリーが変わる。fetch は ahead/behind だけ。
+      await finishAction(action === 'pull' ? 'workspace' : 'sidebar')
     }
   }
 
@@ -297,9 +308,7 @@ export function GitSyncToolbar({
       setActionTitle(actionTitles.push)
       setActionError(err instanceof Error ? err.message : 'プッシュに失敗しました')
     } finally {
-      await onActionComplete?.()
-      setOverlayBusy(false)
-      setActing(false)
+      await finishAction('sidebar')
     }
   }
 
@@ -315,8 +324,7 @@ export function GitSyncToolbar({
       setActionTitle('フェッチ（prune）に失敗しました')
       setActionError(err instanceof Error ? err.message : 'フェッチ（prune）に失敗しました')
     } finally {
-      await onActionComplete?.()
-      setActing(false)
+      await finishAction('sidebar')
     }
   }
 
@@ -338,8 +346,7 @@ export function GitSyncToolbar({
       setActionTitle('ブランチの作成に失敗しました')
       setActionError(err instanceof Error ? err.message : 'ブランチの作成に失敗しました')
     } finally {
-      await onActionComplete?.()
-      setActing(false)
+      await finishAction('workspace')
     }
   }
 
@@ -357,8 +364,7 @@ export function GitSyncToolbar({
       setActionTitle('スタッシュに失敗しました')
       setActionError(err instanceof Error ? err.message : 'スタッシュに失敗しました')
     } finally {
-      await onActionComplete?.()
-      setActing(false)
+      await finishAction('workspace')
     }
   }
 
@@ -487,7 +493,7 @@ export function GitSyncToolbar({
         worktreePath={worktreePath}
         onClose={() => setCleanupOpen(false)}
         onDeleted={async () => {
-          await onActionComplete?.()
+          await onActionComplete?.('sidebar')
         }}
       />
       <ConfirmDialog

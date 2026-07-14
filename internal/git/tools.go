@@ -35,6 +35,10 @@ func OpenMergetool(worktreePath, file, toolPath, toolArgs string) error {
 	return nil
 }
 
+// emptyTreeOID is Git's well-known empty tree (SHA-1). Used as the left side
+// when opening a root commit in an external difftool.
+const emptyTreeOID = "4b825dc642cb6eb9a060e54bf8d6927f6fb5b76"
+
 // OpenDifftool launches git difftool for the given file using the configured tool.
 func OpenDifftool(worktreePath, file string, staged bool, toolPath, toolArgs string) error {
 	file = strings.TrimSpace(file)
@@ -43,6 +47,65 @@ func OpenDifftool(worktreePath, file string, staged bool, toolPath, toolArgs str
 	}
 
 	args, err := openDifftoolArgs(file, staged, toolPath, toolArgs)
+	if err != nil {
+		return err
+	}
+
+	dir, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return err
+	}
+
+	_, err = runGit(dir, args...)
+	return err
+}
+
+// OpenCommitDifftool launches git difftool for a file as changed in a commit
+// (parent..commit, or empty-tree..commit for root commits).
+func OpenCommitDifftool(worktreePath, sha, file, toolPath, toolArgs string) error {
+	sha = strings.TrimSpace(sha)
+	if sha == "" {
+		return errors.New("コミット SHA が空です")
+	}
+	file = strings.TrimSpace(file)
+	if file == "" {
+		return errors.New("ファイルパスが空です")
+	}
+
+	dir, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return err
+	}
+
+	fromRef := sha + "^"
+	if _, err := runGit(dir, "rev-parse", "--verify", fromRef); err != nil {
+		fromRef = emptyTreeOID
+	}
+	return OpenDifftoolBetween(dir, fromRef, sha, file, toolPath, toolArgs)
+}
+
+// OpenRangeDifftool launches git difftool comparing fromRef..toRef for a file.
+func OpenRangeDifftool(worktreePath, fromRef, toRef, file, toolPath, toolArgs string) error {
+	fromRef = strings.TrimSpace(fromRef)
+	toRef = strings.TrimSpace(toRef)
+	if fromRef == "" || toRef == "" {
+		return errors.New("比較対象の ref が空です")
+	}
+	file = strings.TrimSpace(file)
+	if file == "" {
+		return errors.New("ファイルパスが空です")
+	}
+
+	dir, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return err
+	}
+	return OpenDifftoolBetween(dir, fromRef, toRef, file, toolPath, toolArgs)
+}
+
+// OpenDifftoolBetween launches git difftool between two refs for a file.
+func OpenDifftoolBetween(worktreePath, fromRef, toRef, file, toolPath, toolArgs string) error {
+	args, err := openDifftoolBetweenArgs(fromRef, toRef, file, toolPath, toolArgs)
 	if err != nil {
 		return err
 	}
@@ -123,4 +186,19 @@ func openDifftoolArgs(file string, staged bool, toolPath, toolArgs string) ([]st
 	}
 	args = append(args, "--", file)
 	return args, nil
+}
+
+func openDifftoolBetweenArgs(fromRef, toRef, file, toolPath, toolArgs string) ([]string, error) {
+	cmd, err := buildToolCmd(toolPath, toolArgs)
+	if err != nil {
+		return nil, err
+	}
+	return []string{
+		"-c", "diff.tool=wtmanager",
+		"-c", "difftool.wtmanager.cmd=" + cmd,
+		"-c", "difftool.prompt=false",
+		"difftool", "--no-prompt",
+		fromRef, toRef,
+		"--", file,
+	}, nil
 }

@@ -11,9 +11,74 @@ func StageFiles(worktreePath string, paths []string) error {
 	return runGitPaths(worktreePath, []string{"add", "--"}, paths)
 }
 
+// StageAll stages all changes in the worktree (git add -A), excluding unmerged
+// conflict paths so they are not accidentally marked resolved.
+func StageAll(worktreePath string) error {
+	dir, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return err
+	}
+
+	excludes, err := listUnmergedPaths(dir)
+	if err != nil {
+		return err
+	}
+	if len(excludes) == 0 {
+		_, err = runGit(dir, "add", "-A")
+		return err
+	}
+
+	args := []string{"add", "-A", "--", "."}
+	for _, path := range excludes {
+		args = append(args, ":(exclude)"+path)
+	}
+	_, err = runGit(dir, args...)
+	return err
+}
+
 // UnstageFiles unstages the given paths in the worktree.
 func UnstageFiles(worktreePath string, paths []string) error {
 	return runGitPaths(worktreePath, []string{"restore", "--staged", "--"}, paths)
+}
+
+// UnstageAll unstages all staged changes in the worktree.
+func UnstageAll(worktreePath string) error {
+	dir, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return err
+	}
+	_, err = runGit(dir, "restore", "--staged", ".")
+	return err
+}
+
+// listUnmergedPaths returns unique paths with unmerged index stages.
+func listUnmergedPaths(dir string) ([]string, error) {
+	out, err := runGit(dir, "ls-files", "-u")
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(out) == "" {
+		return nil, nil
+	}
+
+	seen := make(map[string]struct{})
+	var paths []string
+	for _, line := range strings.Split(out, "\n") {
+		if line == "" {
+			continue
+		}
+		tab := strings.IndexByte(line, '\t')
+		if tab < 0 || tab+1 >= len(line) {
+			continue
+		}
+		path := line[tab+1:]
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		seen[path] = struct{}{}
+		paths = append(paths, path)
+	}
+	return paths, nil
 }
 
 // StageHunk stages a single hunk from the unstaged diff of the given file.

@@ -72,6 +72,7 @@ function AppShell() {
     selectedWorktree,
     setSelectedWorktree,
     reload: reloadSidebar,
+    reloadBranches,
   } = useRepoSidebar(activeRepository)
 
   const repoErrorDialog = useErrorDialog(error)
@@ -109,7 +110,12 @@ function AppShell() {
   const behindCount = currentBranchEntry?.behindCount ?? 0
   const hasUpstream = currentBranchEntry?.hasUpstream ?? false
 
-  const handleSyncComplete = async () => {
+  const handleSyncComplete = async (scope: 'sidebar' | 'workspace' = 'workspace') => {
+    if (scope === 'sidebar') {
+      // Push/Fetch: ahead/behind だけ。全 WT の status はスキップ。
+      await reloadBranches()
+      return
+    }
     await reloadSidebar()
     setWorkspaceRevision((value) => value + 1)
   }

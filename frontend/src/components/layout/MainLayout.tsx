@@ -26,10 +26,8 @@ export function MainLayout({
         {workspaceToolbar}
         <div className={styles.body} aria-busy={busy || undefined}>
           <CollapsibleSidebar>{sidebar}</CollapsibleSidebar>
-          <main className={styles.main}>
-            {children}
-            <ToastRoot />
-          </main>
+          <main className={styles.main}>{children}</main>
+          <ToastRoot />
           {busy && (
             <div className={styles.busyOverlay} role="status" aria-live="polite" aria-label="更新中">
               <span className={styles.spinner} aria-hidden="true" />

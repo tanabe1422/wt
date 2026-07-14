@@ -55,7 +55,7 @@ export function GitWorkspaceDialogs({
       />
       <ErrorDialog
         open={externalToolError.open}
-        title="外部ツールの起動に失敗しました"
+        title="操作に失敗しました"
         message={externalToolError.message}
         onClose={externalToolError.dismiss}
       />

@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { MouseEvent } from 'react'
 
-import { useContextMenu } from '../../hooks/useContextMenu'
 import { useErrorDialog } from '../../hooks/useErrorDialog'
+import { useHistoryFileContextMenu } from '../../hooks/useHistoryFileContextMenu'
 import { useRangeFileDiff } from '../../hooks/useRangeFileDiff'
 import { useRangeFiles } from '../../hooks/useRangeFiles'
 import { useResizableSplit } from '../../hooks/useResizableSplit'
-import { useShowFileInExplorer } from '../../hooks/useShowFileInExplorer'
 import {
   prefetchRangeDiffs,
   prefetchRangeHover,
   prefetchRangeNeighbors,
 } from '../../lib/diffPrefetch'
+import { openRangeDifftool } from '../../lib/wails'
 import { cx } from '../../utils/cx'
 import { ContextMenu } from '../ui/ContextMenu'
 import { ErrorDialog } from '../ui/ErrorDialog'
@@ -49,8 +48,26 @@ export function CompareDetailPane({ worktreePath, range }: CompareDetailPaneProp
     loading: diffLoading,
     error: diffError,
   } = useRangeFileDiff(worktreePath, fromRef, toRef, selectedPath)
-  const { menu, openMenu, closeMenu } = useContextMenu()
-  const { showFileDir, errorDialog: explorerErrorDialog } = useShowFileInExplorer(worktreePath)
+
+  const openDifftoolForFile = useCallback(
+    async (path: string) => {
+      await openRangeDifftool(worktreePath, fromRef, toRef, path)
+    },
+    [fromRef, toRef, worktreePath],
+  )
+
+  const {
+    menu,
+    closeMenu,
+    handleFileContextMenu,
+    explorerErrorDialog,
+    toolErrorDialog,
+  } = useHistoryFileContextMenu({
+    worktreePath,
+    selectedPath,
+    setSelectedPath,
+    openDifftool: openDifftoolForFile,
+  })
 
   const filesErrorDialog = useErrorDialog(filesError)
   const diffErrorDialog = useErrorDialog(diffError)
@@ -111,25 +128,6 @@ export function CompareDetailPane({ worktreePath, range }: CompareDetailPaneProp
       prefetchRangeHover(worktreePath, fromRef, toRef, path)
     },
     [worktreePath, fromRef, toRef],
-  )
-
-  const handleFileContextMenu = useCallback(
-    (entry: { path: string }, event: MouseEvent) => {
-      event.preventDefault()
-      event.stopPropagation()
-      if (selectedPath !== entry.path) {
-        setSelectedPath(entry.path)
-      }
-      openMenu(event.clientX, event.clientY, [
-        {
-          label: 'エクスプローラーで表示',
-          onClick: () => {
-            showFileDir(entry.path)
-          },
-        },
-      ])
-    },
-    [openMenu, selectedPath, showFileDir],
   )
 
   return (
@@ -200,6 +198,12 @@ export function CompareDetailPane({ worktreePath, range }: CompareDetailPaneProp
         title="エクスプローラーを開けませんでした"
         message={explorerErrorDialog.message}
         onClose={explorerErrorDialog.dismiss}
+      />
+      <ErrorDialog
+        open={toolErrorDialog.open}
+        title="外部ツールの起動に失敗しました"
+        message={toolErrorDialog.message}
+        onClose={toolErrorDialog.dismiss}
       />
     </div>
   )

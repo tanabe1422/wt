@@ -144,8 +144,16 @@ export async function stageFiles(worktreePath: string, paths: string[]): Promise
   return callApp('StageFiles', worktreePath, paths)
 }
 
+export async function stageAll(worktreePath: string): Promise<void> {
+  return callApp('StageAll', worktreePath)
+}
+
 export async function unstageFiles(worktreePath: string, paths: string[]): Promise<void> {
   return callApp('UnstageFiles', worktreePath, paths)
+}
+
+export async function unstageAll(worktreePath: string): Promise<void> {
+  return callApp('UnstageAll', worktreePath)
 }
 
 export async function stageHunk(
@@ -235,6 +243,23 @@ export async function openDifftool(
   staged: boolean,
 ): Promise<void> {
   return callApp('OpenDifftool', worktreePath, file, staged)
+}
+
+export async function openCommitDifftool(
+  worktreePath: string,
+  sha: string,
+  file: string,
+): Promise<void> {
+  return callApp('OpenCommitDifftool', worktreePath, sha, file)
+}
+
+export async function openRangeDifftool(
+  worktreePath: string,
+  fromRef: string,
+  toRef: string,
+  file: string,
+): Promise<void> {
+  return callApp('OpenRangeDifftool', worktreePath, fromRef, toRef, file)
 }
 
 export async function listCommits(

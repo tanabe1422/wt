@@ -12,7 +12,9 @@ import {
   openDifftool,
   openMergetool,
   showInExplorer,
+  stageAll,
   stageHunk,
+  unstageAll,
   unstageHunk,
 } from '../lib/wails'
 import type { AmendInfo, FileStatus } from '../types'
@@ -152,20 +154,40 @@ export function useGitWorkspaceActions({
   }, [refreshSidebar, runBusy, setFocus, stagedSelectionPaths, unstage])
 
   const handleStageAll = useCallback(async () => {
+    if (!unstaged.some((entry) => !isConflict(entry))) {
+      return
+    }
     await runBusy(async () => {
-      await stage(unstaged.filter((entry) => !isConflict(entry)).map((entry) => entry.path))
-      await refreshSidebar()
-      clearSection('unstaged')
+      try {
+        await stageAll(worktreePath)
+        invalidateWorktreeDiffs(worktreePath)
+        await Promise.all([reload(), refreshSidebar()])
+        clearSection('unstaged')
+      } catch (err) {
+        setExternalToolError(
+          err instanceof Error ? err.message : 'すべて追加に失敗しました',
+        )
+      }
     })
-  }, [clearSection, refreshSidebar, runBusy, stage, unstaged])
+  }, [clearSection, refreshSidebar, reload, runBusy, unstaged, worktreePath])
 
   const handleUnstageAll = useCallback(async () => {
+    if (staged.length === 0) {
+      return
+    }
     await runBusy(async () => {
-      await unstage(staged.map((entry) => entry.path))
-      await refreshSidebar()
-      clearSection('staged')
+      try {
+        await unstageAll(worktreePath)
+        invalidateWorktreeDiffs(worktreePath)
+        await Promise.all([reload(), refreshSidebar()])
+        clearSection('staged')
+      } catch (err) {
+        setExternalToolError(
+          err instanceof Error ? err.message : 'すべて除くに失敗しました',
+        )
+      }
     })
-  }, [clearSection, refreshSidebar, runBusy, staged, unstage])
+  }, [clearSection, refreshSidebar, reload, runBusy, staged.length, worktreePath])
 
   const handleCommit = useCallback(
     async (message: string, options: { amend: boolean }) => {
