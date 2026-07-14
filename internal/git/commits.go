@@ -11,6 +11,11 @@ const (
 	HistoryScopeAll    = "all"
 	HistoryScopeBranch = "branch"
 	defaultCommitLimit = 50
+
+	CommitSearchMessage = "message"
+	CommitSearchAuthor  = "author"
+	CommitSearchPath    = "path"
+	CommitSearchSHA     = "sha"
 )
 
 // CommitParent references a parent commit SHA.
@@ -56,6 +61,8 @@ type ListCommitsParams struct {
 	Branch       string
 	Skip         int
 	Limit        int
+	SearchType   string // "" | message | author | path | sha
+	SearchQuery  string
 }
 
 // ListCommitsResult is a page of commit log entries.
@@ -92,6 +99,23 @@ func ListCommits(params ListCommitsParams) (ListCommitsResult, error) {
 		limit = defaultCommitLimit
 	}
 
+	searchType := strings.TrimSpace(params.SearchType)
+	searchQuery := strings.TrimSpace(params.SearchQuery)
+	if searchQuery == "" {
+		searchType = ""
+	}
+	if searchType != "" &&
+		searchType != CommitSearchMessage &&
+		searchType != CommitSearchAuthor &&
+		searchType != CommitSearchPath &&
+		searchType != CommitSearchSHA {
+		return ListCommitsResult{}, fmt.Errorf("不明な searchType: %s", searchType)
+	}
+
+	if searchType == CommitSearchSHA {
+		return listCommitsBySHA(dir, searchQuery, skip)
+	}
+
 	args := []string{
 		"log",
 		"--topo-order",
@@ -113,6 +137,15 @@ func ListCommits(params ListCommitsParams) (ListCommitsResult, error) {
 		args = append(args, branch)
 	}
 
+	switch searchType {
+	case CommitSearchMessage:
+		args = append(args, "-i", "--grep="+searchQuery)
+	case CommitSearchAuthor:
+		args = append(args, "--author="+searchQuery)
+	case CommitSearchPath:
+		args = append(args, "--", pathspecForSearchQuery(searchQuery))
+	}
+
 	out, err := runGit(dir, args...)
 	if err != nil {
 		return ListCommitsResult{}, err
@@ -129,6 +162,66 @@ func ListCommits(params ListCommitsParams) (ListCommitsResult, error) {
 		HasMore:  hasMore,
 		NextSkip: skip + len(entries),
 	}, nil
+}
+
+func listCommitsBySHA(dir, query string, skip int) (ListCommitsResult, error) {
+	if skip > 0 {
+		return ListCommitsResult{
+			Commits:  []CommitLogEntry{},
+			HasMore:  false,
+			NextSkip: skip,
+		}, nil
+	}
+
+	resolved, err := runGit(dir, "rev-parse", "--verify", query+"^{commit}")
+	if err != nil {
+		return ListCommitsResult{
+			Commits:  []CommitLogEntry{},
+			HasMore:  false,
+			NextSkip: 0,
+		}, nil
+	}
+	resolved = strings.TrimSpace(resolved)
+	if resolved == "" {
+		return ListCommitsResult{
+			Commits:  []CommitLogEntry{},
+			HasMore:  false,
+			NextSkip: 0,
+		}, nil
+	}
+
+	out, err := runGit(
+		dir,
+		"log",
+		"-1",
+		"--topo-order",
+		fmt.Sprintf("--format=%s", commitLogFormat),
+		resolved,
+	)
+	if err != nil {
+		return ListCommitsResult{}, err
+	}
+
+	entries := parseCommitLog(out)
+	return ListCommitsResult{
+		Commits:  entries,
+		HasMore:  false,
+		NextSkip: len(entries),
+	}, nil
+}
+
+// pathspecForSearchQuery builds a git pathspec from a user search query.
+// - "./foo" → root-relative exact path
+// - "src/foo" → path prefix
+// - "foo.tsx" → filename substring match across all directories
+func pathspecForSearchQuery(query string) string {
+	if strings.HasPrefix(query, "./") {
+		return query
+	}
+	if strings.Contains(query, "/") {
+		return query
+	}
+	return ":(glob)**/*" + query + "*"
 }
 
 // ListBranchHeads returns branch tips and tags for commit labels.

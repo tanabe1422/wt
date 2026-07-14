@@ -13,12 +13,14 @@ interface CommitHistoryHeaderProps {
   gridTemplateColumns: string
   resizingColumn: CommitHistoryColumnId | null
   onResizeStart: (handleColumnId: CommitHistoryColumnId, clientX: number) => void
+  showGraph?: boolean
 }
 
 export function CommitHistoryHeader({
   gridTemplateColumns,
   resizingColumn,
   onResizeStart,
+  showGraph = true,
 }: CommitHistoryHeaderProps) {
   const handleResizePointerDown =
     (columnId: CommitHistoryColumnId) => (event: PointerEvent<HTMLDivElement>) => {
@@ -28,13 +30,17 @@ export function CommitHistoryHeader({
       onResizeStart(columnId, event.clientX)
     }
 
+  const columnIds = showGraph
+    ? COMMIT_HISTORY_COLUMN_IDS
+    : COMMIT_HISTORY_COLUMN_IDS.filter((id) => id !== 'graph')
+
   return (
     <div
       className={cx(styles.header, resizingColumn != null && styles.headerResizing)}
       style={{ gridTemplateColumns }}
       role="row"
     >
-      {COMMIT_HISTORY_COLUMN_IDS.map((columnId) => (
+      {columnIds.map((columnId) => (
         <div key={columnId} className={styles.cell} role="columnheader">
           <span className={styles.label}>{COMMIT_HISTORY_COLUMN_LABELS[columnId]}</span>
           {columnId !== 'sha' && (

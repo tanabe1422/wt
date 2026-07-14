@@ -1,6 +1,7 @@
 import { useMemo, type MouseEvent } from 'react'
 
 import type { CommitFileChange } from '../../types'
+import { commitFileMatchesPathQuery } from '../../utils/commitSearchPath'
 import { cx } from '../../utils/cx'
 import { sortCommitFileChanges } from '../../utils/gitStatus'
 import { Button } from '../ui/Button'
@@ -14,6 +15,8 @@ interface CommitFileListProps {
   onSelect: (path: string) => void
   onFileHover?: (path: string) => void
   onFileContextMenu?: (entry: CommitFileChange, event: MouseEvent) => void
+  /** When set (path search active), matching files are highlighted and sorted to the top. */
+  highlightQuery?: string
 }
 
 export function CommitFileList({
@@ -23,8 +26,25 @@ export function CommitFileList({
   onSelect,
   onFileHover,
   onFileContextMenu,
+  highlightQuery = '',
 }: CommitFileListProps) {
-  const sortedFiles = useMemo(() => sortCommitFileChanges(files), [files])
+  const sortedFiles = useMemo(() => {
+    const sorted = sortCommitFileChanges(files)
+    const q = highlightQuery.trim()
+    if (!q) {
+      return sorted
+    }
+    const matched: CommitFileChange[] = []
+    const rest: CommitFileChange[] = []
+    for (const entry of sorted) {
+      if (commitFileMatchesPathQuery(entry, q)) {
+        matched.push(entry)
+      } else {
+        rest.push(entry)
+      }
+    }
+    return [...matched, ...rest]
+  }, [files, highlightQuery])
 
   return (
     <div className={styles.list}>
@@ -35,6 +55,8 @@ export function CommitFileList({
       ) : (
         sortedFiles.map((entry) => {
           const isSelected = selectedPath === entry.path
+          const isMatched =
+            highlightQuery.trim() !== '' && commitFileMatchesPathQuery(entry, highlightQuery)
           const label =
             entry.oldPath && entry.oldPath !== entry.path
               ? `${entry.oldPath} → ${entry.path}`
@@ -42,7 +64,11 @@ export function CommitFileList({
           return (
             <div
               key={`${entry.status}-${entry.path}`}
-              className={cx(styles.row, isSelected && styles.selected)}
+              className={cx(
+                styles.row,
+                isMatched && styles.matched,
+                isSelected && styles.selected,
+              )}
               onMouseEnter={() => onFileHover?.(entry.path)}
               onContextMenu={(event) => onFileContextMenu?.(entry, event)}
             >

@@ -122,8 +122,8 @@ export function ListCommitFiles(arg1, arg2) {
   return window['go']['app']['App']['ListCommitFiles'](arg1, arg2);
 }
 
-export function ListCommits(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['app']['App']['ListCommits'](arg1, arg2, arg3, arg4, arg5);
+export function ListCommits(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['app']['App']['ListCommits'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
 export function ListRangeFiles(arg1, arg2, arg3) {

@@ -43,3 +43,15 @@ export const DetachedHead: Story = {
     currentBranch: 'HEAD',
   },
 }
+
+export const SearchControls: Story = {
+  name: '検索コントロール（種別 + 入力）',
+  parameters: {
+    docs: {
+      description: {
+        story:
+          '右上の種別ドロップダウンと検索ボックスでメッセージ / 作者 / ファイル / SHA を絞り込めます。',
+      },
+    },
+  },
+}

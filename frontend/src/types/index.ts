@@ -83,6 +83,8 @@ export interface FileDiff {
 
 export type HistoryScope = 'all' | 'branch'
 
+export type CommitSearchType = 'message' | 'author' | 'path' | 'sha'
+
 export interface CommitParent {
   sha: string
 }

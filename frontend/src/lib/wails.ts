@@ -296,8 +296,10 @@ export async function listCommits(
   branch: string,
   skip: number,
   limit: number,
+  searchType = '',
+  searchQuery = '',
 ): Promise<ListCommitsResult> {
-  return callApp('ListCommits', worktreePath, scope, branch, skip, limit)
+  return callApp('ListCommits', worktreePath, scope, branch, skip, limit, searchType, searchQuery)
 }
 
 export async function listBranchHeads(worktreePath: string): Promise<BranchHead[]> {

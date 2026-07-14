@@ -1,6 +1,7 @@
 package git
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -163,4 +164,212 @@ func TestCurrentBranch(t *testing.T) {
 	if branch != "main" {
 		t.Fatalf("unexpected current branch: %s", branch)
 	}
+}
+
+func TestPathspecForSearchQuery(t *testing.T) {
+	tests := []struct {
+		query string
+		want  string
+	}{
+		{query: "hoge.tsx", want: ":(glob)**/*hoge.tsx*"},
+		{query: "./hoge.tsx", want: "./hoge.tsx"},
+		{query: "src/foo/hoge.tsx", want: "src/foo/hoge.tsx"},
+		{query: "src/components", want: "src/components"},
+	}
+	for _, tt := range tests {
+		got := pathspecForSearchQuery(tt.query)
+		if got != tt.want {
+			t.Fatalf("pathspecForSearchQuery(%q) = %q, want %q", tt.query, got, tt.want)
+		}
+	}
+}
+
+func TestListCommitsSearchMessage(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On(
+		"log", "--all", "--topo-order", fmt.Sprintf("--format=%s", commitLogFormat),
+		"--skip=0", "-n", "51", "-i", "--grep=scaffold",
+	).Return(commitRecord("c2", "c1", "feat: scaffold history view"), nil)
+	withFakeRunner(t, fake)
+
+	result, err := ListCommits(ListCommitsParams{
+		WorktreePath: dir,
+		Scope:        HistoryScopeAll,
+		SearchType:   CommitSearchMessage,
+		SearchQuery:  "scaffold",
+	})
+	if err != nil {
+		t.Fatalf("ListCommits message: %v", err)
+	}
+	if len(result.Commits) != 1 {
+		t.Fatalf("expected 1 commit, got %d", len(result.Commits))
+	}
+	fake.AssertCalled(t,
+		"log", "--all", "--topo-order", fmt.Sprintf("--format=%s", commitLogFormat),
+		"--skip=0", "-n", "51", "-i", "--grep=scaffold",
+	)
+}
+
+func TestListCommitsSearchAuthor(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On(
+		"log", "--all", "--topo-order", fmt.Sprintf("--format=%s", commitLogFormat),
+		"--skip=0", "-n", "51", "--author=Bob",
+	).Return(commitRecord("c3", "c2", "feature/bar: add panel"), nil)
+	withFakeRunner(t, fake)
+
+	result, err := ListCommits(ListCommitsParams{
+		WorktreePath: dir,
+		Scope:        HistoryScopeAll,
+		SearchType:   CommitSearchAuthor,
+		SearchQuery:  "Bob",
+	})
+	if err != nil {
+		t.Fatalf("ListCommits author: %v", err)
+	}
+	if len(result.Commits) != 1 {
+		t.Fatalf("expected 1 commit, got %d", len(result.Commits))
+	}
+}
+
+func TestListCommitsSearchPathFilename(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On(
+		"log", "--all", "--topo-order", fmt.Sprintf("--format=%s", commitLogFormat),
+		"--skip=0", "-n", "51", "--", ":(glob)**/*hoge.tsx*",
+	).Return(commitRecord("c2", "c1", "add hoge"), nil)
+	withFakeRunner(t, fake)
+
+	result, err := ListCommits(ListCommitsParams{
+		WorktreePath: dir,
+		Scope:        HistoryScopeAll,
+		SearchType:   CommitSearchPath,
+		SearchQuery:  "hoge.tsx",
+	})
+	if err != nil {
+		t.Fatalf("ListCommits path filename: %v", err)
+	}
+	if len(result.Commits) != 1 {
+		t.Fatalf("expected 1 commit, got %d", len(result.Commits))
+	}
+}
+
+func TestListCommitsSearchPathRootRelative(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On(
+		"log", "--all", "--topo-order", fmt.Sprintf("--format=%s", commitLogFormat),
+		"--skip=0", "-n", "51", "--", "./hoge.tsx",
+	).Return(commitRecord("c1", "", "root hoge"), nil)
+	withFakeRunner(t, fake)
+
+	result, err := ListCommits(ListCommitsParams{
+		WorktreePath: dir,
+		Scope:        HistoryScopeAll,
+		SearchType:   CommitSearchPath,
+		SearchQuery:  "./hoge.tsx",
+	})
+	if err != nil {
+		t.Fatalf("ListCommits path root: %v", err)
+	}
+	if len(result.Commits) != 1 {
+		t.Fatalf("expected 1 commit, got %d", len(result.Commits))
+	}
+}
+
+func TestListCommitsSearchPathPrefix(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On(
+		"log", "--all", "--topo-order", fmt.Sprintf("--format=%s", commitLogFormat),
+		"--skip=0", "-n", "51", "--", "src/foo/hoge.tsx",
+	).Return(commitRecord("c2", "c1", "nested hoge"), nil)
+	withFakeRunner(t, fake)
+
+	result, err := ListCommits(ListCommitsParams{
+		WorktreePath: dir,
+		Scope:        HistoryScopeAll,
+		SearchType:   CommitSearchPath,
+		SearchQuery:  "src/foo/hoge.tsx",
+	})
+	if err != nil {
+		t.Fatalf("ListCommits path prefix: %v", err)
+	}
+	if len(result.Commits) != 1 {
+		t.Fatalf("expected 1 commit, got %d", len(result.Commits))
+	}
+}
+
+func TestListCommitsSearchSHA(t *testing.T) {
+	dir := t.TempDir()
+	full := "c1000002aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	fake := newFakeRunner()
+	fake.On("rev-parse", "--verify", "c1000002^{commit}").Return(full, nil)
+	fake.On(
+		"log", "-1", "--topo-order", fmt.Sprintf("--format=%s", commitLogFormat), full,
+	).Return(commitRecord(full, "c1000001", "feat: scaffold"), nil)
+	withFakeRunner(t, fake)
+
+	result, err := ListCommits(ListCommitsParams{
+		WorktreePath: dir,
+		Scope:        HistoryScopeAll,
+		SearchType:   CommitSearchSHA,
+		SearchQuery:  "c1000002",
+	})
+	if err != nil {
+		t.Fatalf("ListCommits sha: %v", err)
+	}
+	if len(result.Commits) != 1 || result.Commits[0].SHA != full {
+		t.Fatalf("unexpected result: %+v", result.Commits)
+	}
+	if result.HasMore {
+		t.Fatal("sha search should not have more")
+	}
+}
+
+func TestListCommitsSearchSHAUnresolved(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("rev-parse", "--verify", "zzzzzzz^{commit}").Return("", errors.New("bad object"))
+	withFakeRunner(t, fake)
+
+	result, err := ListCommits(ListCommitsParams{
+		WorktreePath: dir,
+		SearchType:   CommitSearchSHA,
+		SearchQuery:  "zzzzzzz",
+	})
+	if err != nil {
+		t.Fatalf("ListCommits unresolved sha: %v", err)
+	}
+	if len(result.Commits) != 0 {
+		t.Fatalf("expected empty, got %+v", result.Commits)
+	}
+}
+
+func TestListCommitsEmptyQueryIgnoresSearchType(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On(
+		"log", "--all", "--topo-order", fmt.Sprintf("--format=%s", commitLogFormat),
+		"--skip=0", "-n", "51",
+	).Return(commitRecord("c1", "", "one"), nil)
+	withFakeRunner(t, fake)
+
+	_, err := ListCommits(ListCommitsParams{
+		WorktreePath: dir,
+		Scope:        HistoryScopeAll,
+		SearchType:   CommitSearchMessage,
+		SearchQuery:  "   ",
+	})
+	if err != nil {
+		t.Fatalf("ListCommits empty query: %v", err)
+	}
+	fake.AssertCalled(t,
+		"log", "--all", "--topo-order", fmt.Sprintf("--format=%s", commitLogFormat),
+		"--skip=0", "-n", "51",
+	)
+	fake.AssertNotCalledPrefix(t, "log", "--all", "--topo-order", fmt.Sprintf("--format=%s", commitLogFormat), "--skip=0", "-n", "51", "-i")
 }

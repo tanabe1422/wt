@@ -28,6 +28,23 @@
   background: var(--color-blue-50);
 }
 
+.matched {
+  background: var(--color-yellow-100);
+}
+
+.matched .path {
+  font-weight: 600;
+  color: var(--color-yellow-800);
+}
+
+.matched.selected {
+  background: var(--color-yellow-200);
+}
+
+.matched:hover {
+  background: var(--color-yellow-200);
+}
+
 .fileButton {
   display: flex;
   flex: 1;

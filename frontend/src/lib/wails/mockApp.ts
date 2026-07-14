@@ -11,6 +11,7 @@ import type {
   WorktreeEntry,
 } from '../../types'
 import { localBranchFromRemote } from '../../utils/branchTree'
+import { commitFileMatchesPathQuery } from '../../utils/commitSearchPath'
 import type { WailsApp } from './types'
 
 let mockSettings: Settings = {
@@ -135,14 +136,47 @@ function mockCommitsForScope(scope: string, branch: string): CommitLogEntry[] {
   return [...mockCommitCatalog]
 }
 
+/** Exported for Vitest — filters commits the same way as mock ListCommits. */
+export function filterMockCommits(
+  commits: CommitLogEntry[],
+  searchType: string,
+  searchQuery: string,
+): CommitLogEntry[] {
+  const q = searchQuery.trim()
+  if (!q) {
+    return commits
+  }
+  const lower = q.toLowerCase()
+  switch (searchType) {
+    case 'message':
+      return commits.filter((entry) => entry.commit.message.toLowerCase().includes(lower))
+    case 'author':
+      return commits.filter(
+        (entry) =>
+          entry.commit.author.name.toLowerCase().includes(lower) ||
+          entry.commit.author.email?.toLowerCase().includes(lower),
+      )
+    case 'path':
+      return commits.filter((entry) =>
+        mockCommitFilesForSha(entry.sha).some((file) => commitFileMatchesPathQuery(file, q)),
+      )
+    case 'sha':
+      return commits.filter((entry) => entry.sha.toLowerCase().startsWith(lower)).slice(0, 1)
+    default:
+      return commits
+  }
+}
+
 function mockPaginateCommits(
   scope: string,
   branch: string,
   skip: number,
   limit: number,
+  searchType = '',
+  searchQuery = '',
 ): ListCommitsResult {
   const pageSize = limit > 0 ? limit : 50
-  const source = mockCommitsForScope(scope, branch)
+  const source = filterMockCommits(mockCommitsForScope(scope, branch), searchType, searchQuery)
   const slice = source.slice(skip, skip + pageSize)
   const nextSkip = skip + slice.length
   return {
@@ -704,8 +738,16 @@ export const mockApp: WailsApp = {
     }
   },
 
-  async ListCommits(_worktreePath: string, scope: string, branch: string, skip: number, limit: number) {
-    return mockPaginateCommits(scope, branch, skip, limit)
+  async ListCommits(
+    _worktreePath: string,
+    scope: string,
+    branch: string,
+    skip: number,
+    limit: number,
+    searchType = '',
+    searchQuery = '',
+  ) {
+    return mockPaginateCommits(scope, branch, skip, limit, searchType, searchQuery)
   },
 
   async ListBranchHeads(_worktreePath: string) {

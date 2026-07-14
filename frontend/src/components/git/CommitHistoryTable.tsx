@@ -15,6 +15,8 @@ interface CommitHistoryTableProps {
   selectedSha: string | null
   onSelect: (sha: string) => void
   onContextMenu?: (sha: string, event: MouseEvent) => void
+  showGraph?: boolean
+  emptyMessage?: string
 }
 
 export function CommitHistoryTable({
@@ -23,6 +25,8 @@ export function CommitHistoryTable({
   selectedSha,
   onSelect,
   onContextMenu,
+  showGraph = true,
+  emptyMessage = 'コミットがありません',
 }: CommitHistoryTableProps) {
   const {
     widths,
@@ -32,6 +36,8 @@ export function CommitHistoryTable({
     startResize,
   } = useResizableColumns()
 
+  const headerGridTemplateColumns = showGraph ? gridTemplateColumns : rowGridTemplateColumns
+
   const selectedRowIndex = useMemo(() => {
     if (!selectedSha) {
       return -1
@@ -40,15 +46,16 @@ export function CommitHistoryTable({
   }, [commits, selectedSha])
 
   if (commits.length === 0) {
-    return <p className={styles.empty}>コミットがありません</p>
+    return <p className={styles.empty}>{emptyMessage}</p>
   }
 
   return (
     <div className={styles.table}>
       <CommitHistoryHeader
-        gridTemplateColumns={gridTemplateColumns}
+        gridTemplateColumns={headerGridTemplateColumns}
         resizingColumn={resizingColumn}
         onResizeStart={startResize}
+        showGraph={showGraph}
       />
       <div className={styles.body}>
         {selectedRowIndex >= 0 && (
@@ -61,9 +68,11 @@ export function CommitHistoryTable({
             aria-hidden="true"
           />
         )}
-        <div className={styles.graphColumn} style={{ width: widths.graph }}>
-          <CommitHistoryGraph commits={commits} rowHeight={COMMIT_ROW_HEIGHT} />
-        </div>
+        {showGraph ? (
+          <div className={styles.graphColumn} style={{ width: widths.graph }}>
+            <CommitHistoryGraph commits={commits} rowHeight={COMMIT_ROW_HEIGHT} />
+          </div>
+        ) : null}
         <div className={styles.rowsColumn}>
           <CommitList
             commits={commits}

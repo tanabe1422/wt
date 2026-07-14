@@ -79,6 +79,8 @@ export interface WailsApp {
     branch: string,
     skip: number,
     limit: number,
+    searchType: string,
+    searchQuery: string,
   ): Promise<ListCommitsResult>
   ListBranchHeads(worktreePath: string): Promise<BranchHead[]>
   ListCommitFiles(worktreePath: string, sha: string): Promise<CommitFileChange[]>

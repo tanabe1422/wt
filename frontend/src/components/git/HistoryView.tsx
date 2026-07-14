@@ -8,7 +8,7 @@ import { useInfiniteScroll } from '../../hooks/useInfiniteScroll'
 import { useResizableSplit } from '../../hooks/useResizableSplit'
 import { errorMessage } from '../../lib/errorMessage'
 import { resetToCommit } from '../../lib/wails'
-import type { HistoryScope } from '../../types'
+import type { CommitSearchType, HistoryScope } from '../../types'
 import { shortSha } from '../../utils/commitGraph'
 import { cx } from '../../utils/cx'
 import { ChoiceDialog, type ChoiceOption } from '../ui/ChoiceDialog'
@@ -57,13 +57,45 @@ interface HistoryViewProps {
   onResetComplete?: () => void | Promise<void>
 }
 
-interface ScopeToggleProps {
+interface HistoryScopeBarProps {
   scope: HistoryScope
   branchAvailable: boolean
-  onChange: (scope: HistoryScope) => void
+  onScopeChange: (scope: HistoryScope) => void
+  searchType: CommitSearchType
+  onSearchTypeChange: (type: CommitSearchType) => void
+  searchQuery: string
+  onSearchQueryChange: (query: string) => void
 }
 
-function ScopeToggle({ scope, branchAvailable, onChange }: ScopeToggleProps) {
+const SEARCH_TYPE_OPTIONS: { value: CommitSearchType; label: string }[] = [
+  { value: 'path', label: 'ファイル' },
+  { value: 'message', label: 'メッセージ' },
+  { value: 'author', label: '作者' },
+  { value: 'sha', label: 'SHA' },
+]
+
+function searchPlaceholder(type: CommitSearchType): string {
+  switch (type) {
+    case 'message':
+      return 'コミットメッセージを検索'
+    case 'author':
+      return '作者名・メール'
+    case 'path':
+      return 'ファイル名・パス（例: hoge.tsx, ./hoge.tsx）'
+    case 'sha':
+      return 'コミット SHA'
+  }
+}
+
+function HistoryScopeBar({
+  scope,
+  branchAvailable,
+  onScopeChange,
+  searchType,
+  onSearchTypeChange,
+  searchQuery,
+  onSearchQueryChange,
+}: HistoryScopeBarProps) {
   const showAll = scope === 'all'
   // On = すべてのブランチ。Off = 現在ブランチのみ。
   // loading では disabled にしない（切替のたびに色がチカつくため）。
@@ -87,14 +119,36 @@ function ScopeToggle({ scope, branchAvailable, onChange }: ScopeToggleProps) {
           disabled={disabled}
           onChange={(event) => {
             if (event.target.checked) {
-              onChange('all')
+              onScopeChange('all')
             } else if (canTurnOff) {
-              onChange('branch')
+              onScopeChange('branch')
             }
           }}
         />
         すべてのブランチを表示する
       </label>
+      <div className={styles.searchControls}>
+        <select
+          className={styles.searchType}
+          value={searchType}
+          onChange={(event) => onSearchTypeChange(event.target.value as CommitSearchType)}
+          aria-label="検索種別"
+        >
+          {SEARCH_TYPE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <input
+          type="search"
+          className={styles.searchInput}
+          value={searchQuery}
+          onChange={(event) => onSearchQueryChange(event.target.value)}
+          placeholder={searchPlaceholder(searchType)}
+          aria-label="コミットを検索"
+        />
+      </div>
     </div>
   )
 }
@@ -126,6 +180,11 @@ export function HistoryView({
   const {
     scope,
     setScope,
+    searchType,
+    setSearchType,
+    searchQuery,
+    setSearchQuery,
+    activeSearchQuery,
     commits,
     labels,
     hasMore,
@@ -139,12 +198,15 @@ export function HistoryView({
   const errorDialog = useErrorDialog(error)
   const actionErrorDialog = useErrorDialog(actionError)
   const { menu, openMenu, closeMenu } = useContextMenu()
+  const searching = activeSearchQuery !== ''
+  const highlightPathQuery =
+    searchType === 'path' && activeSearchQuery !== '' ? activeSearchQuery : ''
 
   useEffect(() => {
     setSelectedSha(null)
     setDetailMode(null)
     onCompareRequestConsumed?.()
-  }, [worktreePath, scope, onCompareRequestConsumed])
+  }, [worktreePath, scope, searchType, activeSearchQuery, onCompareRequestConsumed])
 
   useEffect(() => {
     if (!compareRequest) {
@@ -262,15 +324,20 @@ export function HistoryView({
       <CommitDetailPane
         worktreePath={worktreePath}
         commit={detailMode?.kind === 'commit' ? selectedCommit : null}
+        highlightPathQuery={highlightPathQuery}
       />
     )
 
   return (
     <div className={styles.root}>
-      <ScopeToggle
+      <HistoryScopeBar
         scope={scope}
         branchAvailable={branchAvailable}
-        onChange={setScope}
+        onScopeChange={setScope}
+        searchType={searchType}
+        onSearchTypeChange={setSearchType}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
       />
       {loading && commits.length === 0 ? (
         <div className={styles.placeholder}>
@@ -289,9 +356,17 @@ export function HistoryView({
                 selectedSha={selectedSha}
                 onSelect={handleSelectCommit}
                 onContextMenu={handleContextMenu}
+                showGraph={!searching}
+                emptyMessage={
+                  searching ? '該当するコミットがありません' : 'コミットがありません'
+                }
               />
               <div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />
-              {loadingMore && <p className={styles.loadingMore}>さらに読み込み中…</p>}
+              {loadingMore && (
+                <p className={styles.loadingMore}>
+                  {searching ? '検索を続けています…' : 'さらに読み込み中…'}
+                </p>
+              )}
             </div>
           </div>
           <ResizeHandle

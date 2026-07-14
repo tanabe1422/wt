@@ -205,7 +205,7 @@ func (a *App) OpenRangeDifftool(worktreePath, fromRef, toRef, file string) error
 	})
 }
 
-func (a *App) ListCommits(worktreePath, scope, branch string, skip, limit int) (git.ListCommitsResult, error) {
+func (a *App) ListCommits(worktreePath, scope, branch string, skip, limit int, searchType, searchQuery string) (git.ListCommitsResult, error) {
 	return withWorktreeResult(worktreePath, func(dir string) (git.ListCommitsResult, error) {
 		return git.ListCommits(git.ListCommitsParams{
 			WorktreePath: dir,
@@ -213,6 +213,8 @@ func (a *App) ListCommits(worktreePath, scope, branch string, skip, limit int) (
 			Branch:       branch,
 			Skip:         skip,
 			Limit:        limit,
+			SearchType:   searchType,
+			SearchQuery:  searchQuery,
 		})
 	})
 }

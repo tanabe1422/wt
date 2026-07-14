@@ -12,6 +12,7 @@ import {
 } from '../../lib/diffPrefetch'
 import { openCommitDifftool } from '../../lib/wails'
 import type { CommitLogEntry } from '../../types'
+import { commitFileMatchesPathQuery } from '../../utils/commitSearchPath'
 import { cx } from '../../utils/cx'
 import { ContextMenu } from '../ui/ContextMenu'
 import { ErrorDialog } from '../ui/ErrorDialog'
@@ -24,6 +25,8 @@ import styles from './CommitDetailPane.module.css'
 interface CommitDetailPaneProps {
   worktreePath: string
   commit: CommitLogEntry | null
+  /** Path search query — matching changed files are highlighted. */
+  highlightPathQuery?: string
 }
 
 const DETAIL_SPLIT_STORAGE_KEY = 'wt-manager.historyDetailSplitRatio'
@@ -31,7 +34,11 @@ const DETAIL_SPLIT_DEFAULT_RATIO = 0.35
 const DETAIL_SPLIT_MIN_RATIO = 0.2
 const DETAIL_SPLIT_MAX_RATIO = 0.75
 
-export function CommitDetailPane({ worktreePath, commit }: CommitDetailPaneProps) {
+export function CommitDetailPane({
+  worktreePath,
+  commit,
+  highlightPathQuery = '',
+}: CommitDetailPaneProps) {
   const sha = commit?.sha ?? null
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const { files, loading: filesLoading, error: filesError } = useCommitFiles(worktreePath, sha)
@@ -86,13 +93,16 @@ export function CommitDetailPane({ worktreePath, commit }: CommitDetailPaneProps
       setSelectedPath(null)
       return
     }
+    const preferredMatch = highlightPathQuery.trim()
+      ? files.find((file) => commitFileMatchesPathQuery(file, highlightPathQuery))
+      : undefined
     setSelectedPath((current) => {
       if (current && files.some((file) => file.path === current)) {
         return current
       }
-      return files[0]?.path ?? null
+      return preferredMatch?.path ?? files[0]?.path ?? null
     })
-  }, [files, filesLoading])
+  }, [files, filesLoading, highlightPathQuery])
 
   useEffect(() => {
     if (filesLoading || !worktreePath || !sha || files.length === 0) {
@@ -150,6 +160,7 @@ export function CommitDetailPane({ worktreePath, commit }: CommitDetailPaneProps
             onSelect={setSelectedPath}
             onFileHover={handleFileHover}
             onFileContextMenu={handleFileContextMenu}
+            highlightQuery={highlightPathQuery}
           />
         </div>
       </div>

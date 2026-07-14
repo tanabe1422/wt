@@ -63,7 +63,7 @@ export function ListBranches(arg1:string):Promise<Array<git.BranchEntry>>;
 
 export function ListCommitFiles(arg1:string,arg2:string):Promise<Array<git.CommitFileChange>>;
 
-export function ListCommits(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<git.ListCommitsResult>;
+export function ListCommits(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number,arg6:string,arg7:string):Promise<git.ListCommitsResult>;
 
 export function ListRangeFiles(arg1:string,arg2:string,arg3:string):Promise<Array<git.CommitFileChange>>;
 
