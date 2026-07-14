@@ -1,6 +1,6 @@
 # wt-manager 機能リスト
 
-最終更新: 2026-07-13
+最終更新: 2026-07-14
 
 状態: `[x]` 済み / `[ ]` 未実装
 
@@ -78,7 +78,7 @@
 - [x] **P0** hunk 単位の stage / unstage / discard
 - [x] **P1** 外部 difftool / mergetool 起動（設定画面のプリセット対応）
 - [x] **P2** ブランチ／コミット間 Diff（履歴下部ペイン）
-- [ ] **P2** 行単位（line）の stage / discard
+- [x] **P2** 行単位（line）の stage / discard
 - [ ] **P3** バイナリ diff（現状はエラー返却）
 - [ ] **P3** シンタックスハイライト
 - [ ] **P3** word-diff / 空白無視オプション

@@ -7,6 +7,7 @@ import {
   amendCommit,
   commit,
   discardHunk,
+  discardLines,
   getAmendInfo,
   isMerging,
   openDifftool,
@@ -14,8 +15,10 @@ import {
   showInExplorer,
   stageAll,
   stageHunk,
+  stageLines,
   unstageAll,
   unstageHunk,
+  unstageLines,
 } from '../lib/wails'
 import type { AmendInfo, FileStatus } from '../types'
 import { isConflict, isUntracked } from '../utils/gitStatus'
@@ -248,6 +251,54 @@ export function useGitWorkspaceActions({
     [focusFile, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
   )
 
+  const handleStageLines = useCallback(
+    async (hunkIndex: number, lineIndices: number[]) => {
+      if (!focusFile?.path || lineIndices.length === 0) {
+        return
+      }
+      await runBusy(async () => {
+        await stageLines(worktreePath, focusFile.path, hunkIndex, lineIndices)
+        invalidateWorktreeDiffs(worktreePath)
+        await Promise.all([reload(), refreshSidebar(), reloadDiff()])
+      })
+    },
+    [focusFile?.path, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
+  )
+
+  const handleUnstageLines = useCallback(
+    async (hunkIndex: number, lineIndices: number[]) => {
+      if (!focusFile?.path || lineIndices.length === 0) {
+        return
+      }
+      await runBusy(async () => {
+        await unstageLines(worktreePath, focusFile.path, hunkIndex, lineIndices)
+        invalidateWorktreeDiffs(worktreePath)
+        await Promise.all([reload(), refreshSidebar(), reloadDiff()])
+      })
+    },
+    [focusFile?.path, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
+  )
+
+  const handleDiscardLines = useCallback(
+    async (hunkIndex: number, lineIndices: number[]) => {
+      if (!focusFile?.path || lineIndices.length === 0) {
+        return
+      }
+      await runBusy(async () => {
+        await discardLines(
+          worktreePath,
+          focusFile.path,
+          hunkIndex,
+          lineIndices,
+          focusFile.staged,
+        )
+        invalidateWorktreeDiffs(worktreePath)
+        await Promise.all([reload(), refreshSidebar(), reloadDiff()])
+      })
+    },
+    [focusFile, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
+  )
+
   const handleOpenMergetool = useCallback(
     async (path: string) => {
       setExternalToolError(null)
@@ -387,6 +438,9 @@ export function useGitWorkspaceActions({
     handleStageHunk,
     handleUnstageHunk,
     handleDiscardHunk,
+    handleStageLines,
+    handleUnstageLines,
+    handleDiscardLines,
     handleFileContextMenu,
   }
 }

@@ -102,6 +102,27 @@ func DiscardHunk(worktreePath, file string, hunkIndex int, staged bool) error {
 	return applyHunk(worktreePath, file, hunkIndex, false, true, false)
 }
 
+// StageLines stages selected add/del lines within a hunk of the unstaged diff.
+func StageLines(worktreePath, file string, hunkIndex int, lineIndices []int) error {
+	return applyLines(worktreePath, file, hunkIndex, lineIndices, false, false, true)
+}
+
+// UnstageLines unstages selected add/del lines within a hunk of the staged diff.
+func UnstageLines(worktreePath, file string, hunkIndex int, lineIndices []int) error {
+	return applyLines(worktreePath, file, hunkIndex, lineIndices, true, true, true)
+}
+
+// DiscardLines reverts selected add/del lines in the working tree and/or index.
+func DiscardLines(worktreePath, file string, hunkIndex int, lineIndices []int, staged bool) error {
+	if staged {
+		if err := applyLines(worktreePath, file, hunkIndex, lineIndices, true, true, true); err != nil {
+			return err
+		}
+		return applyLines(worktreePath, file, hunkIndex, lineIndices, true, true, false)
+	}
+	return applyLines(worktreePath, file, hunkIndex, lineIndices, false, true, false)
+}
+
 // DiscardFiles discards unstaged working-tree changes for tracked paths.
 func DiscardFiles(worktreePath string, paths []string) error {
 	return runGitPaths(worktreePath, []string{"restore", "--worktree", "--"}, paths)
@@ -150,6 +171,17 @@ func IsMerging(worktreePath string) (bool, error) {
 }
 
 func applyHunk(worktreePath, file string, hunkIndex int, staged, reverse, toCached bool) error {
+	return applyPatchHunk(worktreePath, file, hunkIndex, nil, staged, reverse, toCached)
+}
+
+func applyLines(worktreePath, file string, hunkIndex int, lineIndices []int, staged, reverse, toCached bool) error {
+	if len(lineIndices) == 0 {
+		return errors.New("選択行が空です")
+	}
+	return applyPatchHunk(worktreePath, file, hunkIndex, lineIndices, staged, reverse, toCached)
+}
+
+func applyPatchHunk(worktreePath, file string, hunkIndex int, lineIndices []int, staged, reverse, toCached bool) error {
 	diff, err := GetFileDiff(worktreePath, file, staged)
 	if err != nil {
 		return err
@@ -163,7 +195,15 @@ func applyHunk(worktreePath, file string, hunkIndex int, staged, reverse, toCach
 		return err
 	}
 
-	patch := HunkToPatch(file, diff.Hunks[hunkIndex])
+	hunk := diff.Hunks[hunkIndex]
+	if lineIndices != nil {
+		hunk, err = PartialHunk(hunk, lineIndices)
+		if err != nil {
+			return err
+		}
+	}
+
+	patch := HunkToPatch(file, hunk)
 	args := []string{"apply"}
 	if toCached {
 		args = append(args, "--cached")

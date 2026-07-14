@@ -244,6 +244,69 @@ func parseHunkRange(header string) (oldStart, newStart int) {
 	return oldStart, newStart
 }
 
+// PartialHunk builds a hunk containing only the selected add/del lines.
+// Unselected additions are omitted; unselected deletions become context.
+// selected holds 0-based indices into hunk.Lines.
+func PartialHunk(hunk DiffHunk, selected []int) (DiffHunk, error) {
+	if len(selected) == 0 {
+		return DiffHunk{}, errors.New("選択行が空です")
+	}
+
+	selectedSet := make(map[int]struct{}, len(selected))
+	for _, idx := range selected {
+		if idx < 0 || idx >= len(hunk.Lines) {
+			return DiffHunk{}, errors.New("行インデックスが範囲外です")
+		}
+		kind := hunk.Lines[idx].Kind
+		if kind != "add" && kind != "del" {
+			return DiffHunk{}, errors.New("コンテキスト行は選択できません")
+		}
+		selectedSet[idx] = struct{}{}
+	}
+
+	lines := make([]DiffLine, 0, len(hunk.Lines))
+	oldCount, newCount := 0, 0
+	hasChange := false
+	for i, line := range hunk.Lines {
+		switch line.Kind {
+		case "ctx":
+			lines = append(lines, line)
+			oldCount++
+			newCount++
+		case "add":
+			if _, ok := selectedSet[i]; ok {
+				lines = append(lines, line)
+				newCount++
+				hasChange = true
+			}
+		case "del":
+			if _, ok := selectedSet[i]; ok {
+				lines = append(lines, line)
+				oldCount++
+				hasChange = true
+			} else {
+				lines = append(lines, DiffLine{
+					Kind:    "ctx",
+					Content: line.Content,
+					OldNo:   line.OldNo,
+					NewNo:   line.OldNo,
+				})
+				oldCount++
+				newCount++
+			}
+		default:
+			lines = append(lines, line)
+		}
+	}
+	if !hasChange {
+		return DiffHunk{}, errors.New("適用する変更行がありません")
+	}
+
+	oldStart, newStart, suffix := parseHunkHeaderParts(hunk.Header)
+	header := formatHunkHeader(oldStart, oldCount, newStart, newCount, suffix)
+	return DiffHunk{Header: header, Lines: lines}, nil
+}
+
 // HunkToPatch reconstructs a unified diff patch for a single hunk.
 func HunkToPatch(path string, hunk DiffHunk) string {
 	var b strings.Builder
@@ -265,6 +328,43 @@ func HunkToPatch(path string, hunk DiffHunk) string {
 		}
 	}
 	return b.String()
+}
+
+// parseHunkHeaderParts extracts 1-based start line numbers and trailing suffix
+// from a header like "@@ -1,3 +1,4 @@ optional".
+func parseHunkHeaderParts(header string) (oldStart, newStart int, suffix string) {
+	oldStart, newStart = 1, 1
+	parts := strings.Fields(header)
+	for _, part := range parts {
+		if strings.HasPrefix(part, "-") && len(part) > 1 && part[1] >= '0' && part[1] <= '9' {
+			oldStart = parseRangeStart(part[1:])
+		}
+		if strings.HasPrefix(part, "+") && len(part) > 1 && part[1] >= '0' && part[1] <= '9' {
+			newStart = parseRangeStart(part[1:])
+		}
+	}
+	if idx := strings.LastIndex(header, "@@"); idx >= 0 {
+		rest := strings.TrimSpace(header[idx+2:])
+		if rest != "" {
+			suffix = rest
+		}
+	}
+	return oldStart, newStart, suffix
+}
+
+func formatHunkHeader(oldStart, oldCount, newStart, newCount int, suffix string) string {
+	header := "@@ -" + formatRange(oldStart, oldCount) + " +" + formatRange(newStart, newCount) + " @@"
+	if suffix != "" {
+		header += " " + suffix
+	}
+	return header
+}
+
+func formatRange(start, count int) string {
+	if count == 1 {
+		return strconv.Itoa(start)
+	}
+	return strconv.Itoa(start) + "," + strconv.Itoa(count)
 }
 
 func parseRangeStart(spec string) int {

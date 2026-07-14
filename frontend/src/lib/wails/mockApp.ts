@@ -525,6 +525,24 @@ export const mockApp: WailsApp = {
     mockSyncStatusForFile(file)
   },
 
+  async StageLines(_worktreePath: string, file: string, hunkIndex: number, _lineIndices: number[]) {
+    await this.StageHunk(_worktreePath, file, hunkIndex)
+  },
+
+  async UnstageLines(_worktreePath: string, file: string, hunkIndex: number, _lineIndices: number[]) {
+    await this.UnstageHunk(_worktreePath, file, hunkIndex)
+  },
+
+  async DiscardLines(
+    _worktreePath: string,
+    file: string,
+    hunkIndex: number,
+    _lineIndices: number[],
+    staged: boolean,
+  ) {
+    await this.DiscardHunk(_worktreePath, file, hunkIndex, staged)
+  },
+
   async DiscardFiles(_worktreePath: string, paths: string[]) {
     mockStatus = mockStatus
       .map((entry) => {

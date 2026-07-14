@@ -39,6 +39,9 @@ const meta = {
     onStageHunk: { table: { disable: true } },
     onUnstageHunk: { table: { disable: true } },
     onDiscardHunk: { table: { disable: true } },
+    onStageLines: { table: { disable: true } },
+    onUnstageLines: { table: { disable: true } },
+    onDiscardLines: { table: { disable: true } },
   },
 } satisfies Meta<typeof DiffView>
 
@@ -93,7 +96,15 @@ export const WithDiff: Story = {
 }
 
 function UnstagedWithActions(
-  props: Omit<React.ComponentProps<typeof DiffView>, 'onStageHunk' | 'onUnstageHunk' | 'onDiscardHunk'>,
+  props: Omit<
+    React.ComponentProps<typeof DiffView>,
+    | 'onStageHunk'
+    | 'onUnstageHunk'
+    | 'onDiscardHunk'
+    | 'onStageLines'
+    | 'onUnstageLines'
+    | 'onDiscardLines'
+  >,
 ) {
   const [log, setLog] = useState<string[]>([])
   const append = (message: string) => setLog((prev) => [...prev, message])
@@ -106,6 +117,13 @@ function UnstagedWithActions(
           onStageHunk={(index) => append(`stage hunk ${index}`)}
           onUnstageHunk={(index) => append(`unstage hunk ${index}`)}
           onDiscardHunk={(index) => append(`discard hunk ${index}`)}
+          onStageLines={(index, lines) => append(`stage lines hunk ${index}: ${lines.join(',')}`)}
+          onUnstageLines={(index, lines) =>
+            append(`unstage lines hunk ${index}: ${lines.join(',')}`)
+          }
+          onDiscardLines={(index, lines) =>
+            append(`discard lines hunk ${index}: ${lines.join(',')}`)
+          }
         />
       </div>
       {log.length > 0 && (
@@ -131,6 +149,7 @@ function UnstagedWithActions(
 
 /** ファイルビュー（GitWorkspace）の未ステージ変更 */
 export const UnstagedWithHunkActions: Story = {
+  name: '未ステージ（hunk / 行選択）',
   decorators: [panelDecorator(640, 480)],
   render: (args) => (
     <UnstagedWithActions
@@ -162,6 +181,8 @@ export const Busy: Story = {
     busy: true,
     onStageHunk: () => undefined,
     onDiscardHunk: () => undefined,
+    onStageLines: () => undefined,
+    onDiscardLines: () => undefined,
   },
 }
 
@@ -202,6 +223,8 @@ export const InFilesWorkspace: Story = {
     diff: sampleFileDiff,
     onStageHunk: () => undefined,
     onDiscardHunk: () => undefined,
+    onStageLines: () => undefined,
+    onDiscardLines: () => undefined,
   },
 }
 

@@ -511,3 +511,60 @@ func TestStageHunkOutOfRange(t *testing.T) {
 		t.Fatal("expected out-of-range error")
 	}
 }
+
+func TestStageLines(t *testing.T) {
+	dir := t.TempDir()
+	diffBody := "diff --git a/README.md b/README.md\n" +
+		"--- a/README.md\n+++ b/README.md\n" +
+		"@@ -1,1 +1,3 @@\n line\n+added1\n+added2\n"
+	fake := newFakeRunner()
+	fake.On("diff", "-U3", "--", "README.md").Return(diffBody, nil)
+	fake.On("apply", "--cached").Return("", nil)
+	withFakeRunner(t, fake)
+
+	// Index 2 is the second add line ("added2").
+	if err := StageLines(dir, "README.md", 0, []int{2}); err != nil {
+		t.Fatalf("StageLines: %v", err)
+	}
+	fake.AssertCalledPrefix(t, "apply", "--cached")
+	calls := fake.Calls()
+	var applyCall *fakeCall
+	for i := range calls {
+		if len(calls[i].Args) >= 1 && calls[i].Args[0] == "apply" {
+			applyCall = &calls[i]
+			break
+		}
+	}
+	if applyCall == nil {
+		t.Fatal("expected apply call")
+	}
+	if !strings.Contains(applyCall.Stdin, "+added2") {
+		t.Fatalf("expected selected add in patch:\n%s", applyCall.Stdin)
+	}
+	if strings.Contains(applyCall.Stdin, "+added1") {
+		t.Fatalf("unselected add must be omitted:\n%s", applyCall.Stdin)
+	}
+}
+
+func TestDiscardLines(t *testing.T) {
+	dir := t.TempDir()
+	diffBody := "diff --git a/README.md b/README.md\n" +
+		"--- a/README.md\n+++ b/README.md\n" +
+		"@@ -1,1 +1,2 @@\n line\n+added\n"
+	fake := newFakeRunner()
+	fake.On("diff", "-U3", "--", "README.md").Return(diffBody, nil)
+	fake.On("apply", "--reverse").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := DiscardLines(dir, "README.md", 0, []int{1}, false); err != nil {
+		t.Fatalf("DiscardLines: %v", err)
+	}
+	fake.AssertCalledPrefix(t, "apply", "--reverse")
+}
+
+func TestStageLinesEmpty(t *testing.T) {
+	dir := t.TempDir()
+	if err := StageLines(dir, "README.md", 0, nil); err == nil {
+		t.Fatal("expected empty selection error")
+	}
+}

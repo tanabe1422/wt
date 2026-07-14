@@ -35,6 +35,8 @@ export function DiscardFiles(arg1:string,arg2:Array<string>):Promise<void>;
 
 export function DiscardHunk(arg1:string,arg2:string,arg3:number,arg4:boolean):Promise<void>;
 
+export function DiscardLines(arg1:string,arg2:string,arg3:number,arg4:Array<number>,arg5:boolean):Promise<void>;
+
 export function DropStash(arg1:string,arg2:number):Promise<void>;
 
 export function Fetch(arg1:string):Promise<void>;
@@ -121,6 +123,8 @@ export function StageFiles(arg1:string,arg2:Array<string>):Promise<void>;
 
 export function StageHunk(arg1:string,arg2:string,arg3:number):Promise<void>;
 
+export function StageLines(arg1:string,arg2:string,arg3:number,arg4:Array<number>):Promise<void>;
+
 export function SwitchBranch(arg1:string,arg2:string):Promise<void>;
 
 export function UnstageAll(arg1:string):Promise<void>;
@@ -128,3 +132,5 @@ export function UnstageAll(arg1:string):Promise<void>;
 export function UnstageFiles(arg1:string,arg2:Array<string>):Promise<void>;
 
 export function UnstageHunk(arg1:string,arg2:string,arg3:number):Promise<void>;
+
+export function UnstageLines(arg1:string,arg2:string,arg3:number,arg4:Array<number>):Promise<void>;

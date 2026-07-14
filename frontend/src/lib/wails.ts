@@ -181,6 +181,34 @@ export async function discardHunk(
   return callApp('DiscardHunk', worktreePath, file, hunkIndex, staged)
 }
 
+export async function stageLines(
+  worktreePath: string,
+  file: string,
+  hunkIndex: number,
+  lineIndices: number[],
+): Promise<void> {
+  return callApp('StageLines', worktreePath, file, hunkIndex, lineIndices)
+}
+
+export async function unstageLines(
+  worktreePath: string,
+  file: string,
+  hunkIndex: number,
+  lineIndices: number[],
+): Promise<void> {
+  return callApp('UnstageLines', worktreePath, file, hunkIndex, lineIndices)
+}
+
+export async function discardLines(
+  worktreePath: string,
+  file: string,
+  hunkIndex: number,
+  lineIndices: number[],
+  staged: boolean,
+): Promise<void> {
+  return callApp('DiscardLines', worktreePath, file, hunkIndex, lineIndices, staged)
+}
+
 export async function discardFiles(worktreePath: string, paths: string[]): Promise<void> {
   return callApp('DiscardFiles', worktreePath, paths)
 }

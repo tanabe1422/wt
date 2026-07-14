@@ -66,6 +66,10 @@ export function DiscardHunk(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['DiscardHunk'](arg1, arg2, arg3, arg4);
 }
 
+export function DiscardLines(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['app']['App']['DiscardLines'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function DropStash(arg1, arg2) {
   return window['go']['app']['App']['DropStash'](arg1, arg2);
 }
@@ -238,6 +242,10 @@ export function StageHunk(arg1, arg2, arg3) {
   return window['go']['app']['App']['StageHunk'](arg1, arg2, arg3);
 }
 
+export function StageLines(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['StageLines'](arg1, arg2, arg3, arg4);
+}
+
 export function SwitchBranch(arg1, arg2) {
   return window['go']['app']['App']['SwitchBranch'](arg1, arg2);
 }
@@ -252,4 +260,8 @@ export function UnstageFiles(arg1, arg2) {
 
 export function UnstageHunk(arg1, arg2, arg3) {
   return window['go']['app']['App']['UnstageHunk'](arg1, arg2, arg3);
+}
+
+export function UnstageLines(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['UnstageLines'](arg1, arg2, arg3, arg4);
 }

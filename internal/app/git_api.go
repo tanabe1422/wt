@@ -85,6 +85,24 @@ func (a *App) DiscardHunk(worktreePath, file string, hunkIndex int, staged bool)
 	})
 }
 
+func (a *App) StageLines(worktreePath, file string, hunkIndex int, lineIndices []int) error {
+	return withWorktree(worktreePath, func(dir string) error {
+		return git.StageLines(dir, file, hunkIndex, lineIndices)
+	})
+}
+
+func (a *App) UnstageLines(worktreePath, file string, hunkIndex int, lineIndices []int) error {
+	return withWorktree(worktreePath, func(dir string) error {
+		return git.UnstageLines(dir, file, hunkIndex, lineIndices)
+	})
+}
+
+func (a *App) DiscardLines(worktreePath, file string, hunkIndex int, lineIndices []int, staged bool) error {
+	return withWorktree(worktreePath, func(dir string) error {
+		return git.DiscardLines(dir, file, hunkIndex, lineIndices, staged)
+	})
+}
+
 func (a *App) DiscardFiles(worktreePath string, paths []string) error {
 	return withWorktree(worktreePath, func(dir string) error {
 		return git.DiscardFiles(dir, paths)

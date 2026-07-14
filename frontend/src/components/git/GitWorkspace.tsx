@@ -242,6 +242,9 @@ export function GitWorkspace({
             onStageHunk={(index) => void actions.handleStageHunk(index)}
             onUnstageHunk={(index) => void actions.handleUnstageHunk(index)}
             onDiscardHunk={(index) => void actions.handleDiscardHunk(index)}
+            onStageLines={(index, lines) => void actions.handleStageLines(index, lines)}
+            onUnstageLines={(index, lines) => void actions.handleUnstageLines(index, lines)}
+            onDiscardLines={(index, lines) => void actions.handleDiscardLines(index, lines)}
           />
         </div>
       </div>

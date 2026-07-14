@@ -42,6 +42,15 @@ export interface WailsApp {
   StageHunk(worktreePath: string, file: string, hunkIndex: number): Promise<void>
   UnstageHunk(worktreePath: string, file: string, hunkIndex: number): Promise<void>
   DiscardHunk(worktreePath: string, file: string, hunkIndex: number, staged: boolean): Promise<void>
+  StageLines(worktreePath: string, file: string, hunkIndex: number, lineIndices: number[]): Promise<void>
+  UnstageLines(worktreePath: string, file: string, hunkIndex: number, lineIndices: number[]): Promise<void>
+  DiscardLines(
+    worktreePath: string,
+    file: string,
+    hunkIndex: number,
+    lineIndices: number[],
+    staged: boolean,
+  ): Promise<void>
   DiscardFiles(worktreePath: string, paths: string[]): Promise<void>
   DeleteUntracked(worktreePath: string, paths: string[]): Promise<void>
   DiscardAllChanges(worktreePath: string): Promise<void>
