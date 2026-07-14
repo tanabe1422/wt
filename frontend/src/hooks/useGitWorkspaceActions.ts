@@ -23,7 +23,6 @@ import {
 import type { AmendInfo, FileStatus } from '../types'
 import { isConflict, isUntracked } from '../utils/gitStatus'
 import { worktreeFileDir } from '../utils/worktreePaths'
-import { useToast } from './useToast'
 
 interface UseGitWorkspaceActionsOptions {
   worktreePath: string
@@ -66,7 +65,6 @@ export function useGitWorkspaceActions({
   requestDiscardTrackedPaths,
   runBusy,
 }: UseGitWorkspaceActionsOptions) {
-  const toast = useToast()
   const [externalToolError, setExternalToolError] = useState<string | null>(null)
   const [merging, setMerging] = useState(false)
   const [amendInfo, setAmendInfo] = useState<AmendInfo | null>(null)
@@ -197,16 +195,14 @@ export function useGitWorkspaceActions({
       await runBusy(async () => {
         if (options.amend) {
           await amendCommit(worktreePath, message)
-          toast.success('コミットを修正しました')
         } else {
           await commit(worktreePath, message)
-          toast.success('コミットしました')
         }
         clearAll()
         await Promise.all([reload(), refreshSidebar(), refreshAmendInfo()])
       })
     },
-    [clearAll, refreshAmendInfo, refreshSidebar, runBusy, toast, worktreePath, reload],
+    [clearAll, refreshAmendInfo, refreshSidebar, runBusy, worktreePath, reload],
   )
 
   const handleStageHunk = useCallback(

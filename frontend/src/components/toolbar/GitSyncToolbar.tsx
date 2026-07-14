@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 
 import { useErrorDialog } from '../../hooks/useErrorDialog'
-import { useToast } from '../../hooks/useToast'
 import { createBranch, fetchRemote, fetchRemotePrune, pull, push, pushSetUpstream, saveStash, showInExplorer } from '../../lib/wails'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ErrorDialog } from '../ui/ErrorDialog'
@@ -46,18 +45,6 @@ const actionTitles: Record<GitSyncAction, string> = {
   pull: 'プルに失敗しました',
   push: 'プッシュに失敗しました',
 }
-
-const progressMessages = {
-  createBranch: 'ブランチを作成しています…',
-  stash: 'スタッシュに退避しています…',
-} as const
-
-const successMessages = {
-  push: 'プッシュしました',
-  pull: 'プルしました',
-} as const
-
-const SYNC_PROGRESS_ID = 'git-sync'
 
 function usesBusyOverlay(action: GitSyncAction): boolean {
   return action === 'push' || action === 'pull'
@@ -218,7 +205,6 @@ export function GitSyncToolbar({
   const [pushConfirmOpen, setPushConfirmOpen] = useState(false)
   const [upstreamPushOpen, setUpstreamPushOpen] = useState(false)
   const actionErrorDialog = useErrorDialog(actionError)
-  const toast = useToast()
 
   useEffect(() => {
     onBusyChange?.(overlayBusy)
@@ -253,7 +239,6 @@ export function GitSyncToolbar({
     setOverlayBusy(true)
     try {
       await push(worktreePath)
-      toast.success(successMessages.push)
     } catch (err) {
       setActionTitle(actionTitles.push)
       setActionError(err instanceof Error ? err.message : 'プッシュに失敗しました')
@@ -279,9 +264,6 @@ export function GitSyncToolbar({
     }
     try {
       await runSyncAction(action, worktreePath)
-      if (action === 'pull') {
-        toast.success(successMessages.pull)
-      }
     } catch (err) {
       setActionTitle(actionTitles[action])
       setActionError(err instanceof Error ? err.message : '操作に失敗しました')
@@ -303,7 +285,6 @@ export function GitSyncToolbar({
     setOverlayBusy(true)
     try {
       await pushSetUpstream(worktreePath, 'origin')
-      toast.success(successMessages.push)
     } catch (err) {
       setActionTitle(actionTitles.push)
       setActionError(err instanceof Error ? err.message : 'プッシュに失敗しました')
@@ -316,10 +297,7 @@ export function GitSyncToolbar({
     setActionError(null)
     setActing(true)
     try {
-      const pruned = await fetchRemotePrune(worktreePath)
-      if (pruned.length > 0) {
-        toast.success('削除しました')
-      }
+      await fetchRemotePrune(worktreePath)
     } catch (err) {
       setActionTitle('フェッチ（prune）に失敗しました')
       setActionError(err instanceof Error ? err.message : 'フェッチ（prune）に失敗しました')
@@ -336,13 +314,10 @@ export function GitSyncToolbar({
     setCreateOpen(false)
     setActionError(null)
     setActing(true)
-    toast.progress(SYNC_PROGRESS_ID, progressMessages.createBranch)
+    setOverlayBusy(true)
     try {
       await createBranch(worktreePath, trimmed)
-      toast.dismiss(SYNC_PROGRESS_ID)
-      toast.success('ブランチを作成しました')
     } catch (err) {
-      toast.dismiss(SYNC_PROGRESS_ID)
       setActionTitle('ブランチの作成に失敗しました')
       setActionError(err instanceof Error ? err.message : 'ブランチの作成に失敗しました')
     } finally {
@@ -354,13 +329,10 @@ export function GitSyncToolbar({
     setStashOpen(false)
     setActionError(null)
     setActing(true)
-    toast.progress(SYNC_PROGRESS_ID, progressMessages.stash)
+    setOverlayBusy(true)
     try {
       await saveStash(worktreePath, message, true)
-      toast.dismiss(SYNC_PROGRESS_ID)
-      toast.success('スタッシュに退避しました')
     } catch (err) {
-      toast.dismiss(SYNC_PROGRESS_ID)
       setActionTitle('スタッシュに失敗しました')
       setActionError(err instanceof Error ? err.message : 'スタッシュに失敗しました')
     } finally {

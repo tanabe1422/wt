@@ -8,7 +8,6 @@ import { GitSyncToolbar } from '../toolbar/GitSyncToolbar'
 import type { MainView } from '../toolbar/MainViewToolbarTabs'
 import { ContextMenu } from '../ui/ContextMenu'
 import { ErrorDialog } from '../ui/ErrorDialog'
-import { ToastProvider } from '../../hooks/useToast'
 import { ChangesPanel } from './ChangesPanel'
 import { CommitBar } from './CommitBar'
 import { DiffView } from './DiffView'
@@ -73,7 +72,6 @@ function ConflictWorkspaceDemo({
   const focusInStaged = staged.some((entry) => entry.path === focusPath)
 
   return (
-    <ToastProvider>
     <div
       style={{
         display: 'flex',
@@ -201,7 +199,6 @@ function ConflictWorkspaceDemo({
         />
       )}
     </div>
-    </ToastProvider>
   )
 }
 
@@ -218,20 +215,18 @@ type Story = StoryObj<typeof meta>
 export const WithMockApi: Story = {
   name: '実コンポーネント（モック API）',
   render: () => (
-    <ToastProvider>
-      <div
-        style={{
-          width: '100%',
-          minWidth: 880,
-          height: 640,
-          border: '1px solid var(--color-slate-200)',
-          borderRadius: '0.375rem',
-          overflow: 'hidden',
-        }}
-      >
-        <GitWorkspace worktreePath="C:/dev/sample-repo" />
-      </div>
-    </ToastProvider>
+    <div
+      style={{
+        width: '100%',
+        minWidth: 880,
+        height: 640,
+        border: '1px solid var(--color-slate-200)',
+        borderRadius: '0.375rem',
+        overflow: 'hidden',
+      }}
+    >
+      <GitWorkspace worktreePath="C:/dev/sample-repo" />
+    </div>
   ),
 }
 

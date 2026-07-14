@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useCallback, useEffect, useState } from 'react'
 
-import { ToastProvider } from '../../hooks/useToast'
 import { listBranches } from '../../lib/wails'
 import { seedMockSyncCounts } from '../../lib/wails/mockApp'
 import { MainLayout } from '../layout/MainLayout'
@@ -17,11 +16,9 @@ function InteractiveToolbar(
   const { initialView = 'files', ...rest } = props
   const [mainView, setMainView] = useState<MainView>(initialView)
   return (
-    <ToastProvider>
-      <SidebarProvider>
-        <GitSyncToolbar {...rest} mainView={mainView} onMainViewChange={setMainView} />
-      </SidebarProvider>
-    </ToastProvider>
+    <SidebarProvider>
+      <GitSyncToolbar {...rest} mainView={mainView} onMainViewChange={setMainView} />
+    </SidebarProvider>
   )
 }
 
@@ -67,62 +64,60 @@ function SyncBusyDemo({
   }, [worktreePath])
 
   return (
-    <ToastProvider>
-      <div
-        style={{
-          height: 420,
-          minHeight: 420,
-          border: '1px solid var(--color-slate-200)',
-          borderRadius: '0.375rem',
-          overflow: 'hidden',
-          background: 'var(--color-surface-main)',
-        }}
-      >
-        <MainLayout
-          busy={busy}
-          workspaceToolbar={
-            <GitSyncToolbar
-              worktreePath={worktreePath}
-              currentBranch={currentBranch}
-              aheadCount={aheadCount}
-              behindCount={behindCount}
-              hasUpstream={hasUpstream}
-              mainView={mainView}
-              onMainViewChange={setMainView}
-              onBusyChange={setBusy}
-              onActionComplete={refreshCounts}
-              onOpenSettings={() => console.info('[story] open settings')}
-            />
-          }
-          sidebar={
-            <div
-              style={{
-                padding: '0.75rem',
-                fontSize: '0.75rem',
-                color: 'var(--color-slate-500)',
-              }}
-            >
-              サイドバー（モック）
-            </div>
-          }
-        >
+    <div
+      style={{
+        height: 420,
+        minHeight: 420,
+        border: '1px solid var(--color-slate-200)',
+        borderRadius: '0.375rem',
+        overflow: 'hidden',
+        background: 'var(--color-surface-main)',
+      }}
+    >
+      <MainLayout
+        busy={busy}
+        workspaceToolbar={
+          <GitSyncToolbar
+            worktreePath={worktreePath}
+            currentBranch={currentBranch}
+            aheadCount={aheadCount}
+            behindCount={behindCount}
+            hasUpstream={hasUpstream}
+            mainView={mainView}
+            onMainViewChange={setMainView}
+            onBusyChange={setBusy}
+            onActionComplete={refreshCounts}
+            onOpenSettings={() => console.info('[story] open settings')}
+          />
+        }
+        sidebar={
           <div
             style={{
-              padding: '1rem',
-              fontSize: '0.8125rem',
+              padding: '0.75rem',
+              fontSize: '0.75rem',
               color: 'var(--color-slate-500)',
-              lineHeight: 1.6,
             }}
           >
-            <p style={{ margin: 0 }}>{hint}</p>
-            <p style={{ margin: '0.75rem 0 0' }}>
-              ahead: {aheadCount} / behind: {behindCount}
-              {busy ? ' — ローディング中…' : ''}
-            </p>
+            サイドバー（モック）
           </div>
-        </MainLayout>
-      </div>
-    </ToastProvider>
+        }
+      >
+        <div
+          style={{
+            padding: '1rem',
+            fontSize: '0.8125rem',
+            color: 'var(--color-slate-500)',
+            lineHeight: 1.6,
+          }}
+        >
+          <p style={{ margin: 0 }}>{hint}</p>
+          <p style={{ margin: '0.75rem 0 0' }}>
+            ahead: {aheadCount} / behind: {behindCount}
+            {busy ? ' — ローディング中…' : ''}
+          </p>
+        </div>
+      </MainLayout>
+    </div>
   )
 }
 
