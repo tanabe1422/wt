@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 
 import { MainLayout } from './components/layout/MainLayout'
 import { GitWorkspace } from './components/git/GitWorkspace'
-import { HistoryView } from './components/git/HistoryView'
 import type { CompareRange } from './components/git/CompareDetailPane'
-import { SettingsDialog } from './components/settings/SettingsDialog'
 import { BranchSidebar } from './components/sidebar/BranchSidebar'
 import { RepoTabBar } from './components/tabs/RepoTabBar'
 import { GitSyncToolbar } from './components/toolbar/GitSyncToolbar'
@@ -14,11 +12,19 @@ import { useErrorDialog } from './hooks/useErrorDialog'
 import { ToastProvider } from './hooks/useToast'
 import { useRepoSidebar } from './hooks/useRepoSidebar'
 import { useRepoTabs } from './hooks/useRepoTabs'
+import type { BusyChangeHandler } from './hooks/useBusy'
 import { invalidateRepoCaches } from './lib/repoDataCache'
 import { prefetchRepo } from './lib/repoPrefetch'
 import { isWailsRuntime } from './lib/wails'
 import { EventsOn } from '../wailsjs/runtime/runtime'
 import styles from './App.module.css'
+
+const HistoryView = lazy(() =>
+  import('./components/git/HistoryView').then((m) => ({ default: m.HistoryView })),
+)
+const SettingsDialog = lazy(() =>
+  import('./components/settings/SettingsDialog').then((m) => ({ default: m.SettingsDialog })),
+)
 
 const GIT_PROGRESS_EVENT = 'git:progress'
 
@@ -36,14 +42,23 @@ function AppShell() {
   const [busyMessage, setBusyMessage] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [compareRequest, setCompareRequest] = useState<CompareRange | null>(null)
-  const handleWorkspaceBusyChange = useCallback((busy: boolean) => {
+  const handleWorkspaceBusyChange = useCallback<BusyChangeHandler>((busy, message) => {
     setWorkspaceBusy(busy)
+    if (busy && message) {
+      setBusyMessage(message)
+    }
   }, [])
-  const handleToolbarBusyChange = useCallback((busy: boolean) => {
+  const handleToolbarBusyChange = useCallback<BusyChangeHandler>((busy, message) => {
     setToolbarBusy(busy)
+    if (busy && message) {
+      setBusyMessage(message)
+    }
   }, [])
-  const handleSidebarBusyChange = useCallback((busy: boolean) => {
+  const handleSidebarBusyChange = useCallback<BusyChangeHandler>((busy, message) => {
     setSidebarBusy(busy)
+    if (busy && message) {
+      setBusyMessage(message)
+    }
   }, [])
   const handleCompareRequestConsumed = useCallback(() => {
     setCompareRequest(null)
@@ -64,9 +79,11 @@ function AppShell() {
   }, [])
 
   useEffect(() => {
-    if (!overlayBusy) {
-      setBusyMessage('')
+    if (overlayBusy) {
+      setBusyMessage((current) => current || '処理中…')
+      return
     }
+    setBusyMessage('')
   }, [overlayBusy])
   const {
     settings,
@@ -206,7 +223,7 @@ function AppShell() {
           />
         }
         workspaceToolbar={
-          loading ? undefined : activeRepository ? (
+          !loading && activeRepository ? (
             <GitSyncToolbar
               worktreePath={worktreePath}
               repositoryPath={activeRepository}
@@ -269,15 +286,23 @@ function AppShell() {
               onBusyChange={handleWorkspaceBusyChange}
             />
           ) : (
-            <HistoryView
-              key={worktreePath}
-              worktreePath={worktreePath}
-              currentBranch={currentBranch}
-              contentRevision={workspaceContentRevision}
-              compareRequest={compareRequest}
-              onCompareRequestConsumed={handleCompareRequestConsumed}
-              onResetComplete={handleSyncComplete}
-            />
+            <Suspense
+              fallback={
+                <div className={styles.main}>
+                  <p className={styles.hint}>読み込み中…</p>
+                </div>
+              }
+            >
+              <HistoryView
+                key={worktreePath}
+                worktreePath={worktreePath}
+                currentBranch={currentBranch}
+                contentRevision={workspaceContentRevision}
+                compareRequest={compareRequest}
+                onCompareRequestConsumed={handleCompareRequestConsumed}
+                onResetComplete={handleSyncComplete}
+              />
+            </Suspense>
           )
         ) : (
           <div className={styles.main}>
@@ -290,14 +315,18 @@ function AppShell() {
           </div>
         )}
       </MainLayout>
-      <SettingsDialog
-        open={settingsOpen}
-        settings={settings}
-        onClose={() => setSettingsOpen(false)}
-        onSave={async (next) => {
-          await updateSettings(next)
-        }}
-      />
+      {settingsOpen ? (
+        <Suspense fallback={null}>
+          <SettingsDialog
+            open={settingsOpen}
+            settings={settings}
+            onClose={() => setSettingsOpen(false)}
+            onSave={async (next) => {
+              await updateSettings(next)
+            }}
+          />
+        </Suspense>
+      ) : null}
       <ErrorDialog
         open={repoErrorDialog.open}
         message={repoErrorDialog.message}

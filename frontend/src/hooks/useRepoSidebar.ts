@@ -9,10 +9,11 @@ import {
   patchWorktreeChangedCount,
   setSidebarCache,
 } from '../lib/repoDataCache'
+import { ensureRepoPrefetched } from '../lib/repoPrefetch'
+import { pickDefaultWorktreePath } from '../lib/sidebarSelection'
 import {
   getWorktreeChangedCount,
   listBranches,
-  listWorktrees,
   listWorktreesMeta,
 } from '../lib/wails'
 
@@ -54,6 +55,38 @@ function sidebarSnapshotEqual(
   return true
 }
 
+/**
+ * Meta 表示後にバッジを埋める。選択中 WT を優先し、残りは順次（起動クリティカルパス外）。
+ */
+async function fillWorktreeBadges(
+  repoPath: string,
+  entries: WorktreeEntry[],
+  preferredPath: string | null,
+  isCurrent: () => boolean,
+  onCount: (worktreePath: string, count: number) => void,
+): Promise<void> {
+  const ordered = [...entries].sort((a, b) => {
+    if (a.path === preferredPath) return -1
+    if (b.path === preferredPath) return 1
+    return 0
+  })
+  for (const entry of ordered) {
+    if (!isCurrent()) {
+      return
+    }
+    try {
+      const count = await getWorktreeChangedCount(entry.path)
+      if (!isCurrent()) {
+        return
+      }
+      onCount(entry.path, count)
+      patchWorktreeChangedCount(repoPath, entry.path, count)
+    } catch {
+      // バッジ更新失敗は非致命
+    }
+  }
+}
+
 export function useRepoSidebar(activeRepository: string) {
   const [branches, setBranches] = useState<BranchEntry[]>([])
   const [worktrees, setWorktrees] = useState<WorktreeEntry[]>([])
@@ -74,6 +107,14 @@ export function useRepoSidebar(activeRepository: string) {
   selectedBranchRef.current = selectedBranch
   selectedWorktreeRef.current = selectedWorktree
 
+  const applyBadgeCount = useCallback((worktreePath: string, count: number) => {
+    setWorktrees((current) =>
+      current.map((entry) =>
+        entry.path === worktreePath ? { ...entry, changedFileCount: count } : entry,
+      ),
+    )
+  }, [])
+
   const loadSidebar = useCallback(
     async (
       repoPath: string,
@@ -92,6 +133,8 @@ export function useRepoSidebar(activeRepository: string) {
       }
 
       const requestId = ++requestIdRef.current
+      const isCurrent = () =>
+        requestId === requestIdRef.current && activeRepoRef.current === repoPath
 
       // 表示中のデータを消さない再取得では loading を立てない（チラつき防止）
       if (!keepVisible) {
@@ -99,11 +142,42 @@ export function useRepoSidebar(activeRepository: string) {
       }
       setError(null)
       try {
+        // Meta のみ（全 WT の git status は走らせない）。branches と並列。
+        const branchesPromise = listBranches(repoPath)
+        const metaPromise = listWorktreesMeta(repoPath)
+
+        // 同一 metaPromise で早期選択し、GetStatus を branches 完了前に開始できるようにする。
+        const needsEarlyWorktree =
+          !preserveSelection ||
+          selectedWorktreeRef.current === null ||
+          selectedWorktreeRef.current === ''
+        if (needsEarlyWorktree) {
+          void metaPromise
+            .then((meta) => {
+              if (!isCurrent() || selectedWorktreeRef.current) {
+                return
+              }
+              const earlyPath = pickDefaultWorktreePath(meta, null)
+              if (!earlyPath) {
+                return
+              }
+              setSelectedWorktreeState(earlyPath)
+              if (!selectedBranchRef.current) {
+                setSelectedBranchState(
+                  meta.find((entry) => entry.path === earlyPath)?.branch ?? null,
+                )
+              }
+            })
+            .catch(() => {
+              // 早期確定の失敗はフル取得に委ねる
+            })
+        }
+
         const [branchEntries, worktreeEntries] = await Promise.all([
-          listBranches(repoPath),
-          listWorktrees(repoPath),
+          branchesPromise,
+          metaPromise,
         ])
-        if (requestId !== requestIdRef.current || activeRepoRef.current !== repoPath) {
+        if (!isCurrent()) {
           return
         }
 
@@ -117,9 +191,7 @@ export function useRepoSidebar(activeRepository: string) {
 
         const nextWorktree = keepCurrent
           ? currentWorktree
-          : (worktreeEntries.find((entry) => entry.isMain)?.path ??
-            worktreeEntries[0]?.path ??
-            null)
+          : pickDefaultWorktreePath(worktreeEntries, null)
 
         const nextBranch =
           preserveSelection &&
@@ -128,27 +200,42 @@ export function useRepoSidebar(activeRepository: string) {
             ? currentBranch
             : (worktreeEntries.find((entry) => entry.path === nextWorktree)?.branch ?? null)
 
+        // バッジは後から埋めるので、既存カウントを path で引き継ぐ（チラつき防止）
+        const prevByPath = new Map(worktreesRef.current.map((entry) => [entry.path, entry]))
+        const mergedWorktrees = worktreeEntries.map((entry) => {
+          const prev = prevByPath.get(entry.path)
+          return prev ? { ...entry, changedFileCount: prev.changedFileCount } : entry
+        })
+
         const dataUnchanged = sidebarSnapshotEqual(
           branchesRef.current,
           worktreesRef.current,
           branchEntries,
-          worktreeEntries,
+          mergedWorktrees,
         )
 
         if (!dataUnchanged) {
           setBranches(branchEntries)
-          setWorktrees(worktreeEntries)
+          setWorktrees(mergedWorktrees)
         }
         setSelectedWorktreeState(nextWorktree)
         setSelectedBranchState(nextBranch)
         setSidebarCache(repoPath, {
           branches: branchEntries,
-          worktrees: worktreeEntries,
+          worktrees: mergedWorktrees,
           selectedBranch: nextBranch,
           selectedWorktree: nextWorktree,
         })
+
+        // バッジ埋めはクリティカルパス外（選択 WT 優先）
+        void fillWorktreeBadges(repoPath, mergedWorktrees, nextWorktree, isCurrent, (path, count) => {
+          if (!isCurrent()) {
+            return
+          }
+          applyBadgeCount(path, count)
+        })
       } catch (err) {
-        if (requestId !== requestIdRef.current || activeRepoRef.current !== repoPath) {
+        if (!isCurrent()) {
           return
         }
         if (!keepVisible) {
@@ -164,7 +251,7 @@ export function useRepoSidebar(activeRepository: string) {
         }
       }
     },
-    [],
+    [applyBadgeCount],
   )
 
   useEffect(() => {
@@ -178,24 +265,49 @@ export function useRepoSidebar(activeRepository: string) {
       return
     }
 
-    const cached = getSidebarCache(activeRepository)
-    if (cached) {
+    let cancelled = false
+    const repoPath = activeRepository
+
+    const applyCached = () => {
+      const cached = getSidebarCache(repoPath)
+      if (!cached) {
+        return false
+      }
       setBranches(cached.branches)
       setWorktrees(cached.worktrees)
       setSelectedBranchState(cached.selectedBranch)
       setSelectedWorktreeState(cached.selectedWorktree)
       setLoading(false)
       setError(null)
-      void loadSidebar(activeRepository, { keepVisible: true, preserveSelection: true })
+      return true
+    }
+
+    if (applyCached()) {
+      void loadSidebar(repoPath, { keepVisible: true, preserveSelection: true })
       return
     }
 
-    // キャッシュなし: 他リポの表示を残さない（誤操作防止）。空+loading は UI 側で初回のみ表示。
+    // キャッシュなし: 他リポの表示を残さない。起動時 prefetch 完了を待ってから再判定。
     setBranches([])
     setWorktrees([])
     setSelectedBranchState(null)
     setSelectedWorktreeState(null)
-    void loadSidebar(activeRepository, { keepVisible: false, preserveSelection: false })
+    setLoading(true)
+
+    void ensureRepoPrefetched(repoPath).then(() => {
+      if (cancelled || activeRepoRef.current !== repoPath) {
+        return
+      }
+      if (applyCached()) {
+        void loadSidebar(repoPath, { keepVisible: true, preserveSelection: true })
+        return
+      }
+      void loadSidebar(repoPath, { keepVisible: false, preserveSelection: false })
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [activeRepository, loadSidebar])
 
   const setSelectedBranch = useCallback(
@@ -208,14 +320,37 @@ export function useRepoSidebar(activeRepository: string) {
     [activeRepository, selectedWorktree],
   )
 
+  const refreshWorktreeBadge = useCallback(
+    async (worktreePath: string) => {
+      if (!activeRepository || !worktreePath) {
+        return
+      }
+      try {
+        const count = await getWorktreeChangedCount(worktreePath)
+        if (activeRepoRef.current !== activeRepository) {
+          return
+        }
+        applyBadgeCount(worktreePath, count)
+        patchWorktreeChangedCount(activeRepository, worktreePath, count)
+      } catch {
+        // バッジ更新失敗は非致命
+      }
+    },
+    [activeRepository, applyBadgeCount],
+  )
+
   const setSelectedWorktree = useCallback(
     (path: string | null) => {
       setSelectedWorktreeState(path)
       if (activeRepository) {
         patchSidebarSelection(activeRepository, selectedBranch, path)
       }
+      // 切替先のバッジが未取得でもすぐ埋める
+      if (path) {
+        void refreshWorktreeBadge(path)
+      }
     },
-    [activeRepository, selectedBranch],
+    [activeRepository, selectedBranch, refreshWorktreeBadge],
   )
 
   const reload = useCallback(
@@ -240,30 +375,6 @@ export function useRepoSidebar(activeRepository: string) {
       setError(err instanceof Error ? err.message : 'ブランチ情報の取得に失敗しました')
     }
   }, [activeRepository])
-
-  /** 単一 WT の変更ファイル数バッジだけ更新。 */
-  const refreshWorktreeBadge = useCallback(
-    async (worktreePath: string) => {
-      if (!activeRepository || !worktreePath) {
-        return
-      }
-      try {
-        const count = await getWorktreeChangedCount(worktreePath)
-        if (activeRepoRef.current !== activeRepository) {
-          return
-        }
-        setWorktrees((current) =>
-          current.map((entry) =>
-            entry.path === worktreePath ? { ...entry, changedFileCount: count } : entry,
-          ),
-        )
-        patchWorktreeChangedCount(activeRepository, worktreePath, count)
-      } catch {
-        // バッジ更新失敗は非致命
-      }
-    },
-    [activeRepository],
-  )
 
   /** WT 一覧メタ（path/branch）だけ。status スキャンなし。 */
   const reloadWorktreesMeta = useCallback(async () => {

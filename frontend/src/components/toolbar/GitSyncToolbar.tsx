@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { useErrorDialog } from '../../hooks/useErrorDialog'
+import type { BusyChangeHandler } from '../../hooks/useBusy'
 import { createBranch, fetchRemote, fetchRemotePrune, getRepoOperationState, pull, pullRebase, push, pushSetUpstream, saveStash, showInExplorer } from '../../lib/wails'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ErrorDialog } from '../ui/ErrorDialog'
@@ -35,7 +36,7 @@ interface GitSyncToolbarProps {
   onReload?: () => void | Promise<void>
   onOpenSettings?: () => void
   /** MainLayout busy overlay（fetch / pull / push など同期操作中） */
-  onBusyChange?: (busy: boolean) => void
+  onBusyChange?: BusyChangeHandler
   /** When true, only show the trailing settings control (no repo selected). */
   settingsOnly?: boolean
 }
@@ -46,6 +47,12 @@ const actionTitles: Record<GitSyncAction, string> = {
   fetch: 'フェッチに失敗しました',
   pull: 'プルに失敗しました',
   push: 'プッシュに失敗しました',
+}
+
+const syncOverlayMessages: Record<GitSyncAction, string> = {
+  fetch: 'フェッチしています…',
+  pull: 'プルしています…',
+  push: 'プッシュしています…',
 }
 
 function ExplorerIcon({ size = 20 }: { size?: number }) {
@@ -196,7 +203,6 @@ export function GitSyncToolbar({
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionTitle, setActionTitle] = useState('操作に失敗しました')
   const [acting, setActing] = useState(false)
-  const [overlayBusy, setOverlayBusy] = useState(false)
   const [reloading, setReloading] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [stashOpen, setStashOpen] = useState(false)
@@ -205,10 +211,14 @@ export function GitSyncToolbar({
   const [upstreamPushOpen, setUpstreamPushOpen] = useState(false)
   const actionErrorDialog = useErrorDialog(actionError)
 
-  useEffect(() => {
-    onBusyChange?.(overlayBusy)
-    return () => onBusyChange?.(false)
-  }, [overlayBusy, onBusyChange])
+  const setOverlay = useCallback(
+    (active: boolean, message?: string) => {
+      onBusyChange?.(active, message)
+    },
+    [onBusyChange],
+  )
+
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange])
 
   const handleReload = async () => {
     if (!onReload || reloading) {
@@ -224,7 +234,7 @@ export function GitSyncToolbar({
 
   /** 全画面スピナーは git 操作中だけ。再読込は acting でボタン無効のまま裏で実行する。 */
   const finishAction = async (scope: SyncRefreshScope) => {
-    setOverlayBusy(false)
+    setOverlay(false)
     try {
       await onActionComplete?.(scope)
     } finally {
@@ -235,7 +245,7 @@ export function GitSyncToolbar({
   const runPush = async () => {
     setActionError(null)
     setActing(true)
-    setOverlayBusy(true)
+    setOverlay(true, 'プッシュしています…')
     try {
       await push(worktreePath)
     } catch (err) {
@@ -257,7 +267,7 @@ export function GitSyncToolbar({
     }
     setActionError(null)
     setActing(true)
-    setOverlayBusy(true)
+    setOverlay(true, syncOverlayMessages[action])
     try {
       await runSyncAction(action, worktreePath)
     } catch (err) {
@@ -278,7 +288,7 @@ export function GitSyncToolbar({
     setUpstreamPushOpen(false)
     setActionError(null)
     setActing(true)
-    setOverlayBusy(true)
+    setOverlay(true, 'プッシュしています…')
     try {
       await pushSetUpstream(worktreePath, 'origin')
     } catch (err) {
@@ -292,7 +302,7 @@ export function GitSyncToolbar({
   const handleFetchPrune = async () => {
     setActionError(null)
     setActing(true)
-    setOverlayBusy(true)
+    setOverlay(true, 'フェッチしています…')
     try {
       await fetchRemotePrune(worktreePath)
     } catch (err) {
@@ -306,7 +316,7 @@ export function GitSyncToolbar({
   const handlePullRebase = async () => {
     setActionError(null)
     setActing(true)
-    setOverlayBusy(true)
+    setOverlay(true, 'プルしています…')
     try {
       await pullRebase(worktreePath)
     } catch (err) {
@@ -333,7 +343,7 @@ export function GitSyncToolbar({
     setCreateOpen(false)
     setActionError(null)
     setActing(true)
-    setOverlayBusy(true)
+    setOverlay(true, 'ブランチを作成しています…')
     try {
       await createBranch(worktreePath, trimmed)
     } catch (err) {
@@ -348,7 +358,7 @@ export function GitSyncToolbar({
     setStashOpen(false)
     setActionError(null)
     setActing(true)
-    setOverlayBusy(true)
+    setOverlay(true, 'スタッシュしています…')
     try {
       await saveStash(worktreePath, message, true)
     } catch (err) {

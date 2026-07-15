@@ -33,6 +33,23 @@ export const sampleFileDiff: FileDiff = {
   ],
 }
 
+/** 半角スペース可視化確認用（インデント・末尾スペース・連続スペース） */
+export const whitespaceFileDiff: FileDiff = {
+  path: 'src/whitespace.ts',
+  hunks: [
+    {
+      header: '@@ -1,4 +1,5 @@',
+      lines: [
+        { kind: 'ctx', content: 'export function pad(value: string) {', oldNo: 1, newNo: 1 },
+        { kind: 'del', content: '  return value', oldNo: 2, newNo: undefined },
+        { kind: 'add', content: '  return  value  ', oldNo: undefined, newNo: 2 },
+        { kind: 'add', content: '    // trailing spaces →  ', oldNo: undefined, newNo: 3 },
+        { kind: 'ctx', content: '}', oldNo: 3, newNo: 4 },
+      ],
+    },
+  ],
+}
+
 export const readmeFileDiff: FileDiff = {
   path: 'README.md',
   hunks: [

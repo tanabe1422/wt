@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 
-export function useBusy(onBusyChange?: (busy: boolean) => void) {
+export type BusyChangeHandler = (busy: boolean, message?: string) => void
+
+export function useBusy(onBusyChange?: BusyChangeHandler) {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {

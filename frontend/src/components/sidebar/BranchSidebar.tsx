@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import type { BusyChangeHandler } from '../../hooks/useBusy'
 import { useErrorDialog } from '../../hooks/useErrorDialog'
 import { useBranchActions } from '../../hooks/useBranchActions'
 import { useBranchContextMenu } from '../../hooks/useBranchContextMenu'
@@ -34,7 +35,7 @@ interface BranchSidebarProps {
   onLightRefresh?: () => void | Promise<void>
   /** 同一 WT 内のコンテンツ変更通知（remount しない） */
   onWorkspaceContentChanged?: () => void
-  onBusyChange?: (busy: boolean) => void
+  onBusyChange?: BusyChangeHandler
   compareFromRef?: string | null
   onCompareWithCurrent?: (branch: string) => void
 }

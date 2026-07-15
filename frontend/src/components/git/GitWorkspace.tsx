@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import { useBusy } from '../../hooks/useBusy'
+import { useBusy, type BusyChangeHandler } from '../../hooks/useBusy'
 import { useErrorDialog } from '../../hooks/useErrorDialog'
 import { useResizableSplit } from '../../hooks/useResizableSplit'
 import { useContextMenu } from '../../hooks/useContextMenu'
@@ -39,7 +39,7 @@ interface GitWorkspaceProps {
    * remount せず status / selection を再同期する。
    */
   contentRevision?: number
-  onBusyChange?: (busy: boolean) => void
+  onBusyChange?: BusyChangeHandler
 }
 
 const FILES_SPLIT_STORAGE_KEY = 'wt-manager.filesSplitRatio'
@@ -108,11 +108,39 @@ export function GitWorkspace({
     [entries],
   )
 
+  // 一括 diff prefetch は idle まで遅延し、起動直後の GetFileDiff 嵐を避ける。
+  // フォーカス隣接・hover は即時のまま（下の effect / handleFileHover）。
   useEffect(() => {
     if (loading || !worktreePath || prefetchTargets.length === 0) {
       return
     }
-    return prefetchWorktreeDiffs(worktreePath, prefetchTargets)
+    let cancelled = false
+    let cancelPrefetch: (() => void) | undefined
+    const start = () => {
+      if (cancelled) {
+        return
+      }
+      cancelPrefetch = prefetchWorktreeDiffs(worktreePath, prefetchTargets)
+    }
+
+    let idleId: number | undefined
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    if (typeof requestIdleCallback !== 'undefined') {
+      idleId = requestIdleCallback(start, { timeout: 1200 })
+    } else {
+      timeoutId = setTimeout(start, 200)
+    }
+
+    return () => {
+      cancelled = true
+      if (idleId !== undefined && typeof cancelIdleCallback !== 'undefined') {
+        cancelIdleCallback(idleId)
+      }
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId)
+      }
+      cancelPrefetch?.()
+    }
   }, [loading, worktreePath, prefetchTargets])
 
   useEffect(() => {

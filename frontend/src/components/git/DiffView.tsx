@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 
 import type { FileDiff } from '../../types'
@@ -6,6 +6,33 @@ import { applyDiffLineSelection, isSelectableDiffKind } from '../../utils/diffLi
 import { cx } from '../../utils/cx'
 import { Button } from '../ui/Button'
 import styles from './DiffView.module.css'
+
+/** 半角スペースを · で可視化（コピー時は実スペースのまま） */
+function DiffLineText({ content }: { content: string }): ReactNode {
+  if (!content.includes(' ')) {
+    return content
+  }
+
+  const nodes: ReactNode[] = []
+  let textStart = 0
+  for (let i = 0; i < content.length; i++) {
+    if (content[i] === ' ') {
+      if (i > textStart) {
+        nodes.push(content.slice(textStart, i))
+      }
+      nodes.push(
+        <span key={i} className={styles.space}>
+          {' '}
+        </span>,
+      )
+      textStart = i + 1
+    }
+  }
+  if (textStart < content.length) {
+    nodes.push(content.slice(textStart))
+  }
+  return nodes
+}
 
 export interface DiffViewProps {
   diff: FileDiff | null
@@ -297,7 +324,9 @@ export function DiffView({
                           <span className={styles.prefix}>
                             {line.kind === 'add' ? '+' : line.kind === 'del' ? '-' : ' '}
                           </span>
-                          <span className={styles.text}>{line.content}</span>
+                          <span className={styles.text}>
+                            <DiffLineText content={line.content} />
+                          </span>
                         </div>
                       </div>
                     )

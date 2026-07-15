@@ -1,71 +1,116 @@
 import {
   getSidebarCache,
   getStatusCache,
+  patchWorktreeChangedCount,
   setSidebarCache,
   setStatusCache,
-  type SidebarSnapshot,
 } from './repoDataCache'
-import { getStatus, listBranches, listWorktrees } from './wails'
+import { pickDefaultSelection } from './sidebarSelection'
+import {
+  getStatus,
+  getWorktreeChangedCount,
+  listBranches,
+  listWorktreesMeta,
+} from './wails'
 
-const inFlight = new Set<string>()
+const inFlight = new Map<string, Promise<void>>()
 
-function pickDefaultSelection(
-  worktrees: SidebarSnapshot['worktrees'],
-  branches: SidebarSnapshot['branches'],
-  previous?: SidebarSnapshot | null,
-): Pick<SidebarSnapshot, 'selectedBranch' | 'selectedWorktree'> {
-  const keepWorktree =
-    previous?.selectedWorktree &&
-    worktrees.some((entry) => entry.path === previous.selectedWorktree)
-      ? previous.selectedWorktree
-      : (worktrees.find((entry) => entry.isMain)?.path ?? worktrees[0]?.path ?? null)
+/**
+ * Meta + branches でサイドバーキャッシュを温める。
+ * GetStatus は並列開始するが、完了は待たない（サイドバー表示をブロックしない）。
+ */
+async function warmRepo(repoPath: string): Promise<void> {
+  try {
+    const branchesPromise = listBranches(repoPath)
+    const metaPromise = listWorktreesMeta(repoPath)
 
-  const keepBranch =
-    previous?.selectedBranch &&
-    branches.some((entry) => !entry.isRemote && entry.name === previous.selectedBranch)
-      ? previous.selectedBranch
-      : (worktrees.find((entry) => entry.path === keepWorktree)?.branch ?? null)
+    let statusStartedFor: string | null = null
 
-  return {
-    selectedWorktree: keepWorktree,
-    selectedBranch: keepBranch,
+    void metaPromise
+      .then((meta) => {
+        const earlyPath = pickDefaultSelection(meta, [], null).selectedWorktree
+        if (earlyPath && !getStatusCache(earlyPath)) {
+          statusStartedFor = earlyPath
+          void getStatus(earlyPath)
+            .then((status) => {
+              setStatusCache(earlyPath, status)
+            })
+            .catch(() => {
+              // non-fatal
+            })
+        }
+      })
+      .catch(() => {
+        // Meta 失敗時は下のフル取得に委ねる
+      })
+
+    const [branches, worktrees] = await Promise.all([branchesPromise, metaPromise])
+    const selection = pickDefaultSelection(worktrees, branches, null)
+    setSidebarCache(repoPath, {
+      branches,
+      worktrees,
+      ...selection,
+    })
+
+    const worktreePath = selection.selectedWorktree
+    if (worktreePath && !getStatusCache(worktreePath) && worktreePath !== statusStartedFor) {
+      void getStatus(worktreePath)
+        .then((status) => {
+          setStatusCache(worktreePath, status)
+        })
+        .catch(() => {
+          // non-fatal
+        })
+    }
+
+    // 選択 WT のバッジだけ先に埋める（残りはサイドバー表示後に埋まる）
+    if (worktreePath) {
+      void getWorktreeChangedCount(worktreePath)
+        .then((count) => {
+          patchWorktreeChangedCount(repoPath, worktreePath, count)
+        })
+        .catch(() => {
+          // non-fatal
+        })
+    }
+  } catch {
+    // Prefetch failures are non-fatal.
   }
 }
 
 /**
  * Warm sidebar (+ main/selected worktree status) for a repository tab.
  * Skips when a sidebar snapshot is already cached.
+ *
+ * Meta のみで一覧を作り、GetStatus を branches と並列にする。
+ * 全 WT の git status（バッジ埋め）は起動クリティカルパスに入れない。
  */
 export function prefetchRepo(repoPath: string): void {
-  if (!repoPath || inFlight.has(repoPath) || getSidebarCache(repoPath)) {
+  if (!repoPath || getSidebarCache(repoPath) || inFlight.has(repoPath)) {
     return
   }
 
-  inFlight.add(repoPath)
-  void (async () => {
-    try {
-      const [branches, worktrees] = await Promise.all([
-        listBranches(repoPath),
-        listWorktrees(repoPath),
-      ])
-      const selection = pickDefaultSelection(worktrees, branches, null)
-      setSidebarCache(repoPath, {
-        branches,
-        worktrees,
-        ...selection,
-      })
+  const promise = warmRepo(repoPath).finally(() => {
+    inFlight.delete(repoPath)
+  })
+  inFlight.set(repoPath, promise)
+}
 
-      const worktreePath = selection.selectedWorktree
-      if (worktreePath && !getStatusCache(worktreePath)) {
-        const status = await getStatus(worktreePath)
-        setStatusCache(worktreePath, status)
-      }
-    } catch {
-      // Prefetch failures are non-fatal.
-    } finally {
-      inFlight.delete(repoPath)
-    }
-  })()
+/**
+ * 起動時など: prefetch が走っていれば完了を待ち、キャッシュヒットを狙う。
+ * 未開始なら kick + await。
+ * 完了はサイドバーキャッシュ投入時点（GetStatus 完了は待たない）。
+ */
+export function ensureRepoPrefetched(repoPath: string): Promise<void> {
+  if (!repoPath || getSidebarCache(repoPath)) {
+    return Promise.resolve()
+  }
+  const existing = inFlight.get(repoPath)
+  if (existing) {
+    return existing
+  }
+  prefetchRepo(repoPath)
+  return inFlight.get(repoPath) ?? Promise.resolve()
 }
 
 /** @internal test helper */

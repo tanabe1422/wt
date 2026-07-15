@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { emptyExternalTool, migrateExternalTool } from '../lib/externalToolPresets'
+import { prefetchRepo } from '../lib/repoPrefetch'
 import {
   addRepository,
   getSettings,
@@ -40,7 +41,14 @@ export function useRepoTabs() {
 
   useEffect(() => {
     getSettings()
-      .then((next) => setSettings(normalizeLoadedSettings(next)))
+      .then((next) => {
+        const normalized = normalizeLoadedSettings(next)
+        // サイドバー effect より先にウォームを開始し、キャッシュヒットを狙う
+        if (normalized.activeRepository) {
+          prefetchRepo(normalized.activeRepository)
+        }
+        setSettings(normalized)
+      })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : String(err))
       })

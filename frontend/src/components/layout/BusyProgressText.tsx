@@ -92,7 +92,12 @@ export function BusyProgressText({ message, appearance = 'chip' }: BusyProgressT
       className={`${styles.busyMessage} ${styles[appearance]} ${visible ? styles.busyMessageIn : styles.busyMessageOut}`}
       aria-live="polite"
     >
-      {displayed}
+      <span className={styles.shimmerText}>
+        <span className={styles.shimmerBase}>{displayed}</span>
+        <span className={styles.shimmerHighlight} aria-hidden="true">
+          {displayed}
+        </span>
+      </span>
     </p>
   )
 }

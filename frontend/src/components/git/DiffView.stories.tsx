@@ -2,7 +2,12 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 
 import { DiffView } from './DiffView'
-import { readmeFileDiff, SAMPLE_FILE_PATH, sampleFileDiff } from './diffFixtures'
+import {
+  readmeFileDiff,
+  SAMPLE_FILE_PATH,
+  sampleFileDiff,
+  whitespaceFileDiff,
+} from './diffFixtures'
 
 const panelDecorator = (width = 560, height = 420) =>
   function PanelFrame(Story: React.ComponentType) {
@@ -92,6 +97,14 @@ export const WithDiff: Story = {
   args: {
     file: sampleFileDiff.path,
     diff: sampleFileDiff,
+  },
+}
+
+export const VisibleSpaces: Story = {
+  name: '半角スペース可視化',
+  args: {
+    file: whitespaceFileDiff.path,
+    diff: whitespaceFileDiff,
   },
 }
 

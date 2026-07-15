@@ -5,7 +5,7 @@
  * - statusAndBadge: S + 現行 WT の変更ファイル数バッジ (W1)
  * - statusAndBranches: S + listBranches (B)
  * - statusBadgeAndBranches: S + W1 + B
- * - sidebarFull: listBranches + listWorktrees（全 WT status）(WF)
+ * - sidebarFull: listBranches + listWorktreesMeta（バッジは裏で順次埋め）(WF)
  * - none: 事後リフレッシュ不要
  */
 export type RefreshScope =

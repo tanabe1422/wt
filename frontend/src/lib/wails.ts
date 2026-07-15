@@ -13,7 +13,6 @@ import type {
   StashEntry,
   WorktreeEntry,
 } from '../types'
-import { mockApp } from './wails/mockApp'
 import type { WailsApp } from './wails/types'
 
 export type { WailsApp } from './wails/types'
@@ -40,6 +39,16 @@ function isWailsRuntime(): boolean {
 
 export { isWailsRuntime }
 
+/** ブラウザ dev / Storybook 用。Wails 本番では読み込まない。 */
+let mockAppPromise: Promise<WailsApp> | null = null
+
+function loadMockApp(): Promise<WailsApp> {
+  if (!mockAppPromise) {
+    mockAppPromise = import('./wails/mockApp').then((m) => m.mockApp)
+  }
+  return mockAppPromise
+}
+
 async function callApp<T>(method: keyof WailsApp, ...args: unknown[]): Promise<T> {
   const wailsApp = window.go?.app?.App
   if (wailsApp) {
@@ -52,6 +61,7 @@ async function callApp<T>(method: keyof WailsApp, ...args: unknown[]): Promise<T
     )
   }
 
+  const mockApp = await loadMockApp()
   const mockFn = mockApp[method]
   if (typeof mockFn !== 'function') {
     throw new Error(`Mock API "${String(method)}" is not implemented`)
