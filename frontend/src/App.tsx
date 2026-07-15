@@ -116,10 +116,11 @@ function AppShell() {
     await refreshWorktreeBadge(worktreePath)
   }, [refreshWorktreeBadge, worktreePath])
 
-  /** ブランチ切替・stash 等: B + WT meta + W1 + workspace content（全 WT status なし） */
+  /** ブランチ切替・stash 等: まず workspace を再同期し、バッジ status は裏で更新 */
   const handleLightRefresh = useCallback(async () => {
-    await Promise.all([reloadBranches(), reloadWorktreesMeta(), handleRefreshBadge()])
     bumpWorkspaceContent()
+    await Promise.all([reloadBranches(), reloadWorktreesMeta()])
+    void handleRefreshBadge()
   }, [bumpWorkspaceContent, handleRefreshBadge, reloadBranches, reloadWorktreesMeta])
 
   const currentBranchEntry = branches.find(

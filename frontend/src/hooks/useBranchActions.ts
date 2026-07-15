@@ -43,14 +43,17 @@ export function useBranchActions({
       setError(null)
       try {
         await action()
-        await after()
-        return true
       } catch (err) {
         setError(errorMessage(err, fallbackMessage))
         return false
       } finally {
+        // Git 完了時点でオーバーレイ解除。リフレッシュは裏で続行。
         setBusy(false)
       }
+      void Promise.resolve(after()).catch(() => {
+        // リフレッシュ失敗は非致命（次回操作や手動再読込で回復）
+      })
+      return true
     },
     [busy, onSuccess, worktreePath],
   )
@@ -86,18 +89,18 @@ export function useBranchActions({
 
       setBusy(true)
       setError(null)
+      let failed = false
       try {
         await action()
-        await onSuccess()
-        return true
       } catch (err) {
         // Conflicts leave the worktree dirty without MERGE_HEAD (squash) or with it (merge).
-        await onSuccess()
+        failed = true
         setError(errorMessage(err, fallbackMessage))
-        return false
       } finally {
         setBusy(false)
       }
+      void Promise.resolve(onSuccess()).catch(() => {})
+      return !failed
     },
     [busy, onSuccess, worktreePath],
   )
@@ -128,25 +131,28 @@ export function useBranchActions({
 
       setBusy(true)
       setError(null)
+      let ok = false
       try {
         await rebaseBranch(worktreePath, upstream)
-        await onSuccess()
-        return true
+        ok = true
       } catch (err) {
         try {
           const state = await getRepoOperationState(worktreePath)
           if (state.kind === 'rebase') {
-            await onSuccess()
-            return true
+            ok = true
+          } else {
+            setError(errorMessage(err, 'リベースに失敗しました'))
           }
         } catch {
-          // fall through to error
+          setError(errorMessage(err, 'リベースに失敗しました'))
         }
-        setError(errorMessage(err, 'リベースに失敗しました'))
-        return false
       } finally {
         setBusy(false)
       }
+      if (ok) {
+        void Promise.resolve(onSuccess()).catch(() => {})
+      }
+      return ok
     },
     [busy, onSuccess, worktreePath],
   )

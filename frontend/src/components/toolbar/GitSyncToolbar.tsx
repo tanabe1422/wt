@@ -34,7 +34,7 @@ interface GitSyncToolbarProps {
   onActionComplete?: (scope?: SyncRefreshScope) => void | Promise<void>
   onReload?: () => void | Promise<void>
   onOpenSettings?: () => void
-  /** MainLayout busy overlay（push / pull など同期操作中） */
+  /** MainLayout busy overlay（fetch / pull / push など同期操作中） */
   onBusyChange?: (busy: boolean) => void
   /** When true, only show the trailing settings control (no repo selected). */
   settingsOnly?: boolean
@@ -46,10 +46,6 @@ const actionTitles: Record<GitSyncAction, string> = {
   fetch: 'フェッチに失敗しました',
   pull: 'プルに失敗しました',
   push: 'プッシュに失敗しました',
-}
-
-function usesBusyOverlay(action: GitSyncAction): boolean {
-  return action === 'push' || action === 'pull'
 }
 
 function ExplorerIcon({ size = 20 }: { size?: number }) {
@@ -259,12 +255,9 @@ export function GitSyncToolbar({
       setPushConfirmOpen(true)
       return
     }
-    const showOverlay = usesBusyOverlay(action)
     setActionError(null)
     setActing(true)
-    if (showOverlay) {
-      setOverlayBusy(true)
-    }
+    setOverlayBusy(true)
     try {
       await runSyncAction(action, worktreePath)
     } catch (err) {
@@ -299,6 +292,7 @@ export function GitSyncToolbar({
   const handleFetchPrune = async () => {
     setActionError(null)
     setActing(true)
+    setOverlayBusy(true)
     try {
       await fetchRemotePrune(worktreePath)
     } catch (err) {
