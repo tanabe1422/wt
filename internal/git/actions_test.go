@@ -2,6 +2,8 @@ package git
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -366,6 +368,7 @@ func TestDiscardAllChanges(t *testing.T) {
 func TestAbortMerge(t *testing.T) {
 	dir := t.TempDir()
 	fake := newFakeRunner()
+	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("abc", nil)
 	fake.On("merge", "--abort").Return("", nil)
 	withFakeRunner(t, fake)
 
@@ -373,6 +376,29 @@ func TestAbortMerge(t *testing.T) {
 		t.Fatalf("AbortMerge: %v", err)
 	}
 	fake.AssertCalled(t, "merge", "--abort")
+}
+
+func TestAbortSquashMerge(t *testing.T) {
+	dir := t.TempDir()
+	gitDir := filepath.Join(dir, ".git")
+	if err := os.MkdirAll(gitDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(gitDir, "SQUASH_MSG"), []byte("squash"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	fake := newFakeRunner()
+	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("", errors.New("missing"))
+	fake.On("rev-parse", "--absolute-git-dir").Return(gitDir, nil)
+	fake.On("reset", "--merge").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := AbortMerge(dir); err != nil {
+		t.Fatalf("AbortMerge squash: %v", err)
+	}
+	fake.AssertCalled(t, "reset", "--merge")
+	fake.AssertNotCalledPrefix(t, "merge", "--abort")
 }
 
 func TestStageHunk(t *testing.T) {

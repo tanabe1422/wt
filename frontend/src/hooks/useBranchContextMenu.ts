@@ -16,6 +16,7 @@ interface UseBranchContextMenuOptions {
   onCompareWithCurrent?: (branch: string) => void
   onMerge?: (branch: string) => void
   onSquashMerge?: (branch: string) => void
+  onRebase?: (branch: string) => void
   onRename?: (branch: string) => void
   onDelete?: (branch: string) => void
 }
@@ -64,6 +65,7 @@ export function useBranchContextMenu({
   onCompareWithCurrent,
   onMerge,
   onSquashMerge,
+  onRebase,
   onRename,
   onDelete,
 }: UseBranchContextMenuOptions) {
@@ -76,8 +78,6 @@ export function useBranchContextMenu({
 
       const checkedOut = isBranchCheckedOut(branchName, isRemote, checkedOutBranch)
       const hasWorktree = branchHasWorktree(branchName, isRemote, worktreeBranches)
-      // Local current branch only: comparing a tip with itself is empty.
-      // Remote tracking refs may differ from the local tip, so keep enabled.
       const compareDisabled =
         !onCompareWithCurrent ||
         !compareFromRef ||
@@ -127,6 +127,12 @@ export function useBranchContextMenu({
           },
           { type: 'separator' },
           {
+            label: 'リベース',
+            disabled: checkedOut || !onRebase,
+            onClick: () => onRebase?.(branchName),
+          },
+          { type: 'separator' },
+          {
             label: 'ブランチ名を変更',
             disabled: !onRename,
             onClick: () => onRename?.(branchName),
@@ -135,6 +141,15 @@ export function useBranchContextMenu({
             label: 'ブランチを削除',
             disabled: checkedOut || !onDelete,
             onClick: () => onDelete?.(branchName),
+          },
+        )
+      } else {
+        items.push(
+          { type: 'separator' },
+          {
+            label: 'リベース',
+            disabled: checkedOut || !onRebase,
+            onClick: () => onRebase?.(branchName),
           },
         )
       }
@@ -150,6 +165,7 @@ export function useBranchContextMenu({
       onDelete,
       onMerge,
       onNewWorktree,
+      onRebase,
       onRename,
       onSquashMerge,
       onSwitchLocal,

@@ -50,6 +50,10 @@ interface BranchSidebarDialogsProps {
   renameTarget: string | null
   onConfirmRename: (value: string) => void
   onCancelRename: () => void
+  rebaseTarget: string | null
+  rebaseConfirmMessage: string
+  onConfirmRebase: () => void
+  onCancelRebase: () => void
   removeWorktreeTarget: WorktreeEntry | null
   forceRemoveWorktree: boolean
   onForceRemoveWorktreeChange: (checked: boolean) => void
@@ -95,6 +99,10 @@ export function BranchSidebarDialogs({
   renameTarget,
   onConfirmRename,
   onCancelRename,
+  rebaseTarget,
+  rebaseConfirmMessage,
+  onConfirmRebase,
+  onCancelRebase,
   removeWorktreeTarget,
   forceRemoveWorktree,
   onForceRemoveWorktreeChange,
@@ -178,6 +186,14 @@ export function BranchSidebarDialogs({
         confirmLabel="変更"
         onConfirm={onConfirmRename}
         onCancel={onCancelRename}
+      />
+      <ConfirmDialog
+        open={rebaseTarget !== null}
+        title="リベースの確認"
+        message={rebaseConfirmMessage}
+        confirmLabel="リベース"
+        onConfirm={onConfirmRebase}
+        onCancel={onCancelRebase}
       />
       <ConfirmDialog
         open={removeWorktreeTarget !== null}

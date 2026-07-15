@@ -2,6 +2,7 @@ package git
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -147,14 +148,52 @@ func DiscardAllChanges(worktreePath string) error {
 	return err
 }
 
-// AbortMerge aborts an in-progress merge (git merge --abort).
+// AbortMerge aborts an in-progress merge or squash merge.
+// Regular merges use git merge --abort; squash merges leave no MERGE_HEAD,
+// so git reset --merge is used instead.
 func AbortMerge(worktreePath string) error {
 	dir, err := filepath.Abs(filepath.Clean(worktreePath))
 	if err != nil {
 		return err
 	}
-	_, err = runGit(dir, "merge", "--abort")
-	return err
+	merging, err := IsMerging(dir)
+	if err != nil {
+		return err
+	}
+	if merging {
+		_, err = runGit(dir, "merge", "--abort")
+		return err
+	}
+	squashing, err := IsSquashPending(dir)
+	if err != nil {
+		return err
+	}
+	if squashing {
+		_, err = runGit(dir, "reset", "--merge")
+		return err
+	}
+	return errors.New("中止できるマージがありません")
+}
+
+// IsSquashPending reports whether a squash merge is in progress (awaiting commit or conflict resolution).
+func IsSquashPending(worktreePath string) (bool, error) {
+	dir, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return false, err
+	}
+	gitDir, err := runGit(dir, "rev-parse", "--absolute-git-dir")
+	if err != nil {
+		return false, err
+	}
+	squashMsg := filepath.Join(gitDir, "SQUASH_MSG")
+	_, err = os.Stat(squashMsg)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // IsMerging reports whether a merge is in progress in the worktree.
@@ -308,6 +347,13 @@ func amendBlockReason(dir string) string {
 	}
 	if merging {
 		return "マージ中は修正できません"
+	}
+	rebasing, err := IsRebasing(dir)
+	if err != nil {
+		return "状態の確認に失敗しました"
+	}
+	if rebasing {
+		return "リベース中は修正できません"
 	}
 	if _, err := runGit(dir, "rev-parse", "-q", "--verify", "@{upstream}"); err != nil {
 		return ""

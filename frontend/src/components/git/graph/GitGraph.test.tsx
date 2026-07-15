@@ -25,6 +25,13 @@ function renderGraph(commits: GraphCommitItem[]) {
   return { html, paths, circles, width, height }
 }
 
+function circlePositions(html: string): { cx: number; cy: number }[] {
+  return [...html.matchAll(/<circle cx="([^"]+)" cy="([^"]+)"/g)].map((match) => ({
+    cx: Number(match[1]),
+    cy: Number(match[2]),
+  }))
+}
+
 describe('GitGraph', () => {
   it('draws edges for a full parent chain', () => {
     const { paths, circles } = renderGraph([
@@ -71,5 +78,60 @@ describe('GitGraph', () => {
       { id: 'A', message: 'a', author: 'x', date: '2026-07-03T00:00:00Z', parents: [] },
     ])
     expect(width).toBe(padding.left + GRAPH_NODE_RADIUS + padding.right)
+  })
+
+  it('keeps git log order instead of re-sorting by author date', () => {
+    const rowCenterY = (index: number) => index * rowHeight + rowHeight / 2
+    const { html } = renderGraph([
+    {
+      id: 'rebased',
+      message: 'rebased',
+      author: 'x',
+      date: '2026-07-01T10:00:00Z',
+      parents: ['main'],
+    },
+    {
+      id: 'main',
+      message: 'main',
+      author: 'x',
+      date: '2026-07-07T12:00:00Z',
+      parents: ['base'],
+    },
+    {
+      id: 'base',
+      message: 'base',
+      author: 'x',
+      date: '2026-06-01T00:00:00Z',
+      parents: [],
+    },
+  ])
+    const circles = circlePositions(html)
+    expect(circles[0]?.cy).toBe(rowCenterY(0))
+    expect(circles[1]?.cy).toBe(rowCenterY(1))
+    expect(circles[2]?.cy).toBe(rowCenterY(2))
+  })
+
+  it('places the first merge parent on the left lane', () => {
+    const leftLaneX = padding.left
+    const rightLaneX = padding.left + laneWidth
+    const rowCenterY = (index: number) => index * rowHeight + rowHeight / 2
+    const { html } = renderGraph([
+      {
+        id: 'M',
+        message: 'merge',
+        author: 'x',
+        date: '2026-07-04T00:00:00Z',
+        parents: ['A', 'B'],
+      },
+      { id: 'A', message: 'a', author: 'x', date: '2026-07-03T00:00:00Z', parents: ['C'] },
+      { id: 'B', message: 'b', author: 'x', date: '2026-07-02T00:00:00Z', parents: ['C'] },
+      { id: 'C', message: 'c', author: 'x', date: '2026-07-01T00:00:00Z', parents: [] },
+    ])
+    const circles = circlePositions(html)
+    const atRow = (index: number) => circles.find((circle) => circle.cy === rowCenterY(index))
+    expect(atRow(0)?.cx).toBe(leftLaneX)
+    expect(atRow(1)?.cx).toBe(leftLaneX)
+    expect(atRow(2)?.cx).toBe(rightLaneX)
+    expect(atRow(3)?.cx).toBe(leftLaneX)
   })
 })

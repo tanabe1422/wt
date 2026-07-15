@@ -8,6 +8,7 @@ import type {
   HistoryScope,
   ListCommitsResult,
   RemoteMergeEntry,
+  RepoOperationState,
   Settings,
   StashEntry,
   WorktreeEntry,
@@ -229,8 +230,30 @@ export async function abortMerge(worktreePath: string): Promise<void> {
   return callApp('AbortMerge', worktreePath)
 }
 
+export async function abortRebase(worktreePath: string): Promise<void> {
+  return callApp('AbortRebase', worktreePath)
+}
+
 export async function isMerging(worktreePath: string): Promise<boolean> {
   return callApp('IsMerging', worktreePath)
+}
+
+export async function isRebasing(worktreePath: string): Promise<boolean> {
+  return callApp('IsRebasing', worktreePath)
+}
+
+export async function getRepoOperationState(
+  worktreePath: string,
+): Promise<RepoOperationState> {
+  return callApp('GetRepoOperationState', worktreePath)
+}
+
+export async function continueRebase(worktreePath: string): Promise<void> {
+  return callApp('ContinueRebase', worktreePath)
+}
+
+export async function rebaseBranch(worktreePath: string, upstream: string): Promise<void> {
+  return callApp('RebaseBranch', worktreePath, upstream)
 }
 
 export async function commit(worktreePath: string, message: string): Promise<void> {
@@ -255,6 +278,10 @@ export async function fetchRemotePrune(worktreePath: string): Promise<string[]> 
 
 export async function pull(worktreePath: string): Promise<void> {
   return callApp('Pull', worktreePath)
+}
+
+export async function pullRebase(worktreePath: string): Promise<void> {
+  return callApp('PullRebase', worktreePath)
 }
 
 export async function push(worktreePath: string): Promise<void> {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { useErrorDialog } from '../../hooks/useErrorDialog'
-import { createBranch, fetchRemote, fetchRemotePrune, pull, push, pushSetUpstream, saveStash, showInExplorer } from '../../lib/wails'
+import { createBranch, fetchRemote, fetchRemotePrune, getRepoOperationState, pull, pullRebase, push, pushSetUpstream, saveStash, showInExplorer } from '../../lib/wails'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ErrorDialog } from '../ui/ErrorDialog'
 import { PromptDialog } from '../ui/PromptDialog'
@@ -22,6 +22,7 @@ export type SyncRefreshScope = 'sidebar' | 'workspace'
 
 interface GitSyncToolbarProps {
   worktreePath: string
+  repositoryPath?: string
   currentBranch?: string
   disabled?: boolean
   aheadCount?: number
@@ -181,6 +182,7 @@ async function runSyncAction(action: GitSyncAction, worktreePath: string): Promi
 
 export function GitSyncToolbar({
   worktreePath,
+  repositoryPath = '',
   currentBranch = '',
   disabled = false,
   aheadCount = 0,
@@ -306,6 +308,28 @@ export function GitSyncToolbar({
     }
   }
 
+  const handlePullRebase = async () => {
+    setActionError(null)
+    setActing(true)
+    setOverlayBusy(true)
+    try {
+      await pullRebase(worktreePath)
+    } catch (err) {
+      try {
+        const state = await getRepoOperationState(worktreePath)
+        if (state.kind !== 'rebase') {
+          setActionTitle('プル（rebase）に失敗しました')
+          setActionError(err instanceof Error ? err.message : 'プル（rebase）に失敗しました')
+        }
+      } catch {
+        setActionTitle('プル（rebase）に失敗しました')
+        setActionError(err instanceof Error ? err.message : 'プル（rebase）に失敗しました')
+      }
+    } finally {
+      await finishAction('workspace')
+    }
+  }
+
   const handleCreateBranch = async (name: string) => {
     const trimmed = name.trim()
     if (!trimmed) {
@@ -378,7 +402,16 @@ export function GitSyncToolbar({
                           },
                         },
                       ]
-                    : undefined
+                    : action === 'pull'
+                      ? [
+                          {
+                            label: 'プル（rebase）',
+                            onClick: () => {
+                              void handlePullRebase()
+                            },
+                          },
+                        ]
+                      : undefined
                 }
                 onClick={() => void run(action)}
               />
@@ -462,6 +495,7 @@ export function GitSyncToolbar({
       />
       <RemoteCleanupDialog
         open={cleanupOpen}
+        repositoryPath={repositoryPath}
         worktreePath={worktreePath}
         onClose={() => setCleanupOpen(false)}
         onDeleted={async () => {

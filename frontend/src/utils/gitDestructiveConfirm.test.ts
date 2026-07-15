@@ -65,9 +65,14 @@ describe('confirmActionFromPartition', () => {
 
 describe('confirm dialog copy', () => {
   it('covers abort / discardAll / delete / mixed / discard', () => {
-    expect(confirmDialogTitle({ kind: 'abort' })).toBe('マージを中止')
-    expect(confirmDialogLabel({ kind: 'abort' })).toBe('中止')
-    expect(confirmDialogMessage({ kind: 'abort' })).toContain('マージを中止')
+    expect(confirmDialogTitle({ kind: 'abort', operation: 'merge' })).toBe('マージを中止')
+    expect(confirmDialogLabel({ kind: 'abort', operation: 'merge' })).toBe('中止')
+    expect(confirmDialogMessage({ kind: 'abort', operation: 'merge' })).toContain('マージを中止')
+
+    expect(confirmDialogTitle({ kind: 'abort', operation: 'rebase' })).toBe('リベースを中止')
+    expect(confirmDialogMessage({ kind: 'abort', operation: 'rebase' })).toContain(
+      'リベース開始前',
+    )
 
     expect(confirmDialogTitle({ kind: 'discardAll' })).toBe('すべて破棄')
     expect(confirmDialogLabel({ kind: 'discardAll' })).toBe('すべて破棄')

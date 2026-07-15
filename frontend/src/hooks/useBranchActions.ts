@@ -5,7 +5,9 @@ import {
   checkoutRemoteBranch,
   createBranch,
   deleteBranch,
+  getRepoOperationState,
   mergeBranch,
+  rebaseBranch,
   renameBranch,
   squashMergeBranch,
   switchBranch,
@@ -60,22 +62,77 @@ export function useBranchActions({ worktreePath, onSuccess }: UseBranchActionsOp
     [runAction, worktreePath],
   )
 
+  const runMergeAction = useCallback(
+    async (action: () => Promise<void>, fallbackMessage: string): Promise<boolean> => {
+      if (!worktreePath || busy) {
+        return false
+      }
+
+      setBusy(true)
+      setError(null)
+      try {
+        await action()
+        await onSuccess()
+        return true
+      } catch (err) {
+        // Conflicts leave the worktree dirty without MERGE_HEAD (squash) or with it (merge).
+        await onSuccess()
+        setError(errorMessage(err, fallbackMessage))
+        return false
+      } finally {
+        setBusy(false)
+      }
+    },
+    [busy, onSuccess, worktreePath],
+  )
+
   const merge = useCallback(
     (source: string) =>
-      runAction(
+      runMergeAction(
         () => mergeBranch(worktreePath!, source),
         'マージに失敗しました',
       ),
-    [runAction, worktreePath],
+    [runMergeAction, worktreePath],
   )
 
   const squashMerge = useCallback(
     (source: string) =>
-      runAction(
+      runMergeAction(
         () => squashMergeBranch(worktreePath!, source),
         'スカッシュマージに失敗しました',
       ),
-    [runAction, worktreePath],
+    [runMergeAction, worktreePath],
+  )
+
+  const rebase = useCallback(
+    async (upstream: string): Promise<boolean> => {
+      if (!worktreePath || busy) {
+        return false
+      }
+
+      setBusy(true)
+      setError(null)
+      try {
+        await rebaseBranch(worktreePath, upstream)
+        await onSuccess()
+        return true
+      } catch (err) {
+        try {
+          const state = await getRepoOperationState(worktreePath)
+          if (state.kind === 'rebase') {
+            await onSuccess()
+            return true
+          }
+        } catch {
+          // fall through to error
+        }
+        setError(errorMessage(err, 'リベースに失敗しました'))
+        return false
+      } finally {
+        setBusy(false)
+      }
+    },
+    [busy, onSuccess, worktreePath],
   )
 
   const removeBranch = useCallback(
@@ -115,6 +172,7 @@ export function useBranchActions({ worktreePath, onSuccess }: UseBranchActionsOp
     checkoutRemote,
     merge,
     squashMerge,
+    rebase,
     removeBranch,
     rename,
     create,

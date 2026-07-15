@@ -410,6 +410,18 @@ export namespace git {
 	        this.lastAuthor = source["lastAuthor"];
 	    }
 	}
+	export class RepoOperationState {
+	    kind: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RepoOperationState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	    }
+	}
 	export class StashEntry {
 	    index: number;
 	    ref: string;

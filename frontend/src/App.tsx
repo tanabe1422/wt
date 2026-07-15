@@ -11,6 +11,7 @@ import { GitSyncToolbar } from './components/toolbar/GitSyncToolbar'
 import type { MainView } from './components/toolbar/MainViewToolbarTabs'
 import { ErrorDialog } from './components/ui/ErrorDialog'
 import { useErrorDialog } from './hooks/useErrorDialog'
+import { ToastProvider } from './hooks/useToast'
 import { useRepoSidebar } from './hooks/useRepoSidebar'
 import { useRepoTabs } from './hooks/useRepoTabs'
 import { invalidateRepoCaches } from './lib/repoDataCache'
@@ -151,6 +152,7 @@ function AppShell() {
           loading ? undefined : activeRepository ? (
             <GitSyncToolbar
               worktreePath={worktreePath}
+              repositoryPath={activeRepository}
               currentBranch={currentBranch}
               aheadCount={aheadCount}
               behindCount={behindCount}
@@ -245,7 +247,11 @@ function AppShell() {
 }
 
 function App() {
-  return <AppShell />
+  return (
+    <ToastProvider>
+      <AppShell />
+    </ToastProvider>
+  )
 }
 
 export default App

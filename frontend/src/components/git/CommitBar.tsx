@@ -16,6 +16,7 @@ interface CommitBarProps {
   disabled: boolean
   busy: boolean
   amendInfo: AmendInfo | null
+  commitBlockReason?: string | null
   pushAfterCommit: boolean
   onPushAfterCommitChange: (enabled: boolean) => void
   onCommit: (message: string, options: CommitOptions) => Promise<void>
@@ -31,6 +32,7 @@ export function CommitBar({
   disabled,
   busy,
   amendInfo,
+  commitBlockReason = null,
   pushAfterCommit,
   onPushAfterCommitChange,
   onCommit,
@@ -133,6 +135,7 @@ export function CommitBar({
           type="button"
           className={styles.commitButton}
           disabled={isDisabled || !message.trim()}
+          title={commitBlockReason ?? undefined}
           onClick={handlePrimaryClick}
         >
           {amend ? 'Amend' : 'Commit'}

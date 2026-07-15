@@ -1,5 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import {
+  defaultRemoteCleanupMode,
+  defaultRemoteCleanupStatusFilter,
+  getRemoteCleanupPrefs,
+  setRemoteCleanupPrefs,
+  type RemoteCleanupStatusFilter,
+} from '../../lib/remoteCleanupPrefsStorage'
 import {
   defaultRemoteBaseRef,
   deleteRemoteBranches,
@@ -15,10 +22,9 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { IconButton } from '../ui/IconButton'
 import styles from './RemoteCleanupDialog.module.css'
 
-type StatusFilter = 'merged' | 'unmerged' | 'all'
-
 interface RemoteCleanupDialogProps {
   open: boolean
+  repositoryPath: string
   worktreePath: string
   onClose: () => void
   onDeleted?: () => void | Promise<void>
@@ -121,14 +127,18 @@ function ExcludedListDialog({
 
 export function RemoteCleanupDialog({
   open,
+  repositoryPath,
   worktreePath,
   onClose,
   onDeleted,
 }: RemoteCleanupDialogProps) {
+  const prefsKey = repositoryPath || worktreePath
   const [baseRef, setBaseRef] = useState('')
   const [baseOptions, setBaseOptions] = useState<string[]>([])
-  const [mode, setMode] = useState<MergeCheckMode>('ancestry')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('merged')
+  const [mode, setMode] = useState<MergeCheckMode>(defaultRemoteCleanupMode())
+  const [statusFilter, setStatusFilter] = useState<RemoteCleanupStatusFilter>(
+    defaultRemoteCleanupStatusFilter(),
+  )
   const [nameFilter, setNameFilter] = useState('')
   const [entries, setEntries] = useState<RemoteMergeEntry[]>([])
   const [excluded, setExcluded] = useState<string[]>([])
@@ -140,29 +150,40 @@ export function RemoteCleanupDialog({
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [excludedOpen, setExcludedOpen] = useState(false)
 
+  const persistPrefs = useCallback(
+    (patch: Parameters<typeof setRemoteCleanupPrefs>[1]) => {
+      if (!prefsKey) {
+        return
+      }
+      setRemoteCleanupPrefs(prefsKey, patch)
+    },
+    [prefsKey],
+  )
+
   useEffect(() => {
     if (!open || !worktreePath) {
       return
     }
 
     let cancelled = false
+    const saved = getRemoteCleanupPrefs(prefsKey)
     setError('')
     setSelected(new Set())
-    setNameFilter('')
-    setStatusFilter('merged')
-    setMode('ancestry')
+    setNameFilter(saved.nameFilter ?? '')
+    setStatusFilter(saved.statusFilter ?? defaultRemoteCleanupStatusFilter())
+    setMode(saved.mode ?? defaultRemoteCleanupMode())
     setExcludedOpen(false)
 
     void (async () => {
       try {
-        const [base, settings] = await Promise.all([
+        const [defaultBase, settings] = await Promise.all([
           defaultRemoteBaseRef(worktreePath),
           getSettings(),
         ])
         if (cancelled) {
           return
         }
-        setBaseRef(base)
+        setBaseRef(saved.baseRef ?? defaultBase)
         setExcluded([...(settings.remoteCleanupExcluded ?? [])])
       } catch (err) {
         if (!cancelled) {
@@ -174,7 +195,7 @@ export function RemoteCleanupDialog({
     return () => {
       cancelled = true
     }
-  }, [open, worktreePath])
+  }, [open, prefsKey, worktreePath])
 
   useEffect(() => {
     if (!open || !worktreePath || !baseRef) {
@@ -381,7 +402,11 @@ export function RemoteCleanupDialog({
                   className={styles.select}
                   value={baseRef}
                   disabled={loading || baseOptions.length === 0}
-                  onChange={(event) => setBaseRef(event.target.value)}
+                  onChange={(event) => {
+                    const next = event.target.value
+                    setBaseRef(next)
+                    persistPrefs({ baseRef: next })
+                  }}
                 >
                   {baseOptions.map((ref) => (
                     <option key={ref} value={ref}>
@@ -396,7 +421,11 @@ export function RemoteCleanupDialog({
                 <select
                   className={styles.select}
                   value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+                  onChange={(event) => {
+                    const next = event.target.value as RemoteCleanupStatusFilter
+                    setStatusFilter(next)
+                    persistPrefs({ statusFilter: next })
+                  }}
                 >
                   <option value="merged">マージ済み</option>
                   <option value="unmerged">未マージ</option>
@@ -412,7 +441,10 @@ export function RemoteCleanupDialog({
                       type="radio"
                       name="merge-check-mode"
                       checked={mode === 'ancestry'}
-                      onChange={() => setMode('ancestry')}
+                      onChange={() => {
+                        setMode('ancestry')
+                        persistPrefs({ mode: 'ancestry' })
+                      }}
                     />
                     祖先
                   </label>
@@ -421,7 +453,10 @@ export function RemoteCleanupDialog({
                       type="radio"
                       name="merge-check-mode"
                       checked={mode === 'content'}
-                      onChange={() => setMode('content')}
+                      onChange={() => {
+                        setMode('content')
+                        persistPrefs({ mode: 'content' })
+                      }}
                     />
                     内容（スカッシュ含む）
                   </label>
@@ -435,7 +470,11 @@ export function RemoteCleanupDialog({
                   type="search"
                   value={nameFilter}
                   placeholder="origin/feature/…"
-                  onChange={(event) => setNameFilter(event.target.value)}
+                  onChange={(event) => {
+                    const next = event.target.value
+                    setNameFilter(next)
+                    persistPrefs({ nameFilter: next })
+                  }}
                 />
               </label>
             </div>

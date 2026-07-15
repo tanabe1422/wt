@@ -96,7 +96,7 @@
 - [x] **P1** コミット amend（直近・未 push のみ等のガード付き）
 - [ ] **P2** 空コミット防止以外の検証（hooks 失敗メッセージの整理）
 - [ ] **P2** force push（保護ブランチ警告付き・明示操作）
-- [ ] **P2** pull --rebase / rebase 継続・中止 UI
+- [x] **P2** pull --rebase / rebase 継続・中止 UI
 
 ## 8. 履歴 & グラフ
 
@@ -118,7 +118,7 @@
 ## 9. 高度な Git 操作
 
 - [x] **P1** マージ（通常 / スカッシュ）
-- [ ] **P2** リベース（onto 指定・競合時の continue / abort / skip）
+- [x] **P2** リベース（競合時の continue / abort。onto 指定は未実装）
 - [x] **P1** stash（save / pop / apply / drop / 一覧）
 - [ ] **P2** タグ作成・削除・push
 - [ ] **P3** submodule の状態表示

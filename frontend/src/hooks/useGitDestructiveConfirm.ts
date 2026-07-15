@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 
 import {
   abortMerge,
+  abortRebase,
   deleteUntracked,
   discardAllChanges,
   discardFiles,
@@ -57,9 +58,13 @@ export function useGitDestructiveConfirm({
     setConfirmAction({ kind: 'discardAll' })
   }, [stagedCount, unstagedCount])
 
-  const requestAbortMerge = useCallback(() => {
-    setConfirmAction({ kind: 'abort' })
+  const requestAbortOperation = useCallback((operation: 'merge' | 'rebase') => {
+    setConfirmAction({ kind: 'abort', operation })
   }, [])
+
+  const requestAbortMerge = useCallback(() => {
+    requestAbortOperation('merge')
+  }, [requestAbortOperation])
 
   const requestDeletePaths = useCallback((paths: string[]) => {
     setConfirmAction({ kind: 'delete', paths })
@@ -81,7 +86,11 @@ export function useGitDestructiveConfirm({
     }
     await runBusy(async () => {
       if (action.kind === 'abort') {
-        await abortMerge(worktreePath)
+        if (action.operation === 'rebase') {
+          await abortRebase(worktreePath)
+        } else {
+          await abortMerge(worktreePath)
+        }
       } else if (action.kind === 'discardAll') {
         await discardAllChanges(worktreePath)
         clearAll()
@@ -119,6 +128,7 @@ export function useGitDestructiveConfirm({
     requestDiscardPaths,
     requestDiscardAll,
     requestAbortMerge,
+    requestAbortOperation,
     requestDeletePaths,
     requestDiscardTrackedPaths,
     cancelConfirm,

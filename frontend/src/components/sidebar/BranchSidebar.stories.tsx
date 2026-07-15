@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 
 import type { BranchEntry, WorktreeEntry } from '../../types'
+import { ToastProvider } from '../../hooks/useToast'
 import { BranchSidebar } from './BranchSidebar'
 import { SidebarStoryFrame } from './fixtures/sidebarStoryHelpers'
 import {
@@ -29,20 +30,22 @@ function BranchSidebarDemo({
   const [selectedWorktree, setSelectedWorktree] = useState(FIXTURE_REPO_ROOT)
 
   return (
-    <SidebarStoryFrame>
-      <BranchSidebar
-        activeRepository={FIXTURE_REPO_ROOT}
-        branches={branches}
-        worktrees={worktrees}
-        loading={loading}
-        error={error}
-        selectedBranch={selectedBranch}
-        onSelectBranch={setSelectedBranch}
-        selectedWorktree={selectedWorktree}
-        onSelectWorktree={setSelectedWorktree}
-        onReload={() => undefined}
-      />
-    </SidebarStoryFrame>
+    <ToastProvider>
+      <SidebarStoryFrame>
+        <BranchSidebar
+          activeRepository={FIXTURE_REPO_ROOT}
+          branches={branches}
+          worktrees={worktrees}
+          loading={loading}
+          error={error}
+          selectedBranch={selectedBranch}
+          onSelectBranch={setSelectedBranch}
+          selectedWorktree={selectedWorktree}
+          onSelectWorktree={setSelectedWorktree}
+          onReload={() => undefined}
+        />
+      </SidebarStoryFrame>
+    </ToastProvider>
   )
 }
 

@@ -7,6 +7,7 @@ import type {
   FileStatus,
   ListCommitsResult,
   RemoteMergeEntry,
+  RepoOperationState,
   Settings,
   StashEntry,
   WorktreeEntry,
@@ -56,13 +57,19 @@ export interface WailsApp {
   DeleteUntracked(worktreePath: string, paths: string[]): Promise<void>
   DiscardAllChanges(worktreePath: string): Promise<void>
   AbortMerge(worktreePath: string): Promise<void>
+  AbortRebase(worktreePath: string): Promise<void>
   IsMerging(worktreePath: string): Promise<boolean>
+  IsRebasing(worktreePath: string): Promise<boolean>
+  GetRepoOperationState(worktreePath: string): Promise<RepoOperationState>
+  ContinueRebase(worktreePath: string): Promise<void>
+  RebaseBranch(worktreePath: string, upstream: string): Promise<void>
   Commit(worktreePath: string, message: string): Promise<void>
   GetAmendInfo(worktreePath: string): Promise<AmendInfo>
   AmendCommit(worktreePath: string, message: string): Promise<void>
   Fetch(worktreePath: string): Promise<void>
   FetchPrune(worktreePath: string): Promise<string[]>
   Pull(worktreePath: string): Promise<void>
+  PullRebase(worktreePath: string): Promise<void>
   Push(worktreePath: string): Promise<void>
   PushSetUpstream(worktreePath: string, remote: string): Promise<void>
   OpenMergetool(worktreePath: string, file: string): Promise<void>

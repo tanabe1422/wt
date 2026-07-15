@@ -127,6 +127,28 @@ func (a *App) IsMerging(worktreePath string) (bool, error) {
 	return withWorktreeResult(worktreePath, git.IsMerging)
 }
 
+func (a *App) GetRepoOperationState(worktreePath string) (git.RepoOperationState, error) {
+	return withWorktreeResult(worktreePath, git.GetRepoOperationState)
+}
+
+func (a *App) IsRebasing(worktreePath string) (bool, error) {
+	return withWorktreeResult(worktreePath, git.IsRebasing)
+}
+
+func (a *App) RebaseBranch(worktreePath, upstream string) error {
+	return withWorktree(worktreePath, func(dir string) error {
+		return git.RebaseBranch(dir, upstream)
+	})
+}
+
+func (a *App) ContinueRebase(worktreePath string) error {
+	return withWorktree(worktreePath, git.ContinueRebase)
+}
+
+func (a *App) AbortRebase(worktreePath string) error {
+	return withWorktree(worktreePath, git.AbortRebase)
+}
+
 func (a *App) Commit(worktreePath, message string) error {
 	return withWorktree(worktreePath, func(dir string) error {
 		return git.Commit(dir, message)
@@ -153,6 +175,10 @@ func (a *App) FetchPrune(worktreePath string) ([]string, error) {
 
 func (a *App) Pull(worktreePath string) error {
 	return withWorktree(worktreePath, git.Pull)
+}
+
+func (a *App) PullRebase(worktreePath string) error {
+	return withWorktree(worktreePath, git.PullRebase)
 }
 
 func (a *App) Push(worktreePath string) error {

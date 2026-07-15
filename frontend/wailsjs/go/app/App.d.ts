@@ -5,6 +5,8 @@ import {git} from '../models';
 
 export function AbortMerge(arg1:string):Promise<void>;
 
+export function AbortRebase(arg1:string):Promise<void>;
+
 export function AddRepository(arg1:string):Promise<config.Settings>;
 
 export function AddWorktree(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<string>;
@@ -16,6 +18,8 @@ export function ApplyStash(arg1:string,arg2:number):Promise<void>;
 export function CheckoutRemoteBranch(arg1:string,arg2:string):Promise<void>;
 
 export function Commit(arg1:string,arg2:string):Promise<void>;
+
+export function ContinueRebase(arg1:string):Promise<void>;
 
 export function CreateBranch(arg1:string,arg2:string):Promise<void>;
 
@@ -51,11 +55,15 @@ export function GetFileDiff(arg1:string,arg2:string,arg3:boolean):Promise<git.Fi
 
 export function GetRangeFileDiff(arg1:string,arg2:string,arg3:string,arg4:string):Promise<git.FileDiff>;
 
+export function GetRepoOperationState(arg1:string):Promise<git.RepoOperationState>;
+
 export function GetSettings():Promise<config.Settings>;
 
 export function GetStatus(arg1:string):Promise<Array<git.FileStatus>>;
 
 export function IsMerging(arg1:string):Promise<boolean>;
+
+export function IsRebasing(arg1:string):Promise<boolean>;
 
 export function ListBranchHeads(arg1:string):Promise<Array<git.BranchHead>>;
 
@@ -95,9 +103,13 @@ export function PopStash(arg1:string,arg2:number):Promise<void>;
 
 export function Pull(arg1:string):Promise<void>;
 
+export function PullRebase(arg1:string):Promise<void>;
+
 export function Push(arg1:string):Promise<void>;
 
 export function PushSetUpstream(arg1:string,arg2:string):Promise<void>;
+
+export function RebaseBranch(arg1:string,arg2:string):Promise<void>;
 
 export function RemoveRepository(arg1:string):Promise<config.Settings>;
 

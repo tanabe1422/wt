@@ -188,7 +188,19 @@ export function GitWorkspace({
     runBusy,
   })
 
-  refreshMergeStateRef.current = actions.refreshMergeState
+  refreshMergeStateRef.current = actions.refreshOperationState
+
+  const handleAbortOperation = useCallback(() => {
+    const operation =
+      actions.repoOperation === 'rebase'
+        ? 'rebase'
+        : actions.repoOperation === 'merge' || conflictCount > 0
+          ? 'merge'
+          : null
+    if (operation) {
+      destructive.requestAbortOperation(operation)
+    }
+  }, [actions.repoOperation, conflictCount, destructive])
 
   const externalToolErrorDialog = useErrorDialog(actions.externalToolError)
 
@@ -214,7 +226,8 @@ export function GitWorkspace({
             stagedSelection={stagedSelection}
             unstagedSelection={unstagedSelection}
             conflictCount={conflictCount}
-            merging={actions.merging}
+            repoOperation={actions.repoOperation}
+            canContinueRebase={actions.canContinueRebase}
             onFileClick={handleClick}
             onFileHover={handleFileHover}
             onFileContextMenu={actions.handleFileContextMenu}
@@ -228,7 +241,8 @@ export function GitWorkspace({
               destructive.requestDiscardPaths([...unstagedSelection.paths])
             }
             onDiscardAll={destructive.requestDiscardAll}
-            onAbortMerge={destructive.requestAbortMerge}
+            onContinueRebase={() => void actions.handleContinueRebase()}
+            onAbortOperation={handleAbortOperation}
           />
         </div>
         <ResizeHandle
@@ -256,9 +270,10 @@ export function GitWorkspace({
         </div>
       </div>
       <CommitBar
-        disabled={!worktreePath}
+        disabled={!worktreePath || Boolean(actions.commitBlockReason)}
         busy={loading || busy}
         amendInfo={actions.amendInfo}
+        commitBlockReason={actions.commitBlockReason}
         pushAfterCommit={pushAfterCommit}
         onPushAfterCommitChange={onPushAfterCommitChange}
         onCommit={actions.handleCommit}

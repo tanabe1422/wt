@@ -108,7 +108,10 @@ function renderBranchRow(
         event.stopPropagation()
         onActivate?.(fullName)
       }}
-      onContextMenu={(event) => onContextMenu?.(fullName, event)}
+      onContextMenu={(event) => {
+        onSelect(fullName)
+        onContextMenu?.(fullName, event)
+      }}
     >
       <span className={styles.leading}>
         <ActiveMark

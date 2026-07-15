@@ -6,6 +6,7 @@ import type {
   FileDiff,
   FileStatus,
   ListCommitsResult,
+  RepoOperationState,
   Settings,
   StashEntry,
   WorktreeEntry,
@@ -28,6 +29,8 @@ let mockStatus: FileStatus[] = [
   { path: 'README.md', index: ' ', workTree: 'M', staged: false, isDirectory: false },
   { path: 'config/app.json', index: '?', workTree: '?', staged: false, isDirectory: false },
 ]
+
+let mockRebasing = false
 
 let mockStashList: StashEntry[] = [
   { index: 0, ref: 'stash@{0}', message: 'On feature/hoge: WIP before merge' },
@@ -638,7 +641,21 @@ export const mockApp: WailsApp = {
     console.info('[mock] AbortMerge')
   },
 
+  async AbortRebase(_worktreePath: string) {
+    mockRebasing = false
+    mockStatus = mockStatus.filter((entry) => !(
+      entry.index === 'U' ||
+      entry.workTree === 'U' ||
+      (entry.index === 'A' && entry.workTree === 'A') ||
+      (entry.index === 'D' && entry.workTree === 'D')
+    ))
+    console.info('[mock] AbortRebase')
+  },
+
   async IsMerging(_worktreePath: string) {
+    if (mockRebasing) {
+      return false
+    }
     return mockStatus.some(
       (entry) =>
         entry.index === 'U' ||
@@ -646,6 +663,35 @@ export const mockApp: WailsApp = {
         (entry.index === 'A' && entry.workTree === 'A') ||
         (entry.index === 'D' && entry.workTree === 'D'),
     )
+  },
+
+  async IsRebasing(_worktreePath: string) {
+    return mockRebasing
+  },
+
+  async GetRepoOperationState(_worktreePath: string): Promise<RepoOperationState> {
+    if (mockRebasing) {
+      return { kind: 'rebase' }
+    }
+    if (await this.IsMerging(_worktreePath)) {
+      return { kind: 'merge' }
+    }
+    return { kind: 'none' }
+  },
+
+  async ContinueRebase(_worktreePath: string) {
+    mockRebasing = false
+    console.info('[mock] ContinueRebase')
+  },
+
+  async RebaseBranch(_worktreePath: string, upstream: string) {
+    if (!upstream.trim()) {
+      throw new Error('ブランチ名が空です')
+    }
+    if (mockStatus.length > 0) {
+      throw new Error('未コミットの変更があります。コミットするかスタッシュしてからリベースしてください。')
+    }
+    console.info('[mock] RebaseBranch', upstream)
   },
 
   async Commit(_worktreePath: string, message: string) {
@@ -660,10 +706,18 @@ export const mockApp: WailsApp = {
     const ahead = current?.aheadCount ?? 0
     const hasUpstream = current?.hasUpstream ?? false
     const merging = await this.IsMerging(_worktreePath)
+    const rebasing = await this.IsRebasing(_worktreePath)
     if (merging) {
       return {
         canAmend: false,
-        reason: '????????????',
+        reason: 'マージ中は修正できません',
+        headMessage: 'mock tip commit',
+      }
+    }
+    if (rebasing) {
+      return {
+        canAmend: false,
+        reason: 'リベース中は修正できません',
         headMessage: 'mock tip commit',
       }
     }
@@ -703,6 +757,12 @@ export const mockApp: WailsApp = {
 
   async Pull(_worktreePath: string) {
     console.info('[mock] Pull')
+    await delay(SYNC_MOCK_DELAY_MS)
+    updateCurrentBranchCounts({ behindCount: 0 })
+  },
+
+  async PullRebase(_worktreePath: string) {
+    console.info('[mock] PullRebase')
     await delay(SYNC_MOCK_DELAY_MS)
     updateCurrentBranchCounts({ behindCount: 0 })
   },

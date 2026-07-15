@@ -1,6 +1,6 @@
 import { useMemo, type MouseEvent } from 'react'
 
-import type { FileStatus } from '../../types'
+import type { FileStatus, RepoOperationKind } from '../../types'
 import type { SectionMode, SectionSelection } from '../../hooks/useSectionSelection'
 import { cx } from '../../utils/cx'
 import { sortFileStatuses } from '../../utils/gitStatus'
@@ -13,8 +13,9 @@ interface ChangesPanelProps {
   loading: boolean
   stagedSelection: SectionSelection
   unstagedSelection: SectionSelection
+  repoOperation?: RepoOperationKind
   conflictCount?: number
-  merging?: boolean
+  canContinueRebase?: boolean
   onFileClick: (
     path: string,
     index: number,
@@ -30,7 +31,8 @@ interface ChangesPanelProps {
   onUnstageAll: () => void
   onDiscardSelected?: () => void
   onDiscardAll?: () => void
-  onAbortMerge?: () => void
+  onContinueRebase?: () => void
+  onAbortOperation?: () => void
   onFileHover?: (path: string, mode: 'staged' | 'unstaged') => void
   onFileContextMenu?: (
     entry: FileStatus,
@@ -39,14 +41,30 @@ interface ChangesPanelProps {
   ) => void
 }
 
+function operationBannerText(
+  repoOperation: RepoOperationKind,
+  conflictCount: number,
+): string {
+  if (repoOperation === 'rebase') {
+    return conflictCount > 0
+      ? `リベース競合: ${conflictCount} ファイル`
+      : 'リベース進行中'
+  }
+  if (conflictCount > 0) {
+    return `マージ競合: ${conflictCount} ファイル`
+  }
+  return 'マージ進行中'
+}
+
 export function ChangesPanel({
   staged,
   unstaged,
   loading,
   stagedSelection,
   unstagedSelection,
+  repoOperation = 'none',
   conflictCount = 0,
-  merging = false,
+  canContinueRebase = false,
   onFileClick,
   onStage,
   onUnstage,
@@ -56,11 +74,14 @@ export function ChangesPanel({
   onUnstageAll,
   onDiscardSelected,
   onDiscardAll,
-  onAbortMerge,
+  onContinueRebase,
+  onAbortOperation,
   onFileHover,
   onFileContextMenu,
 }: ChangesPanelProps) {
-  const showMergeBanner = merging || conflictCount > 0
+  const showOperationBanner = repoOperation !== 'none' || conflictCount > 0
+  const bannerOperation: RepoOperationKind =
+    repoOperation !== 'none' ? repoOperation : conflictCount > 0 ? 'merge' : 'none'
   const hasAnyChanges = staged.length > 0 || unstaged.length > 0
   const showDiscardActions = Boolean(onDiscardAll || onDiscardSelected)
   const sortedStaged = useMemo(() => sortFileStatuses(staged, 'staged'), [staged])
@@ -68,18 +89,28 @@ export function ChangesPanel({
 
   return (
     <div className={styles.panel}>
-      {showMergeBanner && (
+      {showOperationBanner && bannerOperation !== 'none' && (
         <div className={styles.mergeBanner} role="status">
           <span className={styles.mergeBannerText}>
-            {conflictCount > 0
-              ? `マージ競合: ${conflictCount} ファイル`
-              : 'マージ進行中'}
+            {operationBannerText(bannerOperation, conflictCount)}
           </span>
-          {onAbortMerge && (
-            <button type="button" className={styles.mergeAbort} onClick={onAbortMerge}>
-              マージを中止
-            </button>
-          )}
+          <div className={styles.bannerActions}>
+            {bannerOperation === 'rebase' && onContinueRebase && (
+              <button
+                type="button"
+                className={styles.bannerContinue}
+                disabled={!canContinueRebase}
+                onClick={onContinueRebase}
+              >
+                続行
+              </button>
+            )}
+            {onAbortOperation && (
+              <button type="button" className={styles.mergeAbort} onClick={onAbortOperation}>
+                {bannerOperation === 'rebase' ? 'リベースを中止' : 'マージを中止'}
+              </button>
+            )}
+          </div>
         </div>
       )}
       <section className={styles.section}>
@@ -113,7 +144,7 @@ export function ChangesPanel({
           onFileClick={(path, index, event) =>
             onFileClick(path, index, 'staged', sortedStaged, event)
           }
-          onFileHover={onFileHover}
+          onFileHover={(path) => onFileHover?.(path, 'staged')}
           onFileContextMenu={(entry, event) => onFileContextMenu?.(entry, event, 'staged')}
           onUnstage={onUnstage}
         />
@@ -122,27 +153,6 @@ export function ChangesPanel({
         <h2 className={styles.heading}>
           <span className={styles.headingStart}>変更</span>
           <span className={styles.headingActions}>
-            {onDiscardAll && (
-              <button
-                type="button"
-                className={cx(styles.headingAction, styles.headingActionDanger)}
-                disabled={!hasAnyChanges}
-                onClick={onDiscardAll}
-              >
-                すべて破棄
-              </button>
-            )}
-            {onDiscardSelected && (
-              <button
-                type="button"
-                className={cx(styles.headingAction, styles.headingActionDanger)}
-                disabled={unstagedSelection.paths.size === 0}
-                onClick={onDiscardSelected}
-              >
-                選択を破棄
-              </button>
-            )}
-            {showDiscardActions && <span className={styles.headingActionsSep} aria-hidden />}
             <button
               type="button"
               className={styles.headingAction}
@@ -159,6 +169,31 @@ export function ChangesPanel({
             >
               選択を追加
             </button>
+            {showDiscardActions ? (
+              <>
+                <span className={styles.headingActionsSep} aria-hidden="true" />
+                {onDiscardAll && (
+                  <button
+                    type="button"
+                    className={cx(styles.headingAction, styles.headingActionDanger)}
+                    disabled={!hasAnyChanges}
+                    onClick={onDiscardAll}
+                  >
+                    すべて破棄
+                  </button>
+                )}
+                {onDiscardSelected && (
+                  <button
+                    type="button"
+                    className={cx(styles.headingAction, styles.headingActionDanger)}
+                    disabled={unstagedSelection.paths.size === 0}
+                    onClick={onDiscardSelected}
+                  >
+                    選択を破棄
+                  </button>
+                )}
+              </>
+            ) : null}
           </span>
         </h2>
         <FileList
@@ -170,7 +205,7 @@ export function ChangesPanel({
           onFileClick={(path, index, event) =>
             onFileClick(path, index, 'unstaged', sortedUnstaged, event)
           }
-          onFileHover={onFileHover}
+          onFileHover={(path) => onFileHover?.(path, 'unstaged')}
           onFileContextMenu={(entry, event) => onFileContextMenu?.(entry, event, 'unstaged')}
           onStage={onStage}
         />

@@ -6,6 +6,10 @@ export function AbortMerge(arg1) {
   return window['go']['app']['App']['AbortMerge'](arg1);
 }
 
+export function AbortRebase(arg1) {
+  return window['go']['app']['App']['AbortRebase'](arg1);
+}
+
 export function AddRepository(arg1) {
   return window['go']['app']['App']['AddRepository'](arg1);
 }
@@ -28,6 +32,10 @@ export function CheckoutRemoteBranch(arg1, arg2) {
 
 export function Commit(arg1, arg2) {
   return window['go']['app']['App']['Commit'](arg1, arg2);
+}
+
+export function ContinueRebase(arg1) {
+  return window['go']['app']['App']['ContinueRebase'](arg1);
 }
 
 export function CreateBranch(arg1, arg2) {
@@ -98,6 +106,10 @@ export function GetRangeFileDiff(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['GetRangeFileDiff'](arg1, arg2, arg3, arg4);
 }
 
+export function GetRepoOperationState(arg1) {
+  return window['go']['app']['App']['GetRepoOperationState'](arg1);
+}
+
 export function GetSettings() {
   return window['go']['app']['App']['GetSettings']();
 }
@@ -108,6 +120,10 @@ export function GetStatus(arg1) {
 
 export function IsMerging(arg1) {
   return window['go']['app']['App']['IsMerging'](arg1);
+}
+
+export function IsRebasing(arg1) {
+  return window['go']['app']['App']['IsRebasing'](arg1);
 }
 
 export function ListBranchHeads(arg1) {
@@ -186,12 +202,20 @@ export function Pull(arg1) {
   return window['go']['app']['App']['Pull'](arg1);
 }
 
+export function PullRebase(arg1) {
+  return window['go']['app']['App']['PullRebase'](arg1);
+}
+
 export function Push(arg1) {
   return window['go']['app']['App']['Push'](arg1);
 }
 
 export function PushSetUpstream(arg1, arg2) {
   return window['go']['app']['App']['PushSetUpstream'](arg1, arg2);
+}
+
+export function RebaseBranch(arg1, arg2) {
+  return window['go']['app']['App']['RebaseBranch'](arg1, arg2);
 }
 
 export function RemoveRepository(arg1) {

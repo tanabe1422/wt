@@ -4,9 +4,11 @@ import { useState } from 'react'
 import { RemoteCleanupDialog } from './RemoteCleanupDialog'
 
 function InteractiveRemoteCleanup({
+  repositoryPath = 'C:/dev/sample-repo',
   worktreePath = 'C:/dev/sample-repo',
   initiallyOpen = true,
 }: {
+  repositoryPath?: string
   worktreePath?: string
   initiallyOpen?: boolean
 }) {
@@ -18,6 +20,7 @@ function InteractiveRemoteCleanup({
       </button>
       <RemoteCleanupDialog
         open={open}
+        repositoryPath={repositoryPath}
         worktreePath={worktreePath}
         onClose={() => setOpen(false)}
         onDeleted={() => {

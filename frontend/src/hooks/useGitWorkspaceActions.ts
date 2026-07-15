@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
 
-import type { ContextMenuEntry, ContextMenuItem } from '../components/ui/ContextMenu'
+import type { ContextMenuEntry } from '../components/ui/ContextMenu'
 import { invalidateWorktreeDiffs } from '../lib/diffCache'
 import {
   amendCommit,
   commit,
+  continueRebase,
   discardHunk,
   discardLines,
   getAmendInfo,
-  isMerging,
+  getRepoOperationState,
   openDifftool,
   openMergetool,
   push,
@@ -22,7 +23,7 @@ import {
   unstageHunk,
   unstageLines,
 } from '../lib/wails'
-import type { AmendInfo, FileStatus } from '../types'
+import type { AmendInfo, FileStatus, RepoOperationKind } from '../types'
 import { isConflict, isUntracked } from '../utils/gitStatus'
 import { worktreeFileDir } from '../utils/worktreePaths'
 
@@ -70,18 +71,19 @@ export function useGitWorkspaceActions({
   runBusy,
 }: UseGitWorkspaceActionsOptions) {
   const [externalToolError, setExternalToolError] = useState<string | null>(null)
-  const [merging, setMerging] = useState(false)
+  const [repoOperation, setRepoOperation] = useState<RepoOperationKind>('none')
   const [amendInfo, setAmendInfo] = useState<AmendInfo | null>(null)
 
-  const refreshMergeState = useCallback(async () => {
+  const refreshOperationState = useCallback(async () => {
     if (!worktreePath) {
-      setMerging(false)
+      setRepoOperation('none')
       return
     }
     try {
-      setMerging(await isMerging(worktreePath))
+      const state = await getRepoOperationState(worktreePath)
+      setRepoOperation(state.kind)
     } catch {
-      setMerging(false)
+      setRepoOperation('none')
     }
   }, [worktreePath])
 
@@ -102,12 +104,20 @@ export function useGitWorkspaceActions({
   }, [worktreePath])
 
   useEffect(() => {
-    void refreshMergeState()
-  }, [refreshMergeState, unstaged, staged])
+    void refreshOperationState()
+  }, [refreshOperationState, unstaged, staged])
 
   useEffect(() => {
     void refreshAmendInfo()
   }, [refreshAmendInfo, unstaged, staged])
+
+  const conflictCount = unstaged.filter(isConflict).length
+  const canContinueRebase =
+    repoOperation === 'rebase' && conflictCount === 0 && staged.length > 0
+  const commitBlockReason =
+    repoOperation === 'rebase'
+      ? 'リベース中はバナーの「続行」を使ってください'
+      : null
 
   const handleStage = useCallback(
     async (path: string) => {
@@ -203,7 +213,7 @@ export function useGitWorkspaceActions({
           await commit(worktreePath, message)
         }
         clearAll()
-        await Promise.all([reload(), refreshSidebar(), refreshAmendInfo()])
+        await Promise.all([reload(), refreshSidebar(), refreshAmendInfo(), refreshOperationState()])
         if (options.pushAfterCommit) {
           try {
             if (hasUpstream) {
@@ -219,8 +229,55 @@ export function useGitWorkspaceActions({
         }
       })
     },
-    [clearAll, hasUpstream, refreshAmendInfo, refreshSidebar, runBusy, worktreePath, reload],
+    [
+      clearAll,
+      hasUpstream,
+      refreshAmendInfo,
+      refreshOperationState,
+      refreshSidebar,
+      runBusy,
+      worktreePath,
+      reload,
+    ],
   )
+
+  const handleContinueRebase = useCallback(async () => {
+    if (!canContinueRebase) {
+      return
+    }
+    setExternalToolError(null)
+    await runBusy(async () => {
+      try {
+        await continueRebase(worktreePath)
+        invalidateWorktreeDiffs(worktreePath)
+        await Promise.all([
+          reload(),
+          refreshSidebar(),
+          reloadDiff(),
+          refreshOperationState(),
+          refreshAmendInfo(),
+        ])
+      } catch (err) {
+        const state = await getRepoOperationState(worktreePath)
+        if (state.kind === 'rebase') {
+          await Promise.all([reload(), refreshSidebar(), refreshOperationState()])
+          return
+        }
+        setExternalToolError(
+          err instanceof Error ? err.message : 'リベースの続行に失敗しました',
+        )
+      }
+    })
+  }, [
+    canContinueRebase,
+    refreshAmendInfo,
+    refreshOperationState,
+    refreshSidebar,
+    reload,
+    reloadDiff,
+    runBusy,
+    worktreePath,
+  ])
 
   const handleStageHunk = useCallback(
     async (hunkIndex: number) => {
@@ -319,7 +376,7 @@ export function useGitWorkspaceActions({
         try {
           await openMergetool(worktreePath, path)
           invalidateWorktreeDiffs(worktreePath)
-          await Promise.all([reload(), refreshSidebar(), reloadDiff(), refreshMergeState()])
+          await Promise.all([reload(), refreshSidebar(), reloadDiff(), refreshOperationState()])
         } catch (err) {
           setExternalToolError(
             err instanceof Error ? err.message : '外部ツールの起動に失敗しました',
@@ -327,7 +384,7 @@ export function useGitWorkspaceActions({
         }
       })
     },
-    [refreshMergeState, refreshSidebar, reload, reloadDiff, runBusy, worktreePath],
+    [refreshOperationState, refreshSidebar, reload, reloadDiff, runBusy, worktreePath],
   )
 
   const handleOpenDifftool = useCallback(
@@ -377,7 +434,7 @@ export function useGitWorkspaceActions({
       if (!isSelected) {
         setFocus(mode, entry.path)
       }
-      const showInExplorerItem: ContextMenuItem = {
+      const showInExplorerItem: ContextMenuEntry = {
         label: 'エクスプローラーで表示',
         onClick: () => {
           handleShowInExplorer(entry.path)
@@ -395,7 +452,7 @@ export function useGitWorkspaceActions({
         ])
         return
       }
-      const items: ContextMenuItem[] = [
+      const items: ContextMenuEntry[] = [
         {
           label: '差分を外部ツールで開く',
           onClick: () => {
@@ -437,10 +494,16 @@ export function useGitWorkspaceActions({
   )
 
   return {
-    merging,
+    repoOperation,
+    merging: repoOperation === 'merge',
+    rebasing: repoOperation === 'rebase',
+    canContinueRebase,
+    commitBlockReason,
     amendInfo,
     externalToolError,
-    refreshMergeState,
+    refreshOperationState,
+    refreshMergeState: refreshOperationState,
+    handleContinueRebase,
     handleStage,
     handleUnstage,
     handleStageSelected,

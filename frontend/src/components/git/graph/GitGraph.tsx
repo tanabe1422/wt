@@ -314,21 +314,21 @@ function buildGraph(
     compactLanes()
   }
 
-  const sorted = [...commits].sort(
-    (left, right) => new Date(right.date).getTime() - new Date(left.date).getTime(),
-  )
+  // Keep git log order (topo-order, newest first). Re-sorting by author date misaligns
+  // nodes with commit rows and breaks lane assignment (e.g. rebased commits).
+  const ordered = commits
 
-  sorted.forEach((commit, index) => {
+  ordered.forEach((commit, index) => {
     if (!commit.meta) {
       commit.meta = { yIndex: index, prev: [] }
     }
     commit.meta.yIndex = index
     for (const parentId of commit.parents) {
-      const parentIndex = sorted.findIndex((entry) => entry.id === parentId)
+      const parentIndex = ordered.findIndex((entry) => entry.id === parentId)
       if (parentIndex < 0) {
         continue
       }
-      const parent = sorted[parentIndex]
+      const parent = ordered[parentIndex]
       if (!parent.meta) {
         parent.meta = { yIndex: parentIndex, prev: [] }
       }
@@ -338,11 +338,11 @@ function buildGraph(
     }
   })
 
-  sorted.forEach((commit) => processNode(commit))
+  ordered.forEach((commit) => processNode(commit))
 
   // Parents outside the loaded window leave unfinished lanes in branchPool.
   // Extend those stubs to the bottom of the graph so lines don't look cut off.
-  const endY = sorted.length * rowHeight + padding.top
+  const endY = ordered.length * rowHeight + padding.top
   for (const [key, info] of Object.entries(branchPool)) {
     const targetX = info.xIndex * laneWidth + padding.left
     maxWidth = Math.max(maxWidth, targetX)

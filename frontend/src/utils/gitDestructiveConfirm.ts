@@ -6,7 +6,7 @@ export type ConfirmAction =
   | { kind: 'delete'; paths: string[] }
   | { kind: 'mixed'; discardPaths: string[]; deletePaths: string[] }
   | { kind: 'discardAll' }
-  | { kind: 'abort' }
+  | { kind: 'abort'; operation: 'merge' | 'rebase' }
 
 export function partitionDiscardPaths(
   paths: string[],
@@ -46,7 +46,7 @@ export function confirmActionFromPartition(
 
 export function confirmDialogTitle(action: ConfirmAction | null): string {
   if (action?.kind === 'abort') {
-    return 'マージを中止'
+    return action.operation === 'rebase' ? 'リベースを中止' : 'マージを中止'
   }
   if (action?.kind === 'discardAll') {
     return 'すべて破棄'
@@ -65,6 +65,9 @@ export function confirmDialogMessage(action: ConfirmAction | null): string {
     return ''
   }
   if (action.kind === 'abort') {
+    if (action.operation === 'rebase') {
+      return '進行中のリベースを中止しますか？ブランチはリベース開始前の状態に戻ります。'
+    }
     return '進行中のマージを中止しますか？競合の解決内容は失われます。'
   }
   if (action.kind === 'discardAll') {

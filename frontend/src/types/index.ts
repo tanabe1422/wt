@@ -23,6 +23,12 @@ export interface AmendInfo {
   headMessage: string
 }
 
+export type RepoOperationKind = 'none' | 'merge' | 'rebase'
+
+export interface RepoOperationState {
+  kind: RepoOperationKind
+}
+
 export interface BranchEntry {
   name: string
   isCurrent: boolean

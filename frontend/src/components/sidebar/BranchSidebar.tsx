@@ -4,7 +4,9 @@ import { useErrorDialog } from '../../hooks/useErrorDialog'
 import { useBranchActions } from '../../hooks/useBranchActions'
 import { useBranchContextMenu } from '../../hooks/useBranchContextMenu'
 import { useStashActions } from '../../hooks/useStashActions'
+import { useToast } from '../../hooks/useToast'
 import { useWorktreeDialogs } from '../../hooks/useWorktreeDialogs'
+import { getRepoOperationState } from '../../lib/wails'
 import type { BranchEntry, WorktreeEntry } from '../../types'
 import {
   collectWorktreeBranches,
@@ -61,7 +63,12 @@ export function BranchSidebar({
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [forceDelete, setForceDelete] = useState(false)
   const [renameTarget, setRenameTarget] = useState<string | null>(null)
+  const [rebaseTarget, setRebaseTarget] = useState<string | null>(null)
   const [filterQuery, setFilterQuery] = useState('')
+  const toast = useToast()
+
+  const currentBranchEntry = branches.find((entry) => entry.isCurrent && !entry.isRemote)
+  const currentHasUpstream = currentBranchEntry?.hasUpstream ?? false
 
   const handleBranchSuccess = useCallback(async () => {
     await onReload()
@@ -149,7 +156,15 @@ export function BranchSidebar({
       void branchActions.merge(branch)
     },
     onSquashMerge: (branch) => {
-      void branchActions.squashMerge(branch)
+      void (async () => {
+        const ok = await branchActions.squashMerge(branch)
+        if (ok) {
+          toast.success('スカッシュマージしました。コミットしてください。')
+        }
+      })()
+    },
+    onRebase: (branch) => {
+      setRebaseTarget(branch)
     },
     onRename: (branch) => {
       setRenameTarget(branch)
@@ -173,6 +188,9 @@ export function BranchSidebar({
       void worktreeDialogs.openWorktreeCheckout(branch, true)
     },
     onCompareWithCurrent,
+    onRebase: (branch) => {
+      setRebaseTarget(branch)
+    },
   })
 
   const handleActivateRemote = useCallback(
@@ -218,6 +236,36 @@ export function BranchSidebar({
       }
     })()
   }
+
+  const handleConfirmRebase = () => {
+    if (!rebaseTarget || !checkedOutBranch) {
+      setRebaseTarget(null)
+      return
+    }
+    const upstream = rebaseTarget
+    setRebaseTarget(null)
+    void (async () => {
+      const ok = await branchActions.rebase(upstream)
+      if (!ok || !actionWorktreePath) {
+        return
+      }
+      const state = await getRepoOperationState(actionWorktreePath)
+      if (state.kind === 'none') {
+        toast.success('リベースが完了しました')
+      }
+    })()
+  }
+
+  const rebaseConfirmMessage = rebaseTarget && checkedOutBranch
+    ? [
+        `「${checkedOutBranch}」を「${rebaseTarget}」の上にリベースしますか？`,
+        currentHasUpstream
+          ? 'リモートに push 済みの場合、リベース後は force push が必要になることがあります。'
+          : null,
+      ]
+        .filter(Boolean)
+        .join('\n')
+    : ''
 
   return (
     <div className={styles.panel}>
@@ -279,6 +327,10 @@ export function BranchSidebar({
         renameTarget={renameTarget}
         onConfirmRename={handleConfirmRename}
         onCancelRename={() => setRenameTarget(null)}
+        rebaseTarget={rebaseTarget}
+        rebaseConfirmMessage={rebaseConfirmMessage}
+        onConfirmRebase={handleConfirmRebase}
+        onCancelRebase={() => setRebaseTarget(null)}
         removeWorktreeTarget={worktreeDialogs.removeWorktreeTarget}
         forceRemoveWorktree={worktreeDialogs.forceRemoveWorktree}
         onForceRemoveWorktreeChange={worktreeDialogs.setForceRemoveWorktree}

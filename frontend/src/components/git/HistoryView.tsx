@@ -7,7 +7,7 @@ import { useErrorDialog } from '../../hooks/useErrorDialog'
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll'
 import { useResizableSplit } from '../../hooks/useResizableSplit'
 import { errorMessage } from '../../lib/errorMessage'
-import { resetToCommit } from '../../lib/wails'
+import { getRepoOperationState, resetToCommit } from '../../lib/wails'
 import type { CommitSearchType, HistoryScope } from '../../types'
 import { shortSha } from '../../utils/commitGraph'
 import { cx } from '../../utils/cx'
@@ -168,6 +168,7 @@ export function HistoryView({
   const [selectedSha, setSelectedSha] = useState<string | null>(null)
   const [detailMode, setDetailMode] = useState<DetailMode | null>(null)
   const [resetTarget, setResetTarget] = useState<string | null>(null)
+  const [rebasing, setRebasing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [acting, setActing] = useState(false)
   const { ratio: treeRatio, resizing, splitRef, handleResizeStart } = useResizableSplit({
@@ -201,6 +202,16 @@ export function HistoryView({
   const searching = activeSearchQuery !== ''
   const highlightPathQuery =
     searchType === 'path' && activeSearchQuery !== '' ? activeSearchQuery : ''
+
+  useEffect(() => {
+    if (!worktreePath) {
+      setRebasing(false)
+      return
+    }
+    void getRepoOperationState(worktreePath)
+      .then((state) => setRebasing(state.kind === 'rebase'))
+      .catch(() => setRebasing(false))
+  }, [worktreePath, commits, loading])
 
   useEffect(() => {
     setSelectedSha(null)
@@ -277,12 +288,13 @@ export function HistoryView({
         { type: 'separator' },
         {
           label: 'このコミットまでリセット',
+          disabled: rebasing,
           onClick: () => setResetTarget(sha),
         },
       )
       openMenu(event.clientX, event.clientY, items)
     },
-    [currentBranch, onCompareRequestConsumed, openMenu, selectedSha],
+    [currentBranch, onCompareRequestConsumed, openMenu, rebasing, selectedSha],
   )
 
   const handleResetConfirm = async (mode: ResetMode) => {

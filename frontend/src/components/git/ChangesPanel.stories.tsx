@@ -86,11 +86,11 @@ function ChangesPanelDemo({
           onUnstageAll={noop}
           onDiscardSelected={noop}
           onDiscardAll={noop}
-          onAbortMerge={
+          onAbortOperation={
             unstaged.some((entry) => isConflict(entry)) ? noop : undefined
           }
           conflictCount={unstaged.filter((entry) => isConflict(entry)).length}
-          merging={unstaged.some((entry) => isConflict(entry))}
+          repoOperation={unstaged.some((entry) => isConflict(entry)) ? 'merge' : 'none'}
         />
       </div>
       {menu && (
@@ -185,4 +185,49 @@ export const ConflictOnly: Story = {
     unstaged: conflictFiles,
     hint: '衝突ファイルのみ（ステージ済みは空）',
   },
+}
+
+export const RebaseConflict: Story = {
+  name: 'リベース競合',
+  args: {
+    staged: [],
+    unstaged: conflictFiles,
+    hint: '静止画。操作フロー全体は Git/RebaseFlow →「リベース → 競合解決 → Push」を参照。',
+  },
+  render: (args) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: 360 }}>
+      {args.hint ? (
+        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-slate-600)' }}>{args.hint}</p>
+      ) : null}
+      <div
+        style={{
+          height: 420,
+          border: '1px solid var(--color-slate-200)',
+          borderRadius: '0.375rem',
+          overflow: 'hidden',
+          background: 'var(--color-surface-main)',
+        }}
+      >
+        <ChangesPanel
+          staged={args.staged}
+          unstaged={args.unstaged}
+          loading={false}
+          stagedSelection={emptySelection}
+          unstagedSelection={selectionFor(args.unstaged[0]?.path ?? null)}
+          repoOperation="rebase"
+          conflictCount={args.unstaged.length}
+          canContinueRebase={false}
+          onFileClick={noop}
+          onStage={noop}
+          onUnstage={noop}
+          onStageSelected={noop}
+          onUnstageSelected={noop}
+          onStageAll={noop}
+          onUnstageAll={noop}
+          onContinueRebase={noop}
+          onAbortOperation={noop}
+        />
+      </div>
+    </div>
+  ),
 }

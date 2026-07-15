@@ -130,6 +130,35 @@
   text-decoration: underline;
 }
 
+.bannerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.bannerContinue {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--font-size-grid-header);
+  font-weight: 500;
+  color: var(--color-blue-600);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.bannerContinue:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.bannerContinue:disabled {
+  color: var(--color-slate-400);
+  cursor: default;
+}
+
 .error {
   margin: 0;
   padding: 0.5rem 0.75rem;
