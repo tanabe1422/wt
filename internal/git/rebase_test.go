@@ -109,7 +109,7 @@ func TestAbortRebase(t *testing.T) {
 
 func TestPullRebaseArgs(t *testing.T) {
 	args := pullRebaseArgs()
-	if len(args) != 2 || args[0] != "pull" || args[1] != "--rebase" {
+	if len(args) != 3 || args[0] != "pull" || args[1] != "--rebase" || args[2] != "--progress" {
 		t.Fatalf("unexpected pull rebase args: %v", args)
 	}
 }
@@ -117,13 +117,13 @@ func TestPullRebaseArgs(t *testing.T) {
 func TestPullRebase(t *testing.T) {
 	dir := t.TempDir()
 	fake := newFakeRunner()
-	fake.On("pull", "--rebase").Return("", nil)
+	fake.On("pull", "--rebase", "--progress").Return("", nil)
 	withFakeRunner(t, fake)
 
 	if err := PullRebase(dir); err != nil {
 		t.Fatalf("PullRebase: %v", err)
 	}
-	fake.AssertCalled(t, "pull", "--rebase")
+	fake.AssertCalled(t, "pull", "--rebase", "--progress")
 }
 
 func TestAmendBlockReasonWhileRebasing(t *testing.T) {

@@ -38,6 +38,8 @@ function isWailsRuntime(): boolean {
   return typeof window.go?.app?.App !== 'undefined'
 }
 
+export { isWailsRuntime }
+
 async function callApp<T>(method: keyof WailsApp, ...args: unknown[]): Promise<T> {
   const wailsApp = window.go?.app?.App
   if (wailsApp) {

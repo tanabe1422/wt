@@ -100,6 +100,16 @@ func (f *fakeRunner) Run(dir, stdin string, extraOKExit int, args ...string) (st
 	return "", "", errors.New("unexpected git " + strings.Join(args, " "))
 }
 
+func (f *fakeRunner) RunProgress(dir string, onLine ProgressFunc, args ...string) (string, string, error) {
+	stdout, stderr, err := f.Run(dir, "", 0, args...)
+	if onLine != nil {
+		for _, line := range splitProgressLines(stderr) {
+			onLine(line)
+		}
+	}
+	return stdout, stderr, err
+}
+
 func argsHasPrefix(args, prefix []string) bool {
 	if len(args) < len(prefix) {
 		return false

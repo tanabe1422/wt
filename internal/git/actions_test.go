@@ -123,15 +123,15 @@ func TestUnstageAll(t *testing.T) {
 
 func TestFetchArgs(t *testing.T) {
 	args := fetchArgs(false)
-	if len(args) != 1 || args[0] != "fetch" {
-		t.Fatalf("fetchArgs(false)=%v want [fetch]", args)
+	if len(args) != 2 || args[0] != "fetch" || args[1] != "--progress" {
+		t.Fatalf("fetchArgs(false)=%v want [fetch --progress]", args)
 	}
 }
 
 func TestFetchPruneArgs(t *testing.T) {
 	args := fetchArgs(true)
-	if len(args) != 2 || args[0] != "fetch" || args[1] != "--prune" {
-		t.Fatalf("fetchArgs(true)=%v want [fetch --prune]", args)
+	if len(args) != 3 || args[0] != "fetch" || args[1] != "--prune" || args[2] != "--progress" {
+		t.Fatalf("fetchArgs(true)=%v want [fetch --prune --progress]", args)
 	}
 }
 
@@ -163,15 +163,15 @@ func TestParsePrunedRefsEmpty(t *testing.T) {
 
 func TestPullArgs(t *testing.T) {
 	args := pullArgs()
-	if len(args) != 1 || args[0] != "pull" {
-		t.Fatalf("pullArgs()=%v want [pull]", args)
+	if len(args) != 2 || args[0] != "pull" || args[1] != "--progress" {
+		t.Fatalf("pullArgs()=%v want [pull --progress]", args)
 	}
 }
 
 func TestPushArgs(t *testing.T) {
 	args := pushArgs()
-	if len(args) != 1 || args[0] != "push" {
-		t.Fatalf("pushArgs()=%v want [push]", args)
+	if len(args) != 2 || args[0] != "push" || args[1] != "--progress" {
+		t.Fatalf("pushArgs()=%v want [push --progress]", args)
 	}
 }
 
@@ -180,10 +180,10 @@ func TestPushSetUpstreamArgs(t *testing.T) {
 		remote string
 		want   []string
 	}{
-		{"", []string{"push", "-u", "origin", "HEAD"}},
-		{"  ", []string{"push", "-u", "origin", "HEAD"}},
-		{"upstream", []string{"push", "-u", "upstream", "HEAD"}},
-		{"  origin  ", []string{"push", "-u", "origin", "HEAD"}},
+		{"", []string{"push", "--progress", "-u", "origin", "HEAD"}},
+		{"  ", []string{"push", "--progress", "-u", "origin", "HEAD"}},
+		{"upstream", []string{"push", "--progress", "-u", "upstream", "HEAD"}},
+		{"  origin  ", []string{"push", "--progress", "-u", "origin", "HEAD"}},
 	}
 	for _, tc := range tests {
 		got := pushSetUpstreamArgs(tc.remote)

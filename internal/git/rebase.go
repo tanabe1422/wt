@@ -130,14 +130,19 @@ func AbortRebase(worktreePath string) error {
 
 // PullRebase pulls from upstream with rebase.
 func PullRebase(worktreePath string) error {
+	return PullRebaseWithProgress(worktreePath, nil)
+}
+
+// PullRebaseWithProgress pulls with rebase and reports stderr progress lines.
+func PullRebaseWithProgress(worktreePath string, onProgress ProgressFunc) error {
 	dir, err := filepath.Abs(filepath.Clean(worktreePath))
 	if err != nil {
 		return err
 	}
-	_, err = runGit(dir, pullRebaseArgs()...)
+	_, err = runGitProgress(dir, onProgress, pullRebaseArgs()...)
 	return err
 }
 
 func pullRebaseArgs() []string {
-	return []string{"pull", "--rebase"}
+	return []string{"pull", "--rebase", "--progress"}
 }

@@ -11,6 +11,7 @@ import (
 // gitRunner executes git commands. Tests replace defaultRunner with a fake.
 type gitRunner interface {
 	Run(dir, stdin string, extraOKExit int, args ...string) (stdout, stderr string, err error)
+	RunProgress(dir string, onLine ProgressFunc, args ...string) (stdout, stderr string, err error)
 }
 
 type realRunner struct{}
@@ -35,6 +36,39 @@ func (realRunner) Run(dir, stdin string, extraOKExit int, args ...string) (strin
 		msg := strings.TrimSpace(errBuf.String())
 		if msg == "" {
 			msg = err.Error()
+		}
+		return "", "", errors.New(msg)
+	}
+	return strings.TrimSuffix(outBuf.String(), "\n"), strings.TrimSuffix(errBuf.String(), "\n"), nil
+}
+
+func (realRunner) RunProgress(dir string, onLine ProgressFunc, args ...string) (string, string, error) {
+	cmd := exec.Command("git", args...)
+	configureCmd(cmd)
+	cmd.Dir = dir
+
+	var outBuf bytes.Buffer
+	var errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return "", "", err
+	}
+
+	if err := cmd.Start(); err != nil {
+		return "", "", err
+	}
+
+	scanErr := scanProgressStream(stderrPipe, &errBuf, onLine)
+	waitErr := cmd.Wait()
+	if scanErr != nil && waitErr == nil {
+		waitErr = scanErr
+	}
+	if waitErr != nil {
+		msg := strings.TrimSpace(errBuf.String())
+		if msg == "" {
+			msg = waitErr.Error()
 		}
 		return "", "", errors.New(msg)
 	}

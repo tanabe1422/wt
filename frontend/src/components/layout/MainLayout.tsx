@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { ToastRoot } from '../../hooks/useToast'
+import { BusyProgressText, type BusyMessageAppearance } from './BusyProgressText'
 import { CollapsibleSidebar, SidebarProvider } from './CollapsibleSidebar'
 import styles from './MainLayout.module.css'
 
@@ -10,6 +11,8 @@ interface MainLayoutProps {
   toolbar?: ReactNode
   workspaceToolbar?: ReactNode
   busy?: boolean
+  busyMessage?: string
+  busyMessageAppearance?: BusyMessageAppearance
 }
 
 export function MainLayout({
@@ -18,6 +21,8 @@ export function MainLayout({
   toolbar,
   workspaceToolbar,
   busy = false,
+  busyMessage = '',
+  busyMessageAppearance = 'chip',
 }: MainLayoutProps) {
   return (
     <SidebarProvider>
@@ -30,7 +35,10 @@ export function MainLayout({
           <ToastRoot />
           {busy && (
             <div className={styles.busyOverlay} role="status" aria-live="polite" aria-label="更新中">
-              <span className={styles.spinner} aria-hidden="true" />
+              <div className={styles.busyContent}>
+                <span className={styles.spinner} aria-hidden="true" />
+                <BusyProgressText message={busyMessage} appearance={busyMessageAppearance} />
+              </div>
             </div>
           )}
         </div>

@@ -22,6 +22,15 @@
   pointer-events: all;
 }
 
+.busyContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  max-width: min(36rem, calc(100% - 2rem));
+  padding: 0 1rem;
+}
+
 .spinner {
   width: 3.5rem;
   height: 3.5rem;
@@ -29,6 +38,7 @@
   border-top-color: var(--color-blue-600);
   border-radius: 50%;
   animation: mainLayoutSpin 0.7s linear infinite;
+  flex-shrink: 0;
 }
 
 @keyframes mainLayoutSpin {

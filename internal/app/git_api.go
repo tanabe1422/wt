@@ -174,28 +174,44 @@ func (a *App) AmendCommit(worktreePath, message string) error {
 }
 
 func (a *App) Fetch(worktreePath string) error {
-	return withWorktree(worktreePath, git.Fetch)
+	return withWorktree(worktreePath, func(dir string) error {
+		a.emitGitProgress("フェッチしています…")
+		return git.FetchWithProgress(dir, a.emitGitProgress)
+	})
 }
 
 func (a *App) FetchPrune(worktreePath string) ([]string, error) {
-	return withWorktreeResult(worktreePath, git.FetchPrune)
+	return withWorktreeResult(worktreePath, func(dir string) ([]string, error) {
+		a.emitGitProgress("フェッチしています…")
+		return git.FetchPruneWithProgress(dir, a.emitGitProgress)
+	})
 }
 
 func (a *App) Pull(worktreePath string) error {
-	return withWorktree(worktreePath, git.Pull)
+	return withWorktree(worktreePath, func(dir string) error {
+		a.emitGitProgress("プルしています…")
+		return git.PullWithProgress(dir, a.emitGitProgress)
+	})
 }
 
 func (a *App) PullRebase(worktreePath string) error {
-	return withWorktree(worktreePath, git.PullRebase)
+	return withWorktree(worktreePath, func(dir string) error {
+		a.emitGitProgress("プルしています…")
+		return git.PullRebaseWithProgress(dir, a.emitGitProgress)
+	})
 }
 
 func (a *App) Push(worktreePath string) error {
-	return withWorktree(worktreePath, git.Push)
+	return withWorktree(worktreePath, func(dir string) error {
+		a.emitGitProgress("プッシュしています…")
+		return git.PushWithProgress(dir, a.emitGitProgress)
+	})
 }
 
 func (a *App) PushSetUpstream(worktreePath, remote string) error {
 	return withWorktree(worktreePath, func(dir string) error {
-		return git.PushSetUpstream(dir, remote)
+		a.emitGitProgress("プッシュしています…")
+		return git.PushSetUpstreamWithProgress(dir, remote, a.emitGitProgress)
 	})
 }
 

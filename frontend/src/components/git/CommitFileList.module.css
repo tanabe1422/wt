@@ -51,7 +51,7 @@
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
-  padding: 0.375rem 0.5rem 0.375rem 0.75rem;
+  padding: var(--git-file-row-padding-y) 0.5rem var(--git-file-row-padding-y) 0.75rem;
   text-align: left;
 }
 
@@ -71,5 +71,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--font-size-git-file);
+  line-height: 1.25;
   color: var(--color-slate-800);
 }

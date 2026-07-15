@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { MainLayout } from './components/layout/MainLayout'
 import { GitWorkspace } from './components/git/GitWorkspace'
@@ -16,7 +16,15 @@ import { useRepoSidebar } from './hooks/useRepoSidebar'
 import { useRepoTabs } from './hooks/useRepoTabs'
 import { invalidateRepoCaches } from './lib/repoDataCache'
 import { prefetchRepo } from './lib/repoPrefetch'
+import { isWailsRuntime } from './lib/wails'
+import { EventsOn } from '../wailsjs/runtime/runtime'
 import styles from './App.module.css'
+
+const GIT_PROGRESS_EVENT = 'git:progress'
+
+interface GitProgressPayload {
+  message?: string
+}
 
 function AppShell() {
   const [mainView, setMainView] = useState<MainView>('files')
@@ -25,6 +33,7 @@ function AppShell() {
   const [workspaceBusy, setWorkspaceBusy] = useState(false)
   const [toolbarBusy, setToolbarBusy] = useState(false)
   const [sidebarBusy, setSidebarBusy] = useState(false)
+  const [busyMessage, setBusyMessage] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [compareRequest, setCompareRequest] = useState<CompareRange | null>(null)
   const handleWorkspaceBusyChange = useCallback((busy: boolean) => {
@@ -39,6 +48,26 @@ function AppShell() {
   const handleCompareRequestConsumed = useCallback(() => {
     setCompareRequest(null)
   }, [])
+
+  const overlayBusy = workspaceBusy || toolbarBusy || sidebarBusy
+
+  useEffect(() => {
+    if (!isWailsRuntime()) {
+      return
+    }
+    return EventsOn(GIT_PROGRESS_EVENT, (payload: GitProgressPayload) => {
+      const message = typeof payload?.message === 'string' ? payload.message.trim() : ''
+      if (message) {
+        setBusyMessage(message)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!overlayBusy) {
+      setBusyMessage('')
+    }
+  }, [overlayBusy])
   const {
     settings,
     repositories,
@@ -164,7 +193,8 @@ function AppShell() {
   return (
     <>
       <MainLayout
-        busy={workspaceBusy || toolbarBusy || sidebarBusy}
+        busy={overlayBusy}
+        busyMessage={busyMessage}
         toolbar={
           <RepoTabBar
             repositories={repositories}
