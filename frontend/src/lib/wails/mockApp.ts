@@ -415,6 +415,22 @@ export const mockApp: WailsApp = {
     return mockWorktreeList.map((entry) => ({ ...entry }))
   },
 
+  async ListWorktreesMeta(repoPath: string) {
+    const entries = await mockApp.ListWorktrees(repoPath)
+    return entries.map((entry) => ({ ...entry, changedFileCount: 0 }))
+  },
+
+  async GetWorktreeChangedCount(worktreePath: string) {
+    const root = mockSettings.activeRepository || 'C:/dev/sample-repo'
+    if (worktreePath === root || normalizePath(worktreePath) === normalizePath(root)) {
+      return mockStatus.length
+    }
+    const entry = mockWorktreeList.find(
+      (item) => normalizePath(item.path) === normalizePath(worktreePath),
+    )
+    return entry?.changedFileCount ?? 0
+  },
+
   async DefaultWorktreePath(repoPath: string, branch: string) {
     const root = repoPath || mockSettings.activeRepository || 'C:/dev/sample-repo'
     const parent = root.replace(/[/\\][^/\\]+$/, '')

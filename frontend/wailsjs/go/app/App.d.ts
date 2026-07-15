@@ -61,6 +61,8 @@ export function GetSettings():Promise<config.Settings>;
 
 export function GetStatus(arg1:string):Promise<Array<git.FileStatus>>;
 
+export function GetWorktreeChangedCount(arg1:string):Promise<number>;
+
 export function IsMerging(arg1:string):Promise<boolean>;
 
 export function IsRebasing(arg1:string):Promise<boolean>;
@@ -80,6 +82,8 @@ export function ListRemoteMergeStatus(arg1:string,arg2:string,arg3:string):Promi
 export function ListStashes(arg1:string):Promise<Array<git.StashEntry>>;
 
 export function ListWorktrees(arg1:string):Promise<Array<git.WorktreeEntry>>;
+
+export function ListWorktreesMeta(arg1:string):Promise<Array<git.WorktreeEntry>>;
 
 export function MergeBranch(arg1:string,arg2:string):Promise<void>;
 

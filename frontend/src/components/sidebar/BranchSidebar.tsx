@@ -28,8 +28,12 @@ interface BranchSidebarProps {
   onSelectBranch: (fullName: string) => void
   selectedWorktree: string | null
   onSelectWorktree: (path: string) => void
+  /** フルサイドバー更新（WF: branches + 全 WT status） */
   onReload: () => void | Promise<void>
-  onBranchChanged?: () => void
+  /** 軽量更新: branches + 現行 WT バッジ + workspace content */
+  onLightRefresh?: () => void | Promise<void>
+  /** 同一 WT 内のコンテンツ変更通知（remount しない） */
+  onWorkspaceContentChanged?: () => void
   onBusyChange?: (busy: boolean) => void
   compareFromRef?: string | null
   onCompareWithCurrent?: (branch: string) => void
@@ -46,7 +50,8 @@ export function BranchSidebar({
   selectedWorktree,
   onSelectWorktree,
   onReload,
-  onBranchChanged,
+  onLightRefresh,
+  onWorkspaceContentChanged,
   onBusyChange,
   compareFromRef,
   onCompareWithCurrent,
@@ -70,14 +75,24 @@ export function BranchSidebar({
   const currentBranchEntry = branches.find((entry) => entry.isCurrent && !entry.isRemote)
   const currentHasUpstream = currentBranchEntry?.hasUpstream ?? false
 
-  const handleBranchSuccess = useCallback(async () => {
+  const handleLightSuccess = useCallback(async () => {
+    if (onLightRefresh) {
+      await onLightRefresh()
+      return
+    }
     await onReload()
-    onBranchChanged?.()
-  }, [onBranchChanged, onReload])
+    onWorkspaceContentChanged?.()
+  }, [onLightRefresh, onReload, onWorkspaceContentChanged])
+
+  const handleStructureSuccess = useCallback(async () => {
+    await onReload()
+    onWorkspaceContentChanged?.()
+  }, [onReload, onWorkspaceContentChanged])
 
   const branchActions = useBranchActions({
     worktreePath: actionWorktreePath,
-    onSuccess: handleBranchSuccess,
+    onSuccess: handleLightSuccess,
+    onStructureChanged: handleStructureSuccess,
   })
   const actionErrorDialog = useErrorDialog(branchActions.error)
 
@@ -88,14 +103,14 @@ export function BranchSidebar({
     onSelectWorktree,
     onSelectBranch,
     onReload,
-    onBranchChanged,
+    onBranchChanged: onWorkspaceContentChanged,
   })
   const worktreeErrorDialog = useErrorDialog(worktreeDialogs.worktreeError)
 
   const stashActions = useStashActions({
     worktreePath: actionWorktreePath,
     reloadToken: `${activeRepository}:${actionWorktreePath ?? ''}:${loading ? '1' : '0'}`,
-    onSuccess: handleBranchSuccess,
+    onSuccess: handleLightSuccess,
   })
 
   const sidebarBusy =

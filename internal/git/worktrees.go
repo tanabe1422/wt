@@ -22,12 +22,23 @@ type WorktreeEntry struct {
 // ListWorktrees returns all worktrees for the repository at repoPath,
 // including a changed-file badge count for each worktree.
 func ListWorktrees(repoPath string) ([]WorktreeEntry, error) {
-	entries, err := listWorktreesMeta(repoPath)
+	entries, err := ListWorktreesMeta(repoPath)
 	if err != nil {
 		return nil, err
 	}
 	fillChangedFileCounts(entries)
 	return entries, nil
+}
+
+// ListWorktreesMeta lists worktrees without running git status per entry.
+// Use this when only path/branch metadata is needed; badge counts stay 0.
+func ListWorktreesMeta(repoPath string) ([]WorktreeEntry, error) {
+	return listWorktreesMeta(repoPath)
+}
+
+// GetWorktreeChangedCount returns the changed-file badge count for one worktree.
+func GetWorktreeChangedCount(worktreePath string) (int, error) {
+	return countChangedFiles(worktreePath)
 }
 
 // listWorktreesMeta lists worktrees without running git status per entry.

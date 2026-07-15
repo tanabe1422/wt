@@ -118,6 +118,10 @@ export function GetStatus(arg1) {
   return window['go']['app']['App']['GetStatus'](arg1);
 }
 
+export function GetWorktreeChangedCount(arg1) {
+  return window['go']['app']['App']['GetWorktreeChangedCount'](arg1);
+}
+
 export function IsMerging(arg1) {
   return window['go']['app']['App']['IsMerging'](arg1);
 }
@@ -156,6 +160,10 @@ export function ListStashes(arg1) {
 
 export function ListWorktrees(arg1) {
   return window['go']['app']['App']['ListWorktrees'](arg1);
+}
+
+export function ListWorktreesMeta(arg1) {
+  return window['go']['app']['App']['ListWorktreesMeta'](arg1);
 }
 
 export function MergeBranch(arg1, arg2) {

@@ -16,9 +16,10 @@ import styles from './GitSyncToolbar.module.css'
 
 /** 同期操作後の再読込範囲。
  * - sidebar: ブランチ情報のみ（ahead/behind）。全 WT の status は走らせない
- * - workspace: サイドバー全体 + ワークスペース再読込
+ * - light: ブランチ + 現行 WT バッジ + workspace content（全 WT status なし）
+ * - workspace: サイドバー全体 + ワークスペース再同期
  */
-export type SyncRefreshScope = 'sidebar' | 'workspace'
+export type SyncRefreshScope = 'sidebar' | 'light' | 'workspace'
 
 interface GitSyncToolbarProps {
   worktreePath: string
@@ -270,8 +271,8 @@ export function GitSyncToolbar({
       setActionTitle(actionTitles[action])
       setActionError(err instanceof Error ? err.message : '操作に失敗しました')
     } finally {
-      // pull は作業ツリーが変わる。fetch は ahead/behind だけ。
-      await finishAction(action === 'pull' ? 'workspace' : 'sidebar')
+      // pull は作業ツリーが変わるが、全 WT status は不要（light = B + W1 + content）。
+      await finishAction(action === 'pull' ? 'light' : 'sidebar')
     }
   }
 
@@ -326,7 +327,7 @@ export function GitSyncToolbar({
         setActionError(err instanceof Error ? err.message : 'プル（rebase）に失敗しました')
       }
     } finally {
-      await finishAction('workspace')
+      await finishAction('light')
     }
   }
 
@@ -360,7 +361,7 @@ export function GitSyncToolbar({
       setActionTitle('スタッシュに失敗しました')
       setActionError(err instanceof Error ? err.message : 'スタッシュに失敗しました')
     } finally {
-      await finishAction('workspace')
+      await finishAction('light')
     }
   }
 

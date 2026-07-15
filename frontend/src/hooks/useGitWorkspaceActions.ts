@@ -39,7 +39,10 @@ interface UseGitWorkspaceActionsOptions {
   unstage: (paths: string[]) => Promise<void>
   reload: () => Promise<void>
   reloadDiff: () => Promise<void>
-  refreshSidebar: () => Promise<void>
+  /** 現行 WT の変更ファイル数バッジのみ更新（全 WT status は走らない） */
+  refreshBadge: () => Promise<void>
+  /** ahead/behind・isCurrent 更新 */
+  refreshBranches: () => Promise<void>
   clearAll: () => void
   clearSection: (section: 'staged' | 'unstaged') => void
   setFocus: (section: 'staged' | 'unstaged', path: string) => void
@@ -61,7 +64,8 @@ export function useGitWorkspaceActions({
   unstage,
   reload,
   reloadDiff,
-  refreshSidebar,
+  refreshBadge,
+  refreshBranches,
   clearAll,
   clearSection,
   setFocus,
@@ -119,26 +123,35 @@ export function useGitWorkspaceActions({
       ? 'リベース中はバナーの「続行」を使ってください'
       : null
 
+  /** Git 操作は busy、リフレッシュは busy 解除後（体感ブロック短縮） */
+  const afterStatusAndBadge = useCallback(async () => {
+    await Promise.all([reload(), refreshBadge()])
+  }, [reload, refreshBadge])
+
+  const afterStatusBadgeDiff = useCallback(async () => {
+    await Promise.all([reload(), refreshBadge(), reloadDiff()])
+  }, [reload, refreshBadge, reloadDiff])
+
   const handleStage = useCallback(
     async (path: string) => {
       await runBusy(async () => {
         await stage([path])
-        await refreshSidebar()
-        setFocus('staged', path)
       })
+      setFocus('staged', path)
+      void refreshBadge()
     },
-    [refreshSidebar, runBusy, setFocus, stage],
+    [refreshBadge, runBusy, setFocus, stage],
   )
 
   const handleUnstage = useCallback(
     async (path: string) => {
       await runBusy(async () => {
         await unstage([path])
-        await refreshSidebar()
-        setFocus('unstaged', path)
       })
+      setFocus('unstaged', path)
+      void refreshBadge()
     },
-    [refreshSidebar, runBusy, setFocus, unstage],
+    [refreshBadge, runBusy, setFocus, unstage],
   )
 
   const handleStageSelected = useCallback(async () => {
@@ -151,10 +164,10 @@ export function useGitWorkspaceActions({
     }
     await runBusy(async () => {
       await stage(paths)
-      await refreshSidebar()
-      setFocus('staged', paths[paths.length - 1])
     })
-  }, [refreshSidebar, runBusy, setFocus, stage, unstaged, unstagedSelectionPaths])
+    setFocus('staged', paths[paths.length - 1])
+    void refreshBadge()
+  }, [refreshBadge, runBusy, setFocus, stage, unstaged, unstagedSelectionPaths])
 
   const handleUnstageSelected = useCallback(async () => {
     const paths = [...stagedSelectionPaths]
@@ -163,10 +176,10 @@ export function useGitWorkspaceActions({
     }
     await runBusy(async () => {
       await unstage(paths)
-      await refreshSidebar()
-      setFocus('unstaged', paths[paths.length - 1])
     })
-  }, [refreshSidebar, runBusy, setFocus, stagedSelectionPaths, unstage])
+    setFocus('unstaged', paths[paths.length - 1])
+    void refreshBadge()
+  }, [refreshBadge, runBusy, setFocus, stagedSelectionPaths, unstage])
 
   const handleStageAll = useCallback(async () => {
     if (!unstaged.some((entry) => !isConflict(entry))) {
@@ -176,15 +189,16 @@ export function useGitWorkspaceActions({
       try {
         await stageAll(worktreePath)
         invalidateWorktreeDiffs(worktreePath)
-        await Promise.all([reload(), refreshSidebar()])
-        clearSection('unstaged')
       } catch (err) {
         setExternalToolError(
           err instanceof Error ? err.message : 'すべて追加に失敗しました',
         )
+        return
       }
     })
-  }, [clearSection, refreshSidebar, reload, runBusy, unstaged, worktreePath])
+    await afterStatusAndBadge()
+    clearSection('unstaged')
+  }, [afterStatusAndBadge, clearSection, runBusy, unstaged, worktreePath])
 
   const handleUnstageAll = useCallback(async () => {
     if (staged.length === 0) {
@@ -194,15 +208,16 @@ export function useGitWorkspaceActions({
       try {
         await unstageAll(worktreePath)
         invalidateWorktreeDiffs(worktreePath)
-        await Promise.all([reload(), refreshSidebar()])
-        clearSection('staged')
       } catch (err) {
         setExternalToolError(
           err instanceof Error ? err.message : 'すべて除くに失敗しました',
         )
+        return
       }
     })
-  }, [clearSection, refreshSidebar, reload, runBusy, staged.length, worktreePath])
+    await afterStatusAndBadge()
+    clearSection('staged')
+  }, [afterStatusAndBadge, clearSection, runBusy, staged.length, worktreePath])
 
   const handleCommit = useCallback(
     async (message: string, options: { amend: boolean; pushAfterCommit: boolean }) => {
@@ -212,8 +227,6 @@ export function useGitWorkspaceActions({
         } else {
           await commit(worktreePath, message)
         }
-        clearAll()
-        await Promise.all([reload(), refreshSidebar(), refreshAmendInfo(), refreshOperationState()])
         if (options.pushAfterCommit) {
           try {
             if (hasUpstream) {
@@ -225,16 +238,24 @@ export function useGitWorkspaceActions({
             const detail = err instanceof Error ? err.message : 'プッシュに失敗しました'
             throw new Error(`push:${detail}`)
           }
-          await refreshSidebar()
         }
       })
+      clearAll()
+      await Promise.all([
+        reload(),
+        refreshBadge(),
+        refreshBranches(),
+        refreshAmendInfo(),
+        refreshOperationState(),
+      ])
     },
     [
       clearAll,
       hasUpstream,
       refreshAmendInfo,
+      refreshBadge,
+      refreshBranches,
       refreshOperationState,
-      refreshSidebar,
       runBusy,
       worktreePath,
       reload,
@@ -246,33 +267,39 @@ export function useGitWorkspaceActions({
       return
     }
     setExternalToolError(null)
+    let keepRefreshing = true
     await runBusy(async () => {
       try {
         await continueRebase(worktreePath)
         invalidateWorktreeDiffs(worktreePath)
-        await Promise.all([
-          reload(),
-          refreshSidebar(),
-          reloadDiff(),
-          refreshOperationState(),
-          refreshAmendInfo(),
-        ])
       } catch (err) {
         const state = await getRepoOperationState(worktreePath)
         if (state.kind === 'rebase') {
-          await Promise.all([reload(), refreshSidebar(), refreshOperationState()])
           return
         }
+        keepRefreshing = false
         setExternalToolError(
           err instanceof Error ? err.message : 'リベースの続行に失敗しました',
         )
       }
     })
+    if (!keepRefreshing) {
+      return
+    }
+    await Promise.all([
+      reload(),
+      refreshBadge(),
+      refreshBranches(),
+      reloadDiff(),
+      refreshOperationState(),
+      refreshAmendInfo(),
+    ])
   }, [
     canContinueRebase,
     refreshAmendInfo,
+    refreshBadge,
+    refreshBranches,
     refreshOperationState,
-    refreshSidebar,
     reload,
     reloadDiff,
     runBusy,
@@ -287,10 +314,10 @@ export function useGitWorkspaceActions({
       await runBusy(async () => {
         await stageHunk(worktreePath, focusFile.path, hunkIndex)
         invalidateWorktreeDiffs(worktreePath)
-        await Promise.all([reload(), refreshSidebar(), reloadDiff()])
       })
+      await afterStatusBadgeDiff()
     },
-    [focusFile?.path, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
+    [afterStatusBadgeDiff, focusFile?.path, runBusy, worktreePath],
   )
 
   const handleUnstageHunk = useCallback(
@@ -301,10 +328,10 @@ export function useGitWorkspaceActions({
       await runBusy(async () => {
         await unstageHunk(worktreePath, focusFile.path, hunkIndex)
         invalidateWorktreeDiffs(worktreePath)
-        await Promise.all([reload(), refreshSidebar(), reloadDiff()])
       })
+      await afterStatusBadgeDiff()
     },
-    [focusFile?.path, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
+    [afterStatusBadgeDiff, focusFile?.path, runBusy, worktreePath],
   )
 
   const handleDiscardHunk = useCallback(
@@ -315,10 +342,10 @@ export function useGitWorkspaceActions({
       await runBusy(async () => {
         await discardHunk(worktreePath, focusFile.path, hunkIndex, focusFile.staged)
         invalidateWorktreeDiffs(worktreePath)
-        await Promise.all([reload(), refreshSidebar(), reloadDiff()])
       })
+      await afterStatusBadgeDiff()
     },
-    [focusFile, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
+    [afterStatusBadgeDiff, focusFile, runBusy, worktreePath],
   )
 
   const handleStageLines = useCallback(
@@ -329,10 +356,10 @@ export function useGitWorkspaceActions({
       await runBusy(async () => {
         await stageLines(worktreePath, focusFile.path, hunkIndex, lineIndices)
         invalidateWorktreeDiffs(worktreePath)
-        await Promise.all([reload(), refreshSidebar(), reloadDiff()])
       })
+      await afterStatusBadgeDiff()
     },
-    [focusFile?.path, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
+    [afterStatusBadgeDiff, focusFile?.path, runBusy, worktreePath],
   )
 
   const handleUnstageLines = useCallback(
@@ -343,10 +370,10 @@ export function useGitWorkspaceActions({
       await runBusy(async () => {
         await unstageLines(worktreePath, focusFile.path, hunkIndex, lineIndices)
         invalidateWorktreeDiffs(worktreePath)
-        await Promise.all([reload(), refreshSidebar(), reloadDiff()])
       })
+      await afterStatusBadgeDiff()
     },
-    [focusFile?.path, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
+    [afterStatusBadgeDiff, focusFile?.path, runBusy, worktreePath],
   )
 
   const handleDiscardLines = useCallback(
@@ -363,10 +390,10 @@ export function useGitWorkspaceActions({
           focusFile.staged,
         )
         invalidateWorktreeDiffs(worktreePath)
-        await Promise.all([reload(), refreshSidebar(), reloadDiff()])
       })
+      await afterStatusBadgeDiff()
     },
-    [focusFile, refreshSidebar, runBusy, worktreePath, reload, reloadDiff],
+    [afterStatusBadgeDiff, focusFile, runBusy, worktreePath],
   )
 
   const handleOpenMergetool = useCallback(
@@ -376,15 +403,16 @@ export function useGitWorkspaceActions({
         try {
           await openMergetool(worktreePath, path)
           invalidateWorktreeDiffs(worktreePath)
-          await Promise.all([reload(), refreshSidebar(), reloadDiff(), refreshOperationState()])
         } catch (err) {
           setExternalToolError(
             err instanceof Error ? err.message : '外部ツールの起動に失敗しました',
           )
+          return
         }
       })
+      await Promise.all([reload(), refreshBadge(), reloadDiff(), refreshOperationState()])
     },
-    [refreshOperationState, refreshSidebar, reload, reloadDiff, runBusy, worktreePath],
+    [refreshBadge, refreshOperationState, reload, reloadDiff, runBusy, worktreePath],
   )
 
   const handleOpenDifftool = useCallback(

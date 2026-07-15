@@ -27,6 +27,8 @@ export interface WailsApp {
   OpenTerminal(path: string): Promise<void>
   ListBranches(repoPath: string): Promise<BranchEntry[]>
   ListWorktrees(repoPath: string): Promise<WorktreeEntry[]>
+  ListWorktreesMeta(repoPath: string): Promise<WorktreeEntry[]>
+  GetWorktreeChangedCount(worktreePath: string): Promise<number>
   DefaultWorktreePath(repoPath: string, branch: string): Promise<string>
   AddWorktree(
     repoPath: string,

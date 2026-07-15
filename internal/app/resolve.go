@@ -3,10 +3,14 @@ package app
 import (
 	"errors"
 	"path/filepath"
+	"sync"
 
 	"wt-manager/internal/config"
 	"wt-manager/internal/git"
 )
+
+// Session cache: abs path → repo root. Avoids repeated rev-parse --show-toplevel.
+var repoRootByPath sync.Map // map[string]string
 
 func resolveWorktreePath(worktreePath string) (string, error) {
 	if worktreePath == "" {
@@ -16,6 +20,9 @@ func resolveWorktreePath(worktreePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if _, ok := repoRootByPath.Load(abs); ok {
+		return abs, nil
+	}
 	repoInfo, err := git.ResolveRepo(abs)
 	if err != nil {
 		return "", err
@@ -23,6 +30,7 @@ func resolveWorktreePath(worktreePath string) (string, error) {
 	if !repoInfo.IsRepo {
 		return "", errors.New("Git リポジトリではありません")
 	}
+	repoRootByPath.Store(abs, repoInfo.RepoRoot)
 	return abs, nil
 }
 
@@ -45,6 +53,10 @@ func tryResolveRepoRoot(repoPath string) (string, bool, error) {
 		return "", false, err
 	}
 
+	if cached, ok := repoRootByPath.Load(abs); ok {
+		return cached.(string), true, nil
+	}
+
 	repoInfo, err := git.ResolveRepo(abs)
 	if err != nil {
 		return "", false, err
@@ -52,6 +64,7 @@ func tryResolveRepoRoot(repoPath string) (string, bool, error) {
 	if !repoInfo.IsRepo {
 		return "", false, errors.New("Git リポジトリではありません")
 	}
+	repoRootByPath.Store(abs, repoInfo.RepoRoot)
 	return repoInfo.RepoRoot, true, nil
 }
 
@@ -92,4 +105,12 @@ func listFromRepo[T any](repoPath string, fn func(string) ([]T, error)) ([]T, er
 		return []T{}, nil
 	}
 	return fn(root)
+}
+
+// clearRepoRootCacheForTests clears the session rev-parse cache.
+func clearRepoRootCacheForTests() {
+	repoRootByPath.Range(func(key, _ any) bool {
+		repoRootByPath.Delete(key)
+		return true
+	})
 }

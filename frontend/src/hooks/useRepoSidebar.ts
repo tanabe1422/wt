@@ -5,9 +5,16 @@ import {
   getSidebarCache,
   patchSidebarBranches,
   patchSidebarSelection,
+  patchSidebarWorktreesMeta,
+  patchWorktreeChangedCount,
   setSidebarCache,
 } from '../lib/repoDataCache'
-import { listBranches, listWorktrees } from '../lib/wails'
+import {
+  getWorktreeChangedCount,
+  listBranches,
+  listWorktrees,
+  listWorktreesMeta,
+} from '../lib/wails'
 
 export function useRepoSidebar(activeRepository: string) {
   const [branches, setBranches] = useState<BranchEntry[]>([])
@@ -151,6 +158,50 @@ export function useRepoSidebar(activeRepository: string) {
     }
   }, [activeRepository])
 
+  /** 単一 WT の変更ファイル数バッジだけ更新。 */
+  const refreshWorktreeBadge = useCallback(
+    async (worktreePath: string) => {
+      if (!activeRepository || !worktreePath) {
+        return
+      }
+      try {
+        const count = await getWorktreeChangedCount(worktreePath)
+        setWorktrees((current) =>
+          current.map((entry) =>
+            entry.path === worktreePath ? { ...entry, changedFileCount: count } : entry,
+          ),
+        )
+        patchWorktreeChangedCount(activeRepository, worktreePath, count)
+      } catch {
+        // バッジ更新失敗は非致命
+      }
+    },
+    [activeRepository],
+  )
+
+  /** WT 一覧メタ（path/branch）だけ。status スキャンなし。 */
+  const reloadWorktreesMeta = useCallback(async () => {
+    if (!activeRepository) {
+      return
+    }
+    setError(null)
+    try {
+      const meta = await listWorktreesMeta(activeRepository)
+      setWorktrees((current) => {
+        const prevByPath = new Map(current.map((entry) => [entry.path, entry]))
+        return meta.map((entry) => {
+          const prev = prevByPath.get(entry.path)
+          return prev
+            ? { ...entry, changedFileCount: prev.changedFileCount }
+            : entry
+        })
+      })
+      patchSidebarWorktreesMeta(activeRepository, meta)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ワークツリー情報の取得に失敗しました')
+    }
+  }, [activeRepository])
+
   return {
     branches,
     worktrees,
@@ -162,5 +213,7 @@ export function useRepoSidebar(activeRepository: string) {
     setSelectedWorktree,
     reload,
     reloadBranches,
+    refreshWorktreeBadge,
+    reloadWorktreesMeta,
   }
 }

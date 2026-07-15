@@ -67,6 +67,71 @@ export function patchSidebarBranches(repoPath: string, branches: BranchEntry[]):
   touch(sidebarCache, repoPath, { ...current, branches }, MAX_SIDEBAR_ENTRIES)
 }
 
+/** 単一ワークツリーの変更ファイル数バッジを更新する。 */
+export function patchWorktreeChangedCount(
+  repoPath: string,
+  worktreePath: string,
+  count: number,
+): void {
+  const current = sidebarCache.get(repoPath)
+  if (!current) {
+    return
+  }
+  const worktrees = current.worktrees.map((entry) =>
+    entry.path === worktreePath ? { ...entry, changedFileCount: count } : entry,
+  )
+  touch(sidebarCache, repoPath, { ...current, worktrees }, MAX_SIDEBAR_ENTRIES)
+}
+
+/**
+ * ローカルブランチの isCurrent を更新する（ブランチ切替後の楽観／同期更新）。
+ * worktrees の branch フィールドは別途更新が必要な場合がある。
+ */
+export function patchSidebarCurrentBranch(repoPath: string, branchName: string): void {
+  const current = sidebarCache.get(repoPath)
+  if (!current) {
+    return
+  }
+  const branches = current.branches.map((entry) =>
+    entry.isRemote
+      ? entry
+      : { ...entry, isCurrent: entry.name === branchName },
+  )
+  const worktrees = current.worktrees.map((entry) =>
+    entry.path === current.selectedWorktree ? { ...entry, branch: branchName } : entry,
+  )
+  touch(
+    sidebarCache,
+    repoPath,
+    {
+      ...current,
+      branches,
+      worktrees,
+      selectedBranch: branchName,
+    },
+    MAX_SIDEBAR_ENTRIES,
+  )
+}
+
+/** ListWorktreesMeta 結果で path/branch を差し替え、既存バッジを可能な限り引き継ぐ。 */
+export function patchSidebarWorktreesMeta(
+  repoPath: string,
+  meta: WorktreeEntry[],
+): void {
+  const current = sidebarCache.get(repoPath)
+  if (!current) {
+    return
+  }
+  const prevByPath = new Map(current.worktrees.map((entry) => [entry.path, entry]))
+  const worktrees = meta.map((entry) => {
+    const prev = prevByPath.get(entry.path)
+    return prev
+      ? { ...entry, changedFileCount: prev.changedFileCount }
+      : entry
+  })
+  touch(sidebarCache, repoPath, { ...current, worktrees }, MAX_SIDEBAR_ENTRIES)
+}
+
 export function invalidateSidebarCache(repoPath: string): void {
   sidebarCache.delete(repoPath)
 }

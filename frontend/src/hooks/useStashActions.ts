@@ -52,7 +52,7 @@ export function useStashActions({
   }, [reload, reloadToken])
 
   const run = useCallback(
-    async (fn: () => Promise<void>) => {
+    async (fn: () => Promise<void>, notifyWorkspace = true) => {
       if (!worktreePath || busy) {
         return
       }
@@ -61,7 +61,9 @@ export function useStashActions({
       try {
         await fn()
         await reload()
-        await onSuccess?.()
+        if (notifyWorkspace) {
+          await onSuccess?.()
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'stash 操作に失敗しました')
       } finally {
@@ -103,7 +105,7 @@ export function useStashActions({
       } else {
         await dropStash(worktreePath, stash.index)
       }
-    })
+    }, kind !== 'drop')
   }, [confirm, run, worktreePath])
 
   const openMenu = useCallback((stash: StashEntry, event: MouseEvent) => {

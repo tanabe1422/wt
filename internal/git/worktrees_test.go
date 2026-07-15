@@ -59,9 +59,9 @@ func TestListWorktreesMetaSkipsStatus(t *testing.T) {
 	fake.On("worktree", "list", "--porcelain").Return(worktreeListPorcelain(dir, "main"), nil)
 	withFakeRunner(t, fake)
 
-	meta, err := listWorktreesMeta(dir)
+	meta, err := ListWorktreesMeta(dir)
 	if err != nil {
-		t.Fatalf("listWorktreesMeta: %v", err)
+		t.Fatalf("ListWorktreesMeta: %v", err)
 	}
 	if len(meta) == 0 {
 		t.Fatal("expected at least one worktree")
@@ -72,6 +72,21 @@ func TestListWorktreesMetaSkipsStatus(t *testing.T) {
 		}
 	}
 	fake.AssertNotCalledPrefix(t, "status")
+}
+
+func TestGetWorktreeChangedCount(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("status", "--porcelain=v1", "-u").Once().Return(" M a.txt\n?? b.txt", nil)
+	withFakeRunner(t, fake)
+
+	n, err := GetWorktreeChangedCount(dir)
+	if err != nil {
+		t.Fatalf("GetWorktreeChangedCount: %v", err)
+	}
+	if n != 2 {
+		t.Fatalf("expected 2, got %d", n)
+	}
 }
 
 func TestCountChangedFiles(t *testing.T) {

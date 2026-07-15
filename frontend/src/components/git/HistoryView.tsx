@@ -55,6 +55,8 @@ interface HistoryViewProps {
   compareRequest?: CompareRange | null
   onCompareRequestConsumed?: () => void
   onResetComplete?: () => void | Promise<void>
+  /** 同一 WT 内のコンテンツ変更（ブランチ切替など）。履歴を再取得する。 */
+  contentRevision?: number
 }
 
 interface HistoryScopeBarProps {
@@ -163,6 +165,7 @@ export function HistoryView({
   compareRequest = null,
   onCompareRequestConsumed,
   onResetComplete,
+  contentRevision = 0,
 }: HistoryViewProps) {
   const branchAvailable = currentBranch !== '' && currentBranch !== 'HEAD'
   const [selectedSha, setSelectedSha] = useState<string | null>(null)
@@ -202,6 +205,13 @@ export function HistoryView({
   const searching = activeSearchQuery !== ''
   const highlightPathQuery =
     searchType === 'path' && activeSearchQuery !== '' ? activeSearchQuery : ''
+
+  useEffect(() => {
+    if (contentRevision === 0) {
+      return
+    }
+    void reload()
+  }, [contentRevision, reload])
 
   useEffect(() => {
     if (!worktreePath) {

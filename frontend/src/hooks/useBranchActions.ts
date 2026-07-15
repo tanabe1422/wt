@@ -15,15 +15,26 @@ import {
 
 interface UseBranchActionsOptions {
   worktreePath: string | null
+  /** 切替・マージ等: 軽量リフレッシュ（B + W1 + workspace content） */
   onSuccess: () => void | Promise<void>
+  /** リネーム・削除・作成: サイドバー構造のフル更新 */
+  onStructureChanged?: () => void | Promise<void>
 }
 
-export function useBranchActions({ worktreePath, onSuccess }: UseBranchActionsOptions) {
+export function useBranchActions({
+  worktreePath,
+  onSuccess,
+  onStructureChanged,
+}: UseBranchActionsOptions) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const runAction = useCallback(
-    async (action: () => Promise<void>, fallbackMessage: string): Promise<boolean> => {
+    async (
+      action: () => Promise<void>,
+      fallbackMessage: string,
+      after: () => void | Promise<void> = onSuccess,
+    ): Promise<boolean> => {
       if (!worktreePath || busy) {
         return false
       }
@@ -32,7 +43,7 @@ export function useBranchActions({ worktreePath, onSuccess }: UseBranchActionsOp
       setError(null)
       try {
         await action()
-        await onSuccess()
+        await after()
         return true
       } catch (err) {
         setError(errorMessage(err, fallbackMessage))
@@ -42,6 +53,11 @@ export function useBranchActions({ worktreePath, onSuccess }: UseBranchActionsOp
       }
     },
     [busy, onSuccess, worktreePath],
+  )
+
+  const afterStructure = useCallback(
+    () => (onStructureChanged ? onStructureChanged() : onSuccess()),
+    [onStructureChanged, onSuccess],
   )
 
   const switchLocalBranch = useCallback(
@@ -140,8 +156,9 @@ export function useBranchActions({ worktreePath, onSuccess }: UseBranchActionsOp
       runAction(
         () => deleteBranch(worktreePath!, branch, force),
         'ブランチの削除に失敗しました',
+        afterStructure,
       ),
-    [runAction, worktreePath],
+    [afterStructure, runAction, worktreePath],
   )
 
   const rename = useCallback(
@@ -149,8 +166,9 @@ export function useBranchActions({ worktreePath, onSuccess }: UseBranchActionsOp
       runAction(
         () => renameBranch(worktreePath!, oldName, newName),
         'ブランチのリネームに失敗しました',
+        afterStructure,
       ),
-    [runAction, worktreePath],
+    [afterStructure, runAction, worktreePath],
   )
 
   const create = useCallback(
@@ -158,8 +176,9 @@ export function useBranchActions({ worktreePath, onSuccess }: UseBranchActionsOp
       runAction(
         () => createBranch(worktreePath!, name),
         'ブランチの作成に失敗しました',
+        afterStructure,
       ),
-    [runAction, worktreePath],
+    [afterStructure, runAction, worktreePath],
   )
 
   const dismissError = useCallback(() => setError(null), [])

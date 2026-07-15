@@ -109,6 +109,14 @@ export async function listWorktrees(repoPath = ''): Promise<WorktreeEntry[]> {
   return callApp('ListWorktrees', repoPath)
 }
 
+export async function listWorktreesMeta(repoPath = ''): Promise<WorktreeEntry[]> {
+  return callApp('ListWorktreesMeta', repoPath)
+}
+
+export async function getWorktreeChangedCount(worktreePath: string): Promise<number> {
+  return callApp('GetWorktreeChangedCount', worktreePath)
+}
+
 export async function defaultWorktreePath(
   repoPath: string,
   branch: string,

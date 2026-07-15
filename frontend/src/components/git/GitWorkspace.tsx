@@ -30,7 +30,15 @@ interface GitWorkspaceProps {
   hasUpstream: boolean
   pushAfterCommit: boolean
   onPushAfterCommitChange: (enabled: boolean) => void
-  onSidebarReload?: () => void | Promise<void>
+  /** 現行 WT の変更ファイル数バッジのみ */
+  onRefreshBadge?: () => void | Promise<void>
+  /** ahead/behind・isCurrent */
+  onRefreshBranches?: () => void | Promise<void>
+  /**
+   * 同一 WT 内でコンテンツが変わったとき（ブランチ切替など）。
+   * remount せず status / selection を再同期する。
+   */
+  contentRevision?: number
   onBusyChange?: (busy: boolean) => void
 }
 
@@ -44,7 +52,9 @@ export function GitWorkspace({
   hasUpstream,
   pushAfterCommit,
   onPushAfterCommitChange,
-  onSidebarReload,
+  onRefreshBadge,
+  onRefreshBranches,
+  contentRevision = 0,
   onBusyChange,
 }: GitWorkspaceProps) {
   const { busy, runBusy } = useBusy(onBusyChange)
@@ -137,15 +147,32 @@ export function GitWorkspace({
     orientation: 'horizontal',
   })
 
-  const refreshSidebar = useCallback(async () => {
-    await onSidebarReload?.()
-  }, [onSidebarReload])
+  const refreshBadge = useCallback(async () => {
+    await onRefreshBadge?.()
+  }, [onRefreshBadge])
+
+  const refreshBranches = useCallback(async () => {
+    await onRefreshBranches?.()
+  }, [onRefreshBranches])
 
   const clearUnstaged = useCallback(() => {
     clearSection('unstaged')
   }, [clearSection])
 
   const refreshMergeStateRef = useRef<() => Promise<void>>(async () => undefined)
+  const contentRevisionSkipRef = useRef(true)
+
+  // 同一 WT 内のコンテンツ変更（ブランチ切替など）: remount せず再同期
+  useEffect(() => {
+    if (contentRevisionSkipRef.current) {
+      contentRevisionSkipRef.current = false
+      return
+    }
+    invalidateWorktreeDiffs(worktreePath)
+    clearAll()
+    void reload()
+    void reloadDiff()
+  }, [contentRevision, worktreePath, clearAll, reload, reloadDiff])
 
   const destructive = useGitDestructiveConfirm({
     worktreePath,
@@ -159,7 +186,8 @@ export function GitWorkspace({
       invalidateWorktreeDiffs(worktreePath)
       await Promise.all([
         reload(),
-        refreshSidebar(),
+        refreshBadge(),
+        refreshBranches(),
         reloadDiff(),
         refreshMergeStateRef.current(),
       ])
@@ -178,7 +206,8 @@ export function GitWorkspace({
     unstage,
     reload,
     reloadDiff,
-    refreshSidebar,
+    refreshBadge,
+    refreshBranches,
     clearAll,
     clearSection,
     setFocus,

@@ -143,6 +143,7 @@ export function RemoteCleanupDialog({
   const [entries, setEntries] = useState<RemoteMergeEntry[]>([])
   const [excluded, setExcluded] = useState<string[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [baseLoading, setBaseLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [savingExcluded, setSavingExcluded] = useState(false)
@@ -169,6 +170,10 @@ export function RemoteCleanupDialog({
     const saved = getRemoteCleanupPrefs(prefsKey)
     setError('')
     setSelected(new Set())
+    setBaseRef('')
+    setBaseOptions([])
+    setEntries([])
+    setBaseLoading(true)
     setNameFilter(saved.nameFilter ?? '')
     setStatusFilter(saved.statusFilter ?? defaultRemoteCleanupStatusFilter())
     setMode(saved.mode ?? defaultRemoteCleanupMode())
@@ -188,6 +193,10 @@ export function RemoteCleanupDialog({
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : '基準ブランチの取得に失敗しました')
+        }
+      } finally {
+        if (!cancelled) {
+          setBaseLoading(false)
         }
       }
     })()
@@ -376,6 +385,7 @@ export function RemoteCleanupDialog({
   }
 
   const busy = deleting || savingExcluded
+  const isLoading = baseLoading || loading
 
   return (
     <>
@@ -401,18 +411,24 @@ export function RemoteCleanupDialog({
                 <select
                   className={styles.select}
                   value={baseRef}
-                  disabled={loading || baseOptions.length === 0}
+                  disabled={isLoading || (!baseLoading && baseOptions.length === 0)}
                   onChange={(event) => {
                     const next = event.target.value
                     setBaseRef(next)
                     persistPrefs({ baseRef: next })
                   }}
                 >
-                  {baseOptions.map((ref) => (
-                    <option key={ref} value={ref}>
-                      {ref}
-                    </option>
-                  ))}
+                  {baseLoading ? (
+                    <option value="">読み込み中…</option>
+                  ) : baseOptions.length === 0 ? (
+                    <option value="">—</option>
+                  ) : (
+                    baseOptions.map((ref) => (
+                      <option key={ref} value={ref}>
+                        {ref}
+                      </option>
+                    ))
+                  )}
                 </select>
               </label>
 
@@ -481,13 +497,13 @@ export function RemoteCleanupDialog({
 
             <div className={styles.listHeader}>
               <span className={styles.listMeta}>
-                {loading ? '読み込み中…' : `${visible.length} 件`}
+                {isLoading ? '読み込み中…' : `${visible.length} 件`}
                 {selectedNames.length > 0 ? ` / ${selectedNames.length} 選択` : ''}
               </span>
               <div className={styles.listHeaderActions}>
                 <Button
                   variant="ghost"
-                  disabled={selectedNames.length === 0 || busy || loading}
+                  disabled={selectedNames.length === 0 || busy || isLoading}
                   onClick={() => {
                     void handleAddExcluded()
                   }}
@@ -505,8 +521,10 @@ export function RemoteCleanupDialog({
             </div>
 
             <div className={styles.list}>
-              {loading ? (
-                <p className={styles.status}>マージ状態を判定しています…</p>
+              {isLoading ? (
+                <p className={styles.status}>
+                  {baseLoading ? '基準ブランチを読み込み中…' : 'マージ状態を判定しています…'}
+                </p>
               ) : visible.length === 0 ? (
                 <p className={styles.empty}>該当するリモートブランチはありません</p>
               ) : (
@@ -517,7 +535,7 @@ export function RemoteCleanupDialog({
                         <input
                           type="checkbox"
                           checked={allVisibleSelected}
-                          disabled={loading || visible.length === 0}
+                          disabled={isLoading || visible.length === 0}
                           onChange={toggleAllVisible}
                           aria-label="表示中をすべて選択"
                         />
@@ -573,7 +591,7 @@ export function RemoteCleanupDialog({
             </Button>
             <Button
               variant="danger"
-              disabled={selectedNames.length === 0 || loading || busy}
+              disabled={selectedNames.length === 0 || isLoading || busy}
               onClick={() => setConfirmOpen(true)}
             >
               選択を削除

@@ -20,7 +20,8 @@ import styles from './App.module.css'
 
 function AppShell() {
   const [mainView, setMainView] = useState<MainView>('files')
-  const [workspaceRevision, setWorkspaceRevision] = useState(0)
+  /** 同一 WT 内のコンテンツ変更。remount せず status 等を再同期する。 */
+  const [workspaceContentRevision, setWorkspaceContentRevision] = useState(0)
   const [workspaceBusy, setWorkspaceBusy] = useState(false)
   const [toolbarBusy, setToolbarBusy] = useState(false)
   const [sidebarBusy, setSidebarBusy] = useState(false)
@@ -74,6 +75,8 @@ function AppShell() {
     setSelectedWorktree,
     reload: reloadSidebar,
     reloadBranches,
+    refreshWorktreeBadge,
+    reloadWorktreesMeta,
   } = useRepoSidebar(activeRepository)
 
   const repoErrorDialog = useErrorDialog(error)
@@ -102,7 +105,22 @@ function AppShell() {
     [compareFromRef],
   )
 
-  const workspaceKey = `${worktreePath}-${workspaceRevision}`
+  const bumpWorkspaceContent = useCallback(() => {
+    setWorkspaceContentRevision((value) => value + 1)
+  }, [])
+
+  const handleRefreshBadge = useCallback(async () => {
+    if (!worktreePath) {
+      return
+    }
+    await refreshWorktreeBadge(worktreePath)
+  }, [refreshWorktreeBadge, worktreePath])
+
+  /** ブランチ切替・stash 等: B + WT meta + W1 + workspace content（全 WT status なし） */
+  const handleLightRefresh = useCallback(async () => {
+    await Promise.all([reloadBranches(), reloadWorktreesMeta(), handleRefreshBadge()])
+    bumpWorkspaceContent()
+  }, [bumpWorkspaceContent, handleRefreshBadge, reloadBranches, reloadWorktreesMeta])
 
   const currentBranchEntry = branches.find(
     (branch) => !branch.isRemote && branch.name === currentBranch,
@@ -124,14 +142,22 @@ function AppShell() {
     [activeRepository, updatePushAfterCommit],
   )
 
-  const handleSyncComplete = async (scope: 'sidebar' | 'workspace' = 'workspace') => {
+  const handleSyncComplete = async (
+    scope: 'sidebar' | 'light' | 'workspace' = 'workspace',
+  ) => {
     if (scope === 'sidebar') {
       // Push/Fetch: ahead/behind だけ。全 WT の status はスキップ。
       await reloadBranches()
       return
     }
+    if (scope === 'light') {
+      // stash 等: B + W1 + workspace content
+      await handleLightRefresh()
+      return
+    }
+    // Pull / createBranch / 手動再読込: フル sidebar + workspace 再同期（remount なし）
     await reloadSidebar()
-    setWorkspaceRevision((value) => value + 1)
+    bumpWorkspaceContent()
   }
 
   return (
@@ -186,7 +212,8 @@ function AppShell() {
             selectedWorktree={selectedWorktree}
             onSelectWorktree={setSelectedWorktree}
             onReload={reloadSidebar}
-            onBranchChanged={() => setWorkspaceRevision((value) => value + 1)}
+            onLightRefresh={handleLightRefresh}
+            onWorkspaceContentChanged={bumpWorkspaceContent}
             onBusyChange={handleSidebarBusyChange}
             compareFromRef={compareFromRef}
             onCompareWithCurrent={handleCompareWithCurrent}
@@ -200,19 +227,22 @@ function AppShell() {
         ) : activeRepository ? (
           mainView === 'files' ? (
             <GitWorkspace
-              key={workspaceKey}
+              key={worktreePath}
               worktreePath={worktreePath}
               hasUpstream={hasUpstream}
               pushAfterCommit={pushAfterCommit}
               onPushAfterCommitChange={handlePushAfterCommitChange}
-              onSidebarReload={reloadSidebar}
+              onRefreshBadge={handleRefreshBadge}
+              onRefreshBranches={reloadBranches}
+              contentRevision={workspaceContentRevision}
               onBusyChange={handleWorkspaceBusyChange}
             />
           ) : (
             <HistoryView
-              key={workspaceKey}
+              key={worktreePath}
               worktreePath={worktreePath}
               currentBranch={currentBranch}
+              contentRevision={workspaceContentRevision}
               compareRequest={compareRequest}
               onCompareRequestConsumed={handleCompareRequestConsumed}
               onResetComplete={handleSyncComplete}

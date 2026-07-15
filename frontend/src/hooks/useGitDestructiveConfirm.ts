@@ -109,8 +109,8 @@ export function useGitDestructiveConfirm({
         }
         clearUnstaged()
       }
-      await afterDestructive()
     })
+    await afterDestructive()
   }, [
     afterDestructive,
     clearAll,

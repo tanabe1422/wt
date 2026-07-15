@@ -11,7 +11,10 @@ import {
   invalidateSidebarCache,
   invalidateStatusCache,
   patchSidebarBranches,
+  patchSidebarCurrentBranch,
   patchSidebarSelection,
+  patchSidebarWorktreesMeta,
+  patchWorktreeChangedCount,
   setSidebarCache,
   setStatusCache,
 } from './repoDataCache'
@@ -125,5 +128,53 @@ describe('repoDataCache', () => {
     invalidateStatusCache('/wt')
     expect(_sidebarCacheSizeForTests()).toBe(0)
     expect(_statusCacheSizeForTests()).toBe(0)
+  })
+
+  it('patches a single worktree changed-file count', () => {
+    setSidebarCache('/repo-a', {
+      branches: [sampleBranch('main')],
+      worktrees: [
+        sampleWorktree('/repo-a', 'main', true),
+        { ...sampleWorktree('/repo-a-wt', 'feature'), changedFileCount: 3 },
+      ],
+      selectedBranch: 'main',
+      selectedWorktree: '/repo-a',
+    })
+    patchWorktreeChangedCount('/repo-a', '/repo-a-wt', 0)
+    const cached = getSidebarCache('/repo-a')
+    expect(cached?.worktrees.find((entry) => entry.path === '/repo-a-wt')?.changedFileCount).toBe(0)
+    expect(cached?.worktrees.find((entry) => entry.path === '/repo-a')?.changedFileCount).toBe(0)
+  })
+
+  it('patches current branch flags and selected worktree branch', () => {
+    setSidebarCache('/repo-a', {
+      branches: [sampleBranch('main'), sampleBranch('feature')],
+      worktrees: [sampleWorktree('/repo-a', 'main', true)],
+      selectedBranch: 'main',
+      selectedWorktree: '/repo-a',
+    })
+    patchSidebarCurrentBranch('/repo-a', 'feature')
+    const cached = getSidebarCache('/repo-a')
+    expect(cached?.selectedBranch).toBe('feature')
+    expect(cached?.branches.find((entry) => entry.name === 'feature')?.isCurrent).toBe(true)
+    expect(cached?.branches.find((entry) => entry.name === 'main')?.isCurrent).toBe(false)
+    expect(cached?.worktrees[0]?.branch).toBe('feature')
+  })
+
+  it('patches worktree meta while preserving prior badge counts', () => {
+    setSidebarCache('/repo-a', {
+      branches: [sampleBranch('main')],
+      worktrees: [{ ...sampleWorktree('/repo-a', 'main', true), changedFileCount: 5 }],
+      selectedBranch: 'main',
+      selectedWorktree: '/repo-a',
+    })
+    patchSidebarWorktreesMeta('/repo-a', [
+      { ...sampleWorktree('/repo-a', 'main', true), changedFileCount: 0 },
+      sampleWorktree('/repo-a-new', 'feature'),
+    ])
+    const cached = getSidebarCache('/repo-a')
+    expect(cached?.worktrees).toHaveLength(2)
+    expect(cached?.worktrees[0]?.changedFileCount).toBe(5)
+    expect(cached?.worktrees[1]?.changedFileCount).toBe(0)
   })
 })

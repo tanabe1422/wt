@@ -13,6 +13,14 @@ func (a *App) ListWorktrees(repoPath string) ([]git.WorktreeEntry, error) {
 	return listFromRepo(repoPath, git.ListWorktrees)
 }
 
+func (a *App) ListWorktreesMeta(repoPath string) ([]git.WorktreeEntry, error) {
+	return listFromRepo(repoPath, git.ListWorktreesMeta)
+}
+
+func (a *App) GetWorktreeChangedCount(worktreePath string) (int, error) {
+	return withWorktreeResult(worktreePath, git.GetWorktreeChangedCount)
+}
+
 func (a *App) DefaultWorktreePath(repoPath, branch string) (string, error) {
 	repoRoot, err := resolveRepoRoot(repoPath)
 	if err != nil {
