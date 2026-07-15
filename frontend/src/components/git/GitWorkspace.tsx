@@ -160,6 +160,10 @@ export function GitWorkspace({
   }, [clearSection])
 
   const refreshMergeStateRef = useRef<() => Promise<void>>(async () => undefined)
+  const reloadRef = useRef(reload)
+  reloadRef.current = reload
+  const reloadDiffRef = useRef(reloadDiff)
+  reloadDiffRef.current = reloadDiff
   const contentRevisionSkipRef = useRef(true)
 
   // 同一 WT 内のコンテンツ変更（ブランチ切替など）: remount せず再同期
@@ -170,9 +174,10 @@ export function GitWorkspace({
     }
     invalidateWorktreeDiffs(worktreePath)
     clearAll()
-    void reload()
-    void reloadDiff()
-  }, [contentRevision, worktreePath, clearAll, reload, reloadDiff])
+    void reloadRef.current()
+    void reloadDiffRef.current()
+    // reload / reloadDiff はファイル選択で identity が変わるため deps に含めない
+  }, [contentRevision, worktreePath, clearAll])
 
   const destructive = useGitDestructiveConfirm({
     worktreePath,

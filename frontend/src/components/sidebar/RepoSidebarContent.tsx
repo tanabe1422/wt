@@ -55,6 +55,8 @@ export interface RepoSidebarContentProps {
   onSelectWorktree: (path: string) => void
   showWorktreeMarks?: boolean
   filterQuery?: string
+  /** 展開状態の永続化スコープ（通常はリポジトリパス） */
+  expansionScope?: string | null
   onActivateLocal?: (fullName: string) => void
   onActivateRemote?: (fullName: string) => void
   onLocalContextMenu?: (fullName: string, event: MouseEvent) => void
@@ -73,6 +75,7 @@ export function RepoSidebarContent({
   onSelectWorktree,
   showWorktreeMarks = true,
   filterQuery = '',
+  expansionScope = null,
   onActivateLocal,
   onActivateRemote,
   onLocalContextMenu,
@@ -110,7 +113,11 @@ export function RepoSidebarContent({
 
   return (
     <>
-      <SidebarSection title="ワークツリー" icon={<WorktreeIcon />}>
+      <SidebarSection
+        title="ワークツリー"
+        icon={<WorktreeIcon />}
+        storageKey={expansionScope ? `${expansionScope}\0section\0ワークツリー` : null}
+      >
         {filteredWorktrees.length === 0 ? (
           filtering ? null : (
             <p className={styles.emptyInline}>ワークツリーがありません</p>
@@ -140,6 +147,7 @@ export function RepoSidebarContent({
               worktreeBranches={worktreeBranches}
               showWorktreeMarks={showWorktreeMarks}
               expansionThreshold={expansionThreshold}
+              expansionScope={expansionScope}
               onActivate={onActivateLocal}
               onContextMenu={onLocalContextMenu}
             />
@@ -154,6 +162,7 @@ export function RepoSidebarContent({
               checkedOutBranch={checkedOutBranch}
               worktreeBranches={new Set()}
               expansionThreshold={expansionThreshold}
+              expansionScope={expansionScope}
               onActivate={onActivateRemote}
               onContextMenu={onRemoteContextMenu}
             />
@@ -161,7 +170,11 @@ export function RepoSidebarContent({
         </>
       )}
 
-      <SidebarSection title="スタッシュ" icon={<StashIcon />}>
+      <SidebarSection
+        title="スタッシュ"
+        icon={<StashIcon />}
+        storageKey={expansionScope ? `${expansionScope}\0section\0スタッシュ` : null}
+      >
         {filteredStashes.length === 0 ? (
           filtering ? null : (
             <p className={styles.emptyInline}>スタッシュはありません</p>

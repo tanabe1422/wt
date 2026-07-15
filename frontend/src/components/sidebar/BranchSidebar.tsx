@@ -72,6 +72,10 @@ export function BranchSidebar({
   const [filterQuery, setFilterQuery] = useState('')
   const toast = useToast()
 
+  useEffect(() => {
+    setFilterQuery('')
+  }, [activeRepository])
+
   const currentBranchEntry = branches.find((entry) => entry.isCurrent && !entry.isRemote)
   const currentHasUpstream = currentBranchEntry?.hasUpstream ?? false
 
@@ -109,7 +113,7 @@ export function BranchSidebar({
 
   const stashActions = useStashActions({
     worktreePath: actionWorktreePath,
-    reloadToken: `${activeRepository}:${actionWorktreePath ?? ''}:${loading ? '1' : '0'}`,
+    reloadToken: `${activeRepository}:${actionWorktreePath ?? ''}`,
     onSuccess: handleLightSuccess,
   })
 
@@ -284,7 +288,7 @@ export function BranchSidebar({
 
   return (
     <div className={styles.panel}>
-      {activeRepository && !loading && !error ? (
+      {activeRepository && !(loading && branches.length === 0 && worktrees.length === 0) && !error ? (
         <div className={styles.filter}>
           <input
             type="search"
@@ -299,10 +303,12 @@ export function BranchSidebar({
       <div className={styles.scroll}>
         {!activeRepository ? (
           <p className={styles.empty}>リポジトリを選択してください</p>
-        ) : loading ? (
+        ) : loading && branches.length === 0 && worktrees.length === 0 ? (
           <p className={styles.hint}>読み込み中…</p>
-        ) : error ? null : (
+        ) : error && branches.length === 0 && worktrees.length === 0 ? null : (
           <RepoSidebarContent
+            key={activeRepository}
+            expansionScope={activeRepository}
             branches={branches}
             worktrees={worktrees}
             stashes={stashActions.stashes}

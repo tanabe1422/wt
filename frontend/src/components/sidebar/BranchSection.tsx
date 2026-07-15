@@ -24,6 +24,8 @@ interface BranchSectionProps {
   showWorktreeBadge?: boolean
   defaultExpanded?: boolean
   expansionThreshold?: number
+  /** 展開状態の永続化スコープ（リポジトリパスなど） */
+  expansionScope?: string | null
   onActivate?: (fullName: string) => void
   onContextMenu?: (fullName: string, event: MouseEvent) => void
 }
@@ -42,18 +44,28 @@ export function BranchSection({
   showWorktreeBadge = false,
   defaultExpanded = true,
   expansionThreshold = 2,
+  expansionScope = null,
   onActivate,
   onContextMenu,
 }: BranchSectionProps) {
   const resolvedHideIdleIcons = hideIdleIcons ?? showWorktreeMarks
+  const sectionStorageKey = expansionScope ? `${expansionScope}\0section\0${title}` : null
+  const treeScope = expansionScope ? `${expansionScope}\0tree\0${title}` : null
 
   return (
-    <SidebarSection title={title} icon={icon} defaultExpanded={defaultExpanded}>
+    <SidebarSection
+      title={title}
+      icon={icon}
+      defaultExpanded={defaultExpanded}
+      storageKey={sectionStorageKey}
+    >
       {nodes.map((node) => (
         <BranchTreeNode
           key={node.name}
           node={node}
           depth={0}
+          nodePath={node.name}
+          expansionScope={treeScope}
           selectedBranch={selectedBranch}
           onSelect={onSelect}
           checkedOutBranch={showWorktreeMarks ? checkedOutBranch : null}

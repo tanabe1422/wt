@@ -38,6 +38,10 @@ interface BranchTreeNodeProps {
   /** ワークツリーあり行に WT バッジを出す（比較用） */
   showWorktreeBadge?: boolean
   expansionThreshold?: number
+  /** フォルダパス（展開状態キー用） */
+  nodePath?: string
+  /** 展開状態の永続化スコープ */
+  expansionScope?: string | null
   onActivate?: (fullName: string) => void
   onContextMenu?: (fullName: string, event: MouseEvent) => void
 }
@@ -152,13 +156,18 @@ export function BranchTreeNode({
   hideIdleIcons = false,
   showWorktreeBadge = false,
   expansionThreshold = 1,
+  nodePath,
+  expansionScope = null,
   onActivate,
   onContextMenu,
 }: BranchTreeNodeProps) {
   const paddingLeft = indentForDepth(depth)
   const isLeaf = Boolean(node.fullName) && node.children.length === 0
   const isFolder = node.children.length > 0
-  const [expanded, setExpanded] = useTreeExpansion(depth, expansionThreshold)
+  const resolvedPath = nodePath ?? node.name
+  const storageKey =
+    isFolder && expansionScope ? `${expansionScope}\0${resolvedPath}` : null
+  const [expanded, setExpanded] = useTreeExpansion(depth, expansionThreshold, storageKey)
 
   if (isLeaf && node.fullName) {
     return renderBranchRow(
@@ -206,6 +215,8 @@ export function BranchTreeNode({
               key={`${node.name}/${child.name}`}
               node={child}
               depth={depth + 1}
+              nodePath={`${resolvedPath}/${child.name}`}
+              expansionScope={expansionScope}
               selectedBranch={selectedBranch}
               onSelect={onSelect}
               checkedOutBranch={checkedOutBranch}
