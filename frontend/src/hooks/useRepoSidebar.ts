@@ -12,6 +12,7 @@ import {
 import { ensureRepoPrefetched } from '../lib/repoPrefetch'
 import { pickDefaultWorktreePath } from '../lib/sidebarSelection'
 import {
+  getBranchAheadBehind,
   getWorktreeChangedCount,
   listBranches,
   listWorktreesMeta,
@@ -53,6 +54,48 @@ function sidebarSnapshotEqual(
     }
   }
   return true
+}
+
+/** ListBranches は現行ブランチの track だけ埋める。他は裏で順次。 */
+async function fillBranchTracks(
+  repoPath: string,
+  entries: BranchEntry[],
+  isCurrent: () => boolean,
+  onTrack: (branch: string, ahead: number, behind: number) => void,
+): Promise<void> {
+  const targets = entries.filter((entry) => !entry.isRemote && entry.hasUpstream && !entry.isCurrent)
+  for (const entry of targets) {
+    if (!isCurrent()) {
+      return
+    }
+    try {
+      const { ahead, behind } = await getBranchAheadBehind(repoPath, entry.name)
+      if (!isCurrent()) {
+        return
+      }
+      onTrack(entry.name, ahead, behind)
+    } catch {
+      // ahead/behind 更新失敗は非致命
+    }
+  }
+}
+
+function mergeBranchTracks(incoming: BranchEntry[], previous: BranchEntry[]): BranchEntry[] {
+  const prevByName = new Map(previous.map((entry) => [entry.name, entry]))
+  return incoming.map((entry) => {
+    if (entry.isRemote || entry.isCurrent || !entry.hasUpstream) {
+      return entry
+    }
+    const prev = prevByName.get(entry.name)
+    if (!prev) {
+      return entry
+    }
+    return {
+      ...entry,
+      aheadCount: prev.aheadCount,
+      behindCount: prev.behindCount,
+    }
+  })
 }
 
 /**
@@ -113,6 +156,19 @@ export function useRepoSidebar(activeRepository: string) {
         entry.path === worktreePath ? { ...entry, changedFileCount: count } : entry,
       ),
     )
+  }, [])
+
+  const applyBranchTrack = useCallback((branch: string, ahead: number, behind: number) => {
+    setBranches((current) => {
+      const next = current.map((entry) =>
+        entry.name === branch ? { ...entry, aheadCount: ahead, behindCount: behind } : entry,
+      )
+      const repoPath = activeRepoRef.current
+      if (repoPath) {
+        patchSidebarBranches(repoPath, next)
+      }
+      return next
+    })
   }, [])
 
   const loadSidebar = useCallback(
@@ -206,22 +262,23 @@ export function useRepoSidebar(activeRepository: string) {
           const prev = prevByPath.get(entry.path)
           return prev ? { ...entry, changedFileCount: prev.changedFileCount } : entry
         })
+        const mergedBranches = mergeBranchTracks(branchEntries, branchesRef.current)
 
         const dataUnchanged = sidebarSnapshotEqual(
           branchesRef.current,
           worktreesRef.current,
-          branchEntries,
+          mergedBranches,
           mergedWorktrees,
         )
 
         if (!dataUnchanged) {
-          setBranches(branchEntries)
+          setBranches(mergedBranches)
           setWorktrees(mergedWorktrees)
         }
         setSelectedWorktreeState(nextWorktree)
         setSelectedBranchState(nextBranch)
         setSidebarCache(repoPath, {
-          branches: branchEntries,
+          branches: mergedBranches,
           worktrees: mergedWorktrees,
           selectedBranch: nextBranch,
           selectedWorktree: nextWorktree,
@@ -233,6 +290,12 @@ export function useRepoSidebar(activeRepository: string) {
             return
           }
           applyBadgeCount(path, count)
+        })
+        void fillBranchTracks(repoPath, mergedBranches, isCurrent, (name, ahead, behind) => {
+          if (!isCurrent()) {
+            return
+          }
+          applyBranchTrack(name, ahead, behind)
         })
       } catch (err) {
         if (!isCurrent()) {
@@ -251,7 +314,7 @@ export function useRepoSidebar(activeRepository: string) {
         }
       }
     },
-    [applyBadgeCount],
+    [applyBadgeCount, applyBranchTrack],
   )
 
   useEffect(() => {
@@ -369,12 +432,24 @@ export function useRepoSidebar(activeRepository: string) {
       if (activeRepoRef.current !== activeRepository) {
         return
       }
-      setBranches(branchEntries)
-      patchSidebarBranches(activeRepository, branchEntries)
+      const mergedBranches = mergeBranchTracks(branchEntries, branchesRef.current)
+      setBranches(mergedBranches)
+      patchSidebarBranches(activeRepository, mergedBranches)
+
+      const requestId = requestIdRef.current
+      const repoPath = activeRepository
+      const isCurrent = () =>
+        requestId === requestIdRef.current && activeRepoRef.current === repoPath
+      void fillBranchTracks(repoPath, mergedBranches, isCurrent, (name, ahead, behind) => {
+        if (!isCurrent()) {
+          return
+        }
+        applyBranchTrack(name, ahead, behind)
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ブランチ情報の取得に失敗しました')
     }
-  }, [activeRepository])
+  }, [activeRepository, applyBranchTrack])
 
   /** WT 一覧メタ（path/branch）だけ。status スキャンなし。 */
   const reloadWorktreesMeta = useCallback(async () => {

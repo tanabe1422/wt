@@ -232,14 +232,11 @@ export function GitSyncToolbar({
     }
   }
 
-  /** 全画面スピナーは git 操作中だけ。再読込は acting でボタン無効のまま裏で実行する。 */
+  /** 全画面スピナーは git 操作中だけ。完了後の ahead/behind 再読込は acting を掴まない。 */
   const finishAction = async (scope: SyncRefreshScope) => {
     setOverlay(false)
-    try {
-      await onActionComplete?.(scope)
-    } finally {
-      setActing(false)
-    }
+    setActing(false)
+    await onActionComplete?.(scope)
   }
 
   const runPush = async () => {

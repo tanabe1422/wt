@@ -381,7 +381,17 @@ export const mockApp: WailsApp = {
   },
 
   async ListBranches(_repoPath: string) {
-    return mockBranchList.map((entry) => ({ ...entry }))
+    return mockBranchList.map((entry) => ({
+      ...entry,
+      // ListBranches only fills current-branch track (matches Go).
+      aheadCount: entry.isCurrent ? entry.aheadCount : 0,
+      behindCount: entry.isCurrent ? entry.behindCount : 0,
+    }))
+  },
+
+  async GetBranchAheadBehind(_repoPath: string, branch: string) {
+    const entry = mockBranchList.find((item) => item.name === branch && !item.isRemote)
+    return { ahead: entry?.aheadCount ?? 0, behind: entry?.behindCount ?? 0 }
   },
 
   async ListWorktrees(repoPath: string) {

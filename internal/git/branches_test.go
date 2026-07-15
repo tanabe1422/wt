@@ -187,10 +187,11 @@ func TestParseBranchRefLine(t *testing.T) {
 
 func TestListBranches(t *testing.T) {
 	fake := newFakeRunner()
-	fake.On("for-each-ref", "--format=%(refname)|%(HEAD)|%(upstream:short)|%(upstream:track)", "refs/heads/", "refs/remotes/").Return(
-		"refs/heads/main|*|origin/main|[ahead 1]\nrefs/heads/feature/foo| |||\nrefs/remotes/origin/HEAD| |||\nrefs/remotes/origin/main| |||\nrefs/remotes/origin/feature/foo| |||",
+	fake.On("for-each-ref", "--format=%(refname)|%(HEAD)|%(upstream:short)", "refs/heads/", "refs/remotes/").Return(
+		"refs/heads/main|*|origin/main\nrefs/heads/feature/foo||\nrefs/remotes/origin/HEAD||\nrefs/remotes/origin/main||\nrefs/remotes/origin/feature/foo||",
 		nil,
 	)
+	fake.On("rev-list", "--left-right", "--count", "main@{upstream}...main").Return("0 1", nil)
 	withFakeRunner(t, fake)
 
 	entries, err := ListBranches("/repo")
@@ -211,11 +212,25 @@ func TestListBranches(t *testing.T) {
 	if !local["main"].IsCurrent || !local["main"].HasUpstream || local["main"].AheadCount != 1 {
 		t.Fatalf("unexpected main entry: %+v", local["main"])
 	}
-	if local["feature/foo"].IsCurrent || local["feature/foo"].HasUpstream {
+	if local["feature/foo"].IsCurrent || local["feature/foo"].HasUpstream || local["feature/foo"].AheadCount != 0 {
 		t.Fatalf("unexpected feature entry: %+v", local["feature/foo"])
 	}
 	if len(remotes) != 2 {
 		t.Fatalf("expected 2 remotes (HEAD skipped), got %v", remotes)
+	}
+}
+
+func TestGetBranchAheadBehind(t *testing.T) {
+	fake := newFakeRunner()
+	fake.On("rev-list", "--left-right", "--count", "feature@{upstream}...feature").Return("2 3", nil)
+	withFakeRunner(t, fake)
+
+	got, err := GetBranchAheadBehind("/repo", "feature")
+	if err != nil {
+		t.Fatalf("GetBranchAheadBehind: %v", err)
+	}
+	if got.Ahead != 3 || got.Behind != 2 {
+		t.Fatalf("unexpected ahead/behind: %+v", got)
 	}
 }
 

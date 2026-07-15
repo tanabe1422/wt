@@ -49,6 +49,8 @@ export function FetchPrune(arg1:string):Promise<Array<string>>;
 
 export function GetAmendInfo(arg1:string):Promise<git.AmendInfo>;
 
+export function GetBranchAheadBehind(arg1:string,arg2:string):Promise<git.AheadBehind>;
+
 export function GetCommitFileDiff(arg1:string,arg2:string,arg3:string):Promise<git.FileDiff>;
 
 export function GetFileDiff(arg1:string,arg2:string,arg3:boolean):Promise<git.FileDiff>;

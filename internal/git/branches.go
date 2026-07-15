@@ -39,12 +39,32 @@ func parseUpstreamTrack(track string) (ahead, behind int) {
 	return ahead, behind
 }
 
+// AheadBehind is the commit divergence of a local branch vs its upstream.
+type AheadBehind struct {
+	Ahead  int `json:"ahead"`
+	Behind int `json:"behind"`
+}
+
 // ListBranches returns local and remote branches for the repository at repoPath.
+// Ahead/behind is filled only for the current branch (fast path after fetch).
+// Use GetBranchAheadBehind for other locals off the critical path.
 func ListBranches(repoPath string) ([]BranchEntry, error) {
+	entries, err := listBranchesMeta(repoPath)
+	if err != nil {
+		return nil, err
+	}
+	fillCurrentBranchTrack(repoPath, entries)
+	return entries, nil
+}
+
+// listBranchesMeta lists branches without computing upstream ahead/behind.
+// %(upstream:track) walks the commit graph per local branch and can dominate
+// fetch/reload latency when any branch is heavily diverged.
+func listBranchesMeta(repoPath string) ([]BranchEntry, error) {
 	out, err := runGit(
 		repoPath,
 		"for-each-ref",
-		"--format=%(refname)|%(HEAD)|%(upstream:short)|%(upstream:track)",
+		"--format=%(refname)|%(HEAD)|%(upstream:short)",
 		"refs/heads/",
 		"refs/remotes/",
 	)
@@ -58,7 +78,7 @@ func ListBranches(repoPath string) ([]BranchEntry, error) {
 	}
 
 	for _, line := range strings.Split(out, "\n") {
-		parts := strings.SplitN(line, "|", 4)
+		parts := strings.SplitN(line, "|", 3)
 		ref := strings.TrimSpace(parts[0])
 		if ref == "" {
 			continue
@@ -75,18 +95,11 @@ func ListBranches(repoPath string) ([]BranchEntry, error) {
 			if len(parts) > 2 {
 				upstream = strings.TrimSpace(parts[2])
 			}
-			track := ""
-			if len(parts) > 3 {
-				track = parts[3]
-			}
-			ahead, behind := parseUpstreamTrack(track)
 			entries = append(entries, BranchEntry{
 				Name:        name,
 				IsCurrent:   isCurrent,
 				IsRemote:    false,
 				HasUpstream: upstream != "",
-				AheadCount:  ahead,
-				BehindCount: behind,
 			})
 		case strings.HasPrefix(ref, "refs/remotes/"):
 			name := strings.TrimPrefix(ref, "refs/remotes/")
@@ -102,6 +115,54 @@ func ListBranches(repoPath string) ([]BranchEntry, error) {
 	}
 
 	return entries, nil
+}
+
+func fillCurrentBranchTrack(repoPath string, entries []BranchEntry) {
+	for i := range entries {
+		if !entries[i].IsCurrent || !entries[i].HasUpstream {
+			continue
+		}
+		ahead, behind, err := countAheadBehind(repoPath, entries[i].Name)
+		if err != nil {
+			return
+		}
+		entries[i].AheadCount = ahead
+		entries[i].BehindCount = behind
+		return
+	}
+}
+
+// GetBranchAheadBehind returns ahead/behind for one local branch vs its upstream.
+func GetBranchAheadBehind(repoPath, branch string) (AheadBehind, error) {
+	branch = strings.TrimSpace(branch)
+	if branch == "" {
+		return AheadBehind{}, errors.New("ブランチ名が空です")
+	}
+	ahead, behind, err := countAheadBehind(repoPath, branch)
+	if err != nil {
+		return AheadBehind{}, err
+	}
+	return AheadBehind{Ahead: ahead, Behind: behind}, nil
+}
+
+// countAheadBehind runs `git rev-list --left-right --count branch@{upstream}...branch`.
+// Output is "<behind> <ahead>" (left = upstream-only, right = branch-only).
+func countAheadBehind(repoPath, branch string) (ahead, behind int, err error) {
+	out, err := runGit(repoPath, "rev-list", "--left-right", "--count", branch+"@{upstream}..."+branch)
+	if err != nil {
+		return 0, 0, err
+	}
+	fields := strings.Fields(strings.TrimSpace(out))
+	if len(fields) != 2 {
+		return 0, 0, nil
+	}
+	if _, err := fmt.Sscanf(fields[0], "%d", &behind); err != nil {
+		return 0, 0, nil
+	}
+	if _, err := fmt.Sscanf(fields[1], "%d", &ahead); err != nil {
+		return 0, 0, nil
+	}
+	return ahead, behind, nil
 }
 
 // localBranchFromRemote strips the remote name prefix from a remote ref.

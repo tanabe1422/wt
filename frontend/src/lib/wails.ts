@@ -117,6 +117,13 @@ export async function listBranches(repoPath = ''): Promise<BranchEntry[]> {
   return callApp('ListBranches', repoPath)
 }
 
+export async function getBranchAheadBehind(
+  repoPath: string,
+  branch: string,
+): Promise<{ ahead: number; behind: number }> {
+  return callApp('GetBranchAheadBehind', repoPath, branch)
+}
+
 export async function listWorktrees(repoPath = ''): Promise<WorktreeEntry[]> {
   return callApp('ListWorktrees', repoPath)
 }

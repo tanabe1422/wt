@@ -61,6 +61,20 @@ export namespace config {
 
 export namespace git {
 	
+	export class AheadBehind {
+	    ahead: number;
+	    behind: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AheadBehind(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ahead = source["ahead"];
+	        this.behind = source["behind"];
+	    }
+	}
 	export class AmendInfo {
 	    canAmend: boolean;
 	    reason: string;

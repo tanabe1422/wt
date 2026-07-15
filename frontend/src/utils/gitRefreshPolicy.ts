@@ -123,7 +123,7 @@ export function needsSidebarFull(scope: RefreshScope): boolean {
   return scope === 'sidebarFull'
 }
 
-/** fetch/push はブランチ情報のみ（既存 handleSyncComplete('sidebar') と同等） */
+/** fetch/push はブランチ一覧をすぐ返し、他ブランチの ahead/behind は裏で埋める */
 export function toolbarUsesBranchesOnly(op: ToolbarGitOp): boolean {
   return op === 'fetch' || op === 'push'
 }

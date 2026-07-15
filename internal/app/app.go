@@ -2,11 +2,17 @@ package app
 
 import (
 	"context"
+	"sync"
+	"time"
 )
 
 // App exposes methods to the React frontend via Wails bindings.
 type App struct {
 	ctx context.Context
+
+	progressMu      sync.Mutex
+	lastProgressMsg string
+	lastProgressAt  time.Time
 }
 
 func New() *App {

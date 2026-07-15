@@ -9,6 +9,14 @@ func (a *App) ListBranches(repoPath string) ([]git.BranchEntry, error) {
 	return listFromRepo(repoPath, git.ListBranches)
 }
 
+func (a *App) GetBranchAheadBehind(repoPath, branch string) (git.AheadBehind, error) {
+	repoRoot, err := resolveRepoRoot(repoPath)
+	if err != nil {
+		return git.AheadBehind{}, err
+	}
+	return git.GetBranchAheadBehind(repoRoot, branch)
+}
+
 func (a *App) ListWorktrees(repoPath string) ([]git.WorktreeEntry, error) {
 	return listFromRepo(repoPath, git.ListWorktrees)
 }

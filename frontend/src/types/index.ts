@@ -38,6 +38,11 @@ export interface BranchEntry {
   behindCount: number
 }
 
+export interface AheadBehind {
+  ahead: number
+  behind: number
+}
+
 export type MergeCheckMode = 'ancestry' | 'content'
 
 export interface RemoteMergeEntry {

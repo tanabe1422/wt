@@ -94,6 +94,10 @@ export function GetAmendInfo(arg1) {
   return window['go']['app']['App']['GetAmendInfo'](arg1);
 }
 
+export function GetBranchAheadBehind(arg1, arg2) {
+  return window['go']['app']['App']['GetBranchAheadBehind'](arg1, arg2);
+}
+
 export function GetCommitFileDiff(arg1, arg2, arg3) {
   return window['go']['app']['App']['GetCommitFileDiff'](arg1, arg2, arg3);
 }

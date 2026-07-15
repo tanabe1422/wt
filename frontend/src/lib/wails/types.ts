@@ -1,5 +1,6 @@
 import type {
   AmendInfo,
+  AheadBehind,
   BranchEntry,
   BranchHead,
   CommitFileChange,
@@ -26,6 +27,7 @@ export interface WailsApp {
   ShowInExplorer(path: string): Promise<void>
   OpenTerminal(path: string): Promise<void>
   ListBranches(repoPath: string): Promise<BranchEntry[]>
+  GetBranchAheadBehind(repoPath: string, branch: string): Promise<AheadBehind>
   ListWorktrees(repoPath: string): Promise<WorktreeEntry[]>
   ListWorktreesMeta(repoPath: string): Promise<WorktreeEntry[]>
   GetWorktreeChangedCount(worktreePath: string): Promise<number>
