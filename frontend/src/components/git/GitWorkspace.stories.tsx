@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { GitWorkspace } from './GitWorkspace'
 import { isConflict } from '../../utils/gitStatus'
 import type { FileStatus } from '../../types'
+import { MainLayout } from '../layout/MainLayout'
 import { SidebarProvider } from '../layout/CollapsibleSidebar'
 import { GitSyncToolbar } from '../toolbar/GitSyncToolbar'
 import type { MainView } from '../toolbar/MainViewToolbarTabs'
@@ -235,6 +236,62 @@ export const WithMockApi: Story = {
       />
     </div>
   ),
+}
+
+function BackgroundFetchWithCommitBarDemo() {
+  const [mainView, setMainView] = useState<MainView>('files')
+  return (
+    <div
+      style={{
+        height: '100vh',
+        minHeight: 640,
+        border: '1px solid var(--color-slate-200)',
+        overflow: 'hidden',
+      }}
+    >
+      <MainLayout
+        workspaceToolbar={
+          <GitSyncToolbar
+            worktreePath="C:/dev/sample-repo"
+            currentBranch="feature/hoge"
+            aheadCount={2}
+            behindCount={1}
+            hasUpstream
+            mainView={mainView}
+            onMainViewChange={setMainView}
+            onOpenSettings={() => undefined}
+          />
+        }
+        sidebar={
+          <div
+            style={{
+              padding: '0.75rem',
+              fontSize: '0.75rem',
+              color: 'var(--color-slate-500)',
+            }}
+          >
+            サイドバー（モック）
+          </div>
+        }
+      >
+        <GitWorkspace
+          worktreePath="C:/dev/sample-repo"
+          hasUpstream
+          pushAfterCommit={false}
+          onPushAfterCommitChange={() => undefined}
+          backgroundFetching
+        />
+      </MainLayout>
+    </div>
+  )
+}
+
+export const BackgroundFetchWithCommitBar: Story = {
+  name: '裏フェッチ中（CommitBar あり）',
+  parameters: {
+    layout: 'fullscreen',
+  },
+  render: () => <BackgroundFetchWithCommitBarDemo />,
 }
 
 export const AfterPullConflict: Story = {

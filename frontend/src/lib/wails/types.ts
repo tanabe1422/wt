@@ -9,6 +9,7 @@ import type {
   ListCommitsResult,
   RemoteMergeEntry,
   RepoOperationState,
+  FsMonitorState,
   Settings,
   StashEntry,
   WorktreeEntry,
@@ -22,6 +23,8 @@ export interface WailsApp {
   RemoveRepository(path: string): Promise<Settings>
   SetActiveRepository(path: string): Promise<Settings>
   SetPushAfterCommit(repoPath: string, enabled: boolean): Promise<Settings>
+  GetFsMonitor(repoPath: string): Promise<FsMonitorState>
+  SetFsMonitor(repoPath: string, enabled: boolean): Promise<FsMonitorState>
   PickDirectory(): Promise<string>
   PickFile(): Promise<string>
   ShowInExplorer(path: string): Promise<void>

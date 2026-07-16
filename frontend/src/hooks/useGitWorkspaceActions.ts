@@ -16,10 +16,8 @@ import {
   push,
   pushSetUpstream,
   showInExplorer,
-  stageAll,
   stageHunk,
   stageLines,
-  unstageAll,
   unstageHunk,
   unstageLines,
 } from '../lib/wails'
@@ -124,10 +122,6 @@ export function useGitWorkspaceActions({
       : null
 
   /** Git 操作は busy、リフレッシュは busy 解除後（体感ブロック短縮） */
-  const afterStatusAndBadge = useCallback(async () => {
-    await Promise.all([reload(), refreshBadge()])
-  }, [reload, refreshBadge])
-
   const afterStatusBadgeDiff = useCallback(async () => {
     await Promise.all([reload(), refreshBadge(), reloadDiff()])
   }, [reload, refreshBadge, reloadDiff])
@@ -182,42 +176,30 @@ export function useGitWorkspaceActions({
   }, [refreshBadge, runBusy, setFocus, stagedSelectionPaths, unstage])
 
   const handleStageAll = useCallback(async () => {
-    if (!unstaged.some((entry) => !isConflict(entry))) {
+    const paths = unstaged.filter((entry) => !isConflict(entry)).map((entry) => entry.path)
+    if (paths.length === 0) {
       return
     }
     await runBusy(async () => {
-      try {
-        await stageAll(worktreePath)
-        invalidateWorktreeDiffs(worktreePath)
-      } catch (err) {
-        setExternalToolError(
-          err instanceof Error ? err.message : 'すべて追加に失敗しました',
-        )
-        return
-      }
+      await stage(paths)
     })
-    await afterStatusAndBadge()
+    setFocus('staged', paths[paths.length - 1])
+    void refreshBadge()
     clearSection('unstaged')
-  }, [afterStatusAndBadge, clearSection, runBusy, unstaged, worktreePath])
+  }, [clearSection, refreshBadge, runBusy, setFocus, stage, unstaged])
 
   const handleUnstageAll = useCallback(async () => {
-    if (staged.length === 0) {
+    const paths = staged.map((entry) => entry.path)
+    if (paths.length === 0) {
       return
     }
     await runBusy(async () => {
-      try {
-        await unstageAll(worktreePath)
-        invalidateWorktreeDiffs(worktreePath)
-      } catch (err) {
-        setExternalToolError(
-          err instanceof Error ? err.message : 'すべて除くに失敗しました',
-        )
-        return
-      }
+      await unstage(paths)
     })
-    await afterStatusAndBadge()
+    setFocus('unstaged', paths[paths.length - 1])
+    void refreshBadge()
     clearSection('staged')
-  }, [afterStatusAndBadge, clearSection, runBusy, staged.length, worktreePath])
+  }, [clearSection, refreshBadge, runBusy, setFocus, staged, unstage])
 
   const handleCommit = useCallback(
     async (message: string, options: { amend: boolean; pushAfterCommit: boolean }) => {

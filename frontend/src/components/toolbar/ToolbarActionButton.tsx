@@ -11,6 +11,8 @@ interface ToolbarActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElemen
   badgeCount?: number
   badgeVariant?: CountBadgeVariant
   showBadgeIcon?: boolean
+  /** 件数なしの丸インジケータ（右上）。badgeCount より優先しない（数バッジがあるときは非表示）。 */
+  showDot?: boolean
 }
 
 export function ToolbarActionButton({
@@ -20,10 +22,13 @@ export function ToolbarActionButton({
   badgeCount = 0,
   badgeVariant,
   showBadgeIcon = false,
+  showDot = false,
   className,
   type = 'button',
   ...rest
 }: ToolbarActionButtonProps) {
+  const hasCountBadge = Boolean(badgeVariant && badgeCount > 0)
+
   return (
     <button
       type={type}
@@ -31,13 +36,15 @@ export function ToolbarActionButton({
       aria-label={label}
       {...rest}
     >
-      {badgeVariant && badgeCount > 0 && (
+      {hasCountBadge ? (
         <CountBadge
           count={badgeCount}
-          variant={badgeVariant}
+          variant={badgeVariant!}
           showIcon={showBadgeIcon}
           className={styles.badge}
         />
+      ) : (
+        showDot && <span className={styles.dot} aria-hidden="true" />
       )}
       <span className={styles.icon}>{icon}</span>
       <span className={styles.label}>{label}</span>

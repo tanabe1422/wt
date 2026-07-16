@@ -55,6 +55,8 @@ export function GetCommitFileDiff(arg1:string,arg2:string,arg3:string):Promise<g
 
 export function GetFileDiff(arg1:string,arg2:string,arg3:boolean):Promise<git.FileDiff>;
 
+export function GetFsMonitor(arg1:string):Promise<git.FsMonitorState>;
+
 export function GetRangeFileDiff(arg1:string,arg2:string,arg3:string,arg4:string):Promise<git.FileDiff>;
 
 export function GetRepoOperationState(arg1:string):Promise<git.RepoOperationState>;
@@ -130,6 +132,8 @@ export function SaveSettings(arg1:config.Settings):Promise<config.Settings>;
 export function SaveStash(arg1:string,arg2:string,arg3:boolean):Promise<void>;
 
 export function SetActiveRepository(arg1:string):Promise<config.Settings>;
+
+export function SetFsMonitor(arg1:string,arg2:boolean):Promise<git.FsMonitorState>;
 
 export function SetPushAfterCommit(arg1:string,arg2:boolean):Promise<config.Settings>;
 

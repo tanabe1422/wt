@@ -106,6 +106,10 @@ export function GetFileDiff(arg1, arg2, arg3) {
   return window['go']['app']['App']['GetFileDiff'](arg1, arg2, arg3);
 }
 
+export function GetFsMonitor(arg1) {
+  return window['go']['app']['App']['GetFsMonitor'](arg1);
+}
+
 export function GetRangeFileDiff(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['GetRangeFileDiff'](arg1, arg2, arg3, arg4);
 }
@@ -256,6 +260,10 @@ export function SaveStash(arg1, arg2, arg3) {
 
 export function SetActiveRepository(arg1) {
   return window['go']['app']['App']['SetActiveRepository'](arg1);
+}
+
+export function SetFsMonitor(arg1, arg2) {
+  return window['go']['app']['App']['SetFsMonitor'](arg1, arg2);
 }
 
 export function SetPushAfterCommit(arg1, arg2) {

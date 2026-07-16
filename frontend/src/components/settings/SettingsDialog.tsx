@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { pickFile } from '../../lib/wails'
+import { getFsMonitor, pickFile, setFsMonitor } from '../../lib/wails'
 import {
   applyPreset,
   emptyExternalTool,
@@ -115,8 +115,13 @@ function ToolFields({
 export function SettingsDialog({ open, settings, onClose, onSave }: SettingsDialogProps) {
   const [diffTool, setDiffTool] = useState<ExternalTool>(emptyExternalTool())
   const [mergeTool, setMergeTool] = useState<ExternalTool>(emptyExternalTool())
+  const [fsMonitorEnabled, setFsMonitorEnabled] = useState(false)
+  const [fsMonitorSupported, setFsMonitorSupported] = useState(true)
+  const [fsMonitorLoaded, setFsMonitorLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  const activeRepo = settings.activeRepository?.trim() ?? ''
 
   useEffect(() => {
     if (!open) {
@@ -125,11 +130,44 @@ export function SettingsDialog({ open, settings, onClose, onSave }: SettingsDial
     setDiffTool({ ...emptyExternalTool(), ...settings.diffTool })
     setMergeTool({ ...emptyExternalTool(), ...settings.mergeTool })
     setSaveError(null)
-  }, [open, settings])
+    setFsMonitorLoaded(false)
+
+    let cancelled = false
+    void getFsMonitor(activeRepo)
+      .then((state) => {
+        if (cancelled) {
+          return
+        }
+        setFsMonitorSupported(state.supported)
+        setFsMonitorEnabled(state.enabled)
+        setFsMonitorLoaded(true)
+      })
+      .catch(() => {
+        if (cancelled) {
+          return
+        }
+        setFsMonitorSupported(false)
+        setFsMonitorEnabled(false)
+        setFsMonitorLoaded(true)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, settings, activeRepo])
 
   if (!open) {
     return null
   }
+
+  const fsMonitorDisabled =
+    !activeRepo || !fsMonitorSupported || !fsMonitorLoaded || saving
+
+  const fsMonitorHint = !activeRepo
+    ? 'アクティブなリポジトリがないため変更できません。'
+    : !fsMonitorSupported
+      ? 'この OS では Git 内蔵 FSMonitor を利用できません（Windows / macOS 向け）。'
+      : '大きいリポジトリで git status を速くします。core.fsmonitor と core.untrackedCache をリポジトリに設定します。'
 
   const handleSave = async () => {
     setSaving(true)
@@ -140,6 +178,9 @@ export function SettingsDialog({ open, settings, onClose, onSave }: SettingsDial
         diffTool,
         mergeTool,
       })
+      if (activeRepo && fsMonitorSupported && fsMonitorLoaded) {
+        await setFsMonitor(activeRepo, fsMonitorEnabled)
+      }
       onClose()
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : '設定の保存に失敗しました')
@@ -164,6 +205,25 @@ export function SettingsDialog({ open, settings, onClose, onSave }: SettingsDial
           </IconButton>
         </div>
         <div className={styles.body}>
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>パフォーマンス</h3>
+            <div className={styles.toolBlock}>
+              <label className={styles.checkRow}>
+                <input
+                  type="checkbox"
+                  className={styles.checkbox}
+                  checked={fsMonitorEnabled}
+                  disabled={fsMonitorDisabled}
+                  onChange={(event) => setFsMonitorEnabled(event.target.checked)}
+                />
+                <span className={styles.checkLabel}>
+                  ファイルシステム監視（FSMonitor）を有効にする
+                </span>
+              </label>
+              <p className={styles.toolDesc}>{fsMonitorHint}</p>
+            </div>
+          </section>
+
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Diff</h3>
             <ToolFields

@@ -24,6 +24,8 @@ let mockSettings: Settings = {
   pushAfterCommit: {},
 }
 
+let mockFsMonitorEnabled = false
+
 let mockStatus: FileStatus[] = [
   { path: 'src/main.go', index: 'M', workTree: ' ', staged: true, isDirectory: false },
   { path: 'README.md', index: ' ', workTree: 'M', staged: false, isDirectory: false },
@@ -360,6 +362,15 @@ export const mockApp: WailsApp = {
       delete mockSettings.pushAfterCommit[normalized]
     }
     return mockApp.GetSettings()
+  },
+
+  async GetFsMonitor(_repoPath: string) {
+    return { supported: true, enabled: mockFsMonitorEnabled }
+  },
+
+  async SetFsMonitor(_repoPath: string, enabled: boolean) {
+    mockFsMonitorEnabled = enabled
+    return { supported: true, enabled: mockFsMonitorEnabled }
   },
 
   async PickDirectory() {

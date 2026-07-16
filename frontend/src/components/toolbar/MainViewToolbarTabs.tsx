@@ -57,9 +57,15 @@ const viewLabels: Record<MainView, string> = {
 interface MainViewToolbarTabsProps {
   view: MainView
   onChange: (view: MainView) => void
+  /** 現行 WT に未コミット変更があるとき、ファイルタブに丸バッジを出す */
+  hasFileChanges?: boolean
 }
 
-export function MainViewToolbarTabs({ view, onChange }: MainViewToolbarTabsProps) {
+export function MainViewToolbarTabs({
+  view,
+  onChange,
+  hasFileChanges = false,
+}: MainViewToolbarTabsProps) {
   const views: MainView[] = ['files', 'history']
 
   return (
@@ -72,6 +78,7 @@ export function MainViewToolbarTabs({ view, onChange }: MainViewToolbarTabsProps
           label={viewLabels[item]}
           icon={<MainViewIcon view={item} />}
           active={view === item}
+          showDot={item === 'files' && hasFileChanges}
           onClick={() => onChange(item)}
         />
       ))}

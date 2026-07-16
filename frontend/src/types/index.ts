@@ -23,6 +23,12 @@ export interface AmendInfo {
   headMessage: string
 }
 
+/** Builtin FSMonitor + untrackedCache for a repository. */
+export interface FsMonitorState {
+  supported: boolean
+  enabled: boolean
+}
+
 export type RepoOperationKind = 'none' | 'merge' | 'rebase'
 
 export interface RepoOperationState {

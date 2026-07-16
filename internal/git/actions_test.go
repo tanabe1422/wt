@@ -81,44 +81,43 @@ func TestStageCommit(t *testing.T) {
 func TestStageAll(t *testing.T) {
 	dir := t.TempDir()
 	fake := newFakeRunner()
-	fake.On("ls-files", "-u").Return("", nil)
-	fake.On("add", "-A").Return("", nil)
+	fake.On("status", "--porcelain=v1", "-u").Return(" M a.txt\n?? b.txt", nil)
+	fake.On("ls-files", "-s", "--", "a.txt", "b.txt").Return("", nil)
+	fake.On("add", "--", "a.txt", "b.txt").Return("", nil)
 	withFakeRunner(t, fake)
 
 	if err := StageAll(dir); err != nil {
 		t.Fatalf("StageAll: %v", err)
 	}
-	fake.AssertCalled(t, "ls-files", "-u")
-	fake.AssertCalled(t, "add", "-A")
+	fake.AssertCalled(t, "add", "--", "a.txt", "b.txt")
 }
 
 func TestStageAllExcludesUnmerged(t *testing.T) {
 	dir := t.TempDir()
 	fake := newFakeRunner()
-	fake.On("ls-files", "-u").Return(
-		"100644 aaa 1\tconflict.txt\n100644 bbb 2\tconflict.txt\n100644 ccc 3\tconflict.txt\n"+
-			"100644 ddd 1\tother.go\n100644 eee 2\tother.go\n100644 fff 3\tother.go\n",
-		nil,
-	)
-	fake.On("add", "-A", "--", ".", ":(exclude)conflict.txt", ":(exclude)other.go").Return("", nil)
+	fake.On("status", "--porcelain=v1", "-u").Return("UU conflict.txt\n M ok.go", nil)
+	fake.On("ls-files", "-s", "--", "conflict.txt", "ok.go").Return("", nil)
+	fake.On("add", "--", "ok.go").Return("", nil)
 	withFakeRunner(t, fake)
 
 	if err := StageAll(dir); err != nil {
 		t.Fatalf("StageAll: %v", err)
 	}
-	fake.AssertCalled(t, "add", "-A", "--", ".", ":(exclude)conflict.txt", ":(exclude)other.go")
+	fake.AssertCalled(t, "add", "--", "ok.go")
 }
 
 func TestUnstageAll(t *testing.T) {
 	dir := t.TempDir()
 	fake := newFakeRunner()
-	fake.On("restore", "--staged", ".").Return("", nil)
+	fake.On("status", "--porcelain=v1", "-u").Return("M  a.txt\nA  b.txt", nil)
+	fake.On("ls-files", "-s", "--", "a.txt", "b.txt").Return("", nil)
+	fake.On("restore", "--staged", "--", "a.txt", "b.txt").Return("", nil)
 	withFakeRunner(t, fake)
 
 	if err := UnstageAll(dir); err != nil {
 		t.Fatalf("UnstageAll: %v", err)
 	}
-	fake.AssertCalled(t, "restore", "--staged", ".")
+	fake.AssertCalled(t, "restore", "--staged", "--", "a.txt", "b.txt")
 }
 
 func TestFetchArgs(t *testing.T) {

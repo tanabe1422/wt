@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { listBranches } from '../../lib/wails'
 import { seedMockSyncCounts } from '../../lib/wails/mockApp'
+import { GitWorkspace } from '../git/GitWorkspace'
 import { MainLayout } from '../layout/MainLayout'
 import { SidebarProvider } from '../layout/CollapsibleSidebar'
 import { GitSyncToolbar } from './GitSyncToolbar'
@@ -131,6 +132,7 @@ const meta = {
     aheadCount: 0,
     behindCount: 0,
     hasUpstream: true,
+    changedFileCount: 0,
     mainView: 'files' as const,
     onMainViewChange: () => {},
     onOpenSettings: () => console.info('[story] open settings'),
@@ -178,6 +180,14 @@ export const WithCounts: Story = {
   args: {
     aheadCount: 23,
     behindCount: 5,
+  },
+}
+
+export const WithFileChanges: Story = {
+  name: 'ファイルに変更あり',
+  render: (args) => <InteractiveToolbar {...args} initialView="history" />,
+  args: {
+    changedFileCount: 3,
   },
 }
 
@@ -258,6 +268,81 @@ export const PullBusy: Story = {
       behindCount={5}
       hasUpstream
       hint="Pull を押すと共通の busy オーバーレイが出ます（モックは約 1.2 秒後に behind を 0 にします）。"
+    />
+  ),
+}
+
+function BackgroundFetchDemo({
+  worktreePath,
+  currentBranch,
+  aheadCount,
+  behindCount,
+  hasUpstream,
+}: Omit<SyncBusyDemoProps, 'hint'>) {
+  const [mainView, setMainView] = useState<MainView>('files')
+
+  return (
+    <div
+      style={{
+        height: 640,
+        minHeight: 640,
+        border: '1px solid var(--color-slate-200)',
+        borderRadius: '0.375rem',
+        overflow: 'hidden',
+        background: 'var(--color-surface-main)',
+      }}
+    >
+      <MainLayout
+        busy={false}
+        workspaceToolbar={
+          <GitSyncToolbar
+            worktreePath={worktreePath}
+            currentBranch={currentBranch}
+            aheadCount={aheadCount}
+            behindCount={behindCount}
+            hasUpstream={hasUpstream}
+            mainView={mainView}
+            onMainViewChange={setMainView}
+            onOpenSettings={() => console.info('[story] open settings')}
+          />
+        }
+        sidebar={
+          <div
+            style={{
+              padding: '0.75rem',
+              fontSize: '0.75rem',
+              color: 'var(--color-slate-500)',
+            }}
+          >
+            サイドバー（モック）
+          </div>
+        }
+      >
+        <GitWorkspace
+          worktreePath={worktreePath}
+          hasUpstream={hasUpstream}
+          pushAfterCommit={false}
+          onPushAfterCommitChange={() => undefined}
+          backgroundFetching
+        />
+      </MainLayout>
+    </div>
+  )
+}
+
+export const BackgroundFetch: Story = {
+  name: '裏フェッチ中（CommitBar あり）',
+  decorators: [],
+  parameters: {
+    layout: 'fullscreen',
+  },
+  render: () => (
+    <BackgroundFetchDemo
+      worktreePath="C:/dev/sample-repo"
+      currentBranch="feature/hoge"
+      aheadCount={2}
+      behindCount={1}
+      hasUpstream
     />
   ),
 }

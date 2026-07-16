@@ -8,11 +8,18 @@ const meta = {
   component: MainViewToolbarTabs,
   render: (args) => {
     const [view, setView] = useState<MainView>(args.view)
-    return <MainViewToolbarTabs view={view} onChange={setView} />
+    return (
+      <MainViewToolbarTabs
+        view={view}
+        onChange={setView}
+        hasFileChanges={args.hasFileChanges}
+      />
+    )
   },
   args: {
     view: 'files' as const,
     onChange: () => {},
+    hasFileChanges: false,
   },
   argTypes: {
     onChange: { table: { disable: true } },
@@ -43,6 +50,11 @@ export const Files: Story = {
 
 export const History: Story = {
   args: { view: 'history' },
+}
+
+export const WithFileChanges: Story = {
+  args: { view: 'history', hasFileChanges: true },
+  name: 'ファイルに変更あり',
 }
 
 export const WithDividerPreview: Story = {

@@ -137,10 +137,9 @@ function AppShell() {
     worktrees[0]?.path ??
     ''
 
-  const currentBranch =
-    worktrees.find((worktree) => worktree.path === worktreePath)?.branch ??
-    selectedBranch ??
-    ''
+  const currentWorktree = worktrees.find((worktree) => worktree.path === worktreePath)
+  const currentBranch = currentWorktree?.branch ?? selectedBranch ?? ''
+  const changedFileCount = currentWorktree?.changedFileCount ?? 0
 
   const compareFromRef = currentBranch !== '' ? currentBranch : null
 
@@ -260,6 +259,7 @@ function AppShell() {
               aheadCount={aheadCount}
               behindCount={behindCount}
               hasUpstream={hasUpstream}
+              changedFileCount={changedFileCount}
               mainView={mainView}
               onMainViewChange={setMainView}
               onActionComplete={handleSyncComplete}

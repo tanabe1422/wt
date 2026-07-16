@@ -45,6 +45,10 @@ interface GitWorkspaceProps {
    */
   statusRevision?: number
   onBusyChange?: BusyChangeHandler
+  /**
+   * 優先フェッチ後の裏フェッチ中。CommitBar の上・差分パネル右下に表示し、操作はブロックしない。
+   */
+  backgroundFetching?: boolean
 }
 
 const FILES_SPLIT_STORAGE_KEY = 'wt-manager.filesSplitRatio'
@@ -62,6 +66,7 @@ export function GitWorkspace({
   contentRevision = 0,
   statusRevision = 0,
   onBusyChange,
+  backgroundFetching = false,
 }: GitWorkspaceProps) {
   const { busy, runBusy } = useBusy(onBusyChange)
   const {
@@ -347,6 +352,12 @@ export function GitWorkspace({
             onDiscardLines={(index, lines) => void actions.handleDiscardLines(index, lines)}
           />
         </div>
+        {backgroundFetching && !busy ? (
+          <div className={styles.backgroundFetch} role="status" aria-live="polite">
+            <span className={styles.backgroundFetchSpinner} aria-hidden="true" />
+            他ブランチを取得中…
+          </div>
+        ) : null}
       </div>
       <CommitBar
         disabled={!worktreePath || Boolean(actions.commitBlockReason)}

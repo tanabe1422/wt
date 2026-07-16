@@ -32,6 +32,8 @@ interface GitSyncToolbarProps {
   hasUpstream?: boolean
   mainView: MainView
   onMainViewChange: (view: MainView) => void
+  /** 現行 WT の未コミット変更ファイル数（ファイルタブの丸バッジ用） */
+  changedFileCount?: number
   onActionComplete?: (scope?: SyncRefreshScope) => void | Promise<void>
   onReload?: () => void | Promise<void>
   onOpenSettings?: () => void
@@ -194,6 +196,7 @@ export function GitSyncToolbar({
   hasUpstream = true,
   mainView,
   onMainViewChange,
+  changedFileCount = 0,
   onActionComplete,
   onReload,
   onOpenSettings,
@@ -385,7 +388,11 @@ export function GitSyncToolbar({
       {!settingsOnly ? (
         <div className={styles.leading}>
           <SidebarToggleButton />
-          <MainViewToolbarTabs view={mainView} onChange={onMainViewChange} />
+          <MainViewToolbarTabs
+            view={mainView}
+            onChange={onMainViewChange}
+            hasFileChanges={changedFileCount > 0}
+          />
           <div className={styles.divider} aria-hidden="true" />
           <div className={styles.toolGroup}>
             {syncActions.map((action) => (

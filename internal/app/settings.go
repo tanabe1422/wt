@@ -130,6 +130,28 @@ func (a *App) SetPushAfterCommit(path string, enabled bool) (config.Settings, er
 	return settings, nil
 }
 
+func (a *App) GetFsMonitor(repoPath string) (git.FsMonitorState, error) {
+	root, ok, err := tryResolveRepoRoot(repoPath)
+	if err != nil {
+		return git.FsMonitorState{}, err
+	}
+	if !ok {
+		return git.FsMonitorState{Supported: git.FsMonitorSupported()}, nil
+	}
+	return git.GetFsMonitorState(root)
+}
+
+func (a *App) SetFsMonitor(repoPath string, enabled bool) (git.FsMonitorState, error) {
+	root, err := resolveRepoRoot(repoPath)
+	if err != nil {
+		return git.FsMonitorState{}, err
+	}
+	if err := git.SetFsMonitorEnabled(root, enabled); err != nil {
+		return git.FsMonitorState{}, err
+	}
+	return git.GetFsMonitorState(root)
+}
+
 func (a *App) PickDirectory() (string, error) {
 	if a.ctx == nil {
 		return "", errors.New("application context is not ready")

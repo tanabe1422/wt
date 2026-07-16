@@ -7,6 +7,7 @@ import type {
   FileStatus,
   HistoryScope,
   ListCommitsResult,
+  FsMonitorState,
   RemoteMergeEntry,
   RepoOperationState,
   Settings,
@@ -95,6 +96,14 @@ export async function setActiveRepository(path: string): Promise<Settings> {
 
 export async function setPushAfterCommit(repoPath: string, enabled: boolean): Promise<Settings> {
   return callApp('SetPushAfterCommit', repoPath, enabled)
+}
+
+export async function getFsMonitor(repoPath: string): Promise<FsMonitorState> {
+  return callApp('GetFsMonitor', repoPath)
+}
+
+export async function setFsMonitor(repoPath: string, enabled: boolean): Promise<FsMonitorState> {
+  return callApp('SetFsMonitor', repoPath, enabled)
 }
 
 export async function pickDirectory(): Promise<string> {

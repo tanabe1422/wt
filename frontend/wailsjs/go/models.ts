@@ -372,6 +372,20 @@ export namespace git {
 	        this.isDirectory = source["isDirectory"];
 	    }
 	}
+	export class FsMonitorState {
+	    supported: boolean;
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FsMonitorState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.supported = source["supported"];
+	        this.enabled = source["enabled"];
+	    }
+	}
 	export class ListCommitsResult {
 	    commits: CommitLogEntry[];
 	    hasMore: boolean;
