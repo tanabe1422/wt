@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import type { MouseEvent } from 'react'
 
 import type { BranchHead, CommitLogEntry } from '../../types'
@@ -17,6 +17,15 @@ interface CommitHistoryTableProps {
   onContextMenu?: (sha: string, event: MouseEvent) => void
   showGraph?: boolean
   emptyMessage?: string
+}
+
+function commitAtGraphY(
+  commits: CommitLogEntry[],
+  event: MouseEvent<HTMLDivElement>,
+): CommitLogEntry | undefined {
+  const rect = event.currentTarget.getBoundingClientRect()
+  const index = Math.floor((event.clientY - rect.top) / COMMIT_ROW_HEIGHT)
+  return commits[index]
 }
 
 export function CommitHistoryTable({
@@ -45,6 +54,26 @@ export function CommitHistoryTable({
     return commits.findIndex((commit) => commit.sha === selectedSha)
   }, [commits, selectedSha])
 
+  const handleGraphClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const commit = commitAtGraphY(commits, event)
+      if (commit) {
+        onSelect(commit.sha)
+      }
+    },
+    [commits, onSelect],
+  )
+
+  const handleGraphContextMenu = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const commit = commitAtGraphY(commits, event)
+      if (commit) {
+        onContextMenu?.(commit.sha, event)
+      }
+    },
+    [commits, onContextMenu],
+  )
+
   if (commits.length === 0) {
     return <p className={styles.empty}>{emptyMessage}</p>
   }
@@ -69,7 +98,12 @@ export function CommitHistoryTable({
           />
         )}
         {showGraph ? (
-          <div className={styles.graphColumn} style={{ width: widths.graph }}>
+          <div
+            className={styles.graphColumn}
+            style={{ width: widths.graph }}
+            onClick={handleGraphClick}
+            onContextMenu={handleGraphContextMenu}
+          >
             <CommitHistoryGraph commits={commits} rowHeight={COMMIT_ROW_HEIGHT} />
           </div>
         ) : null}

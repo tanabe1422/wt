@@ -6,6 +6,7 @@
 }
 
 .row {
+  position: relative;
   display: grid;
   align-items: center;
   width: 100%;
@@ -20,6 +21,7 @@
 }
 
 .row:hover {
+  z-index: 2;
   background: var(--color-slate-50);
 }
 
@@ -46,10 +48,41 @@
 }
 
 .labels {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.labelsVisible {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  min-width: 0;
+  width: 100%;
   overflow: hidden;
+}
+
+.labelsPopover {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0.5rem;
+  z-index: 20;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  border: 1px solid var(--color-slate-200);
+  border-radius: 0.25rem;
+  background: var(--color-white);
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.12);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.labels:hover .labelsPopover {
+  display: flex;
 }
 
 .label {
@@ -62,6 +95,11 @@
   border-radius: 0.1875rem;
   font-size: var(--font-size-git-diff);
   color: var(--color-cyan-600);
+}
+
+.labelsPopover .label {
+  max-width: none;
+  overflow: visible;
 }
 
 .labelMore {

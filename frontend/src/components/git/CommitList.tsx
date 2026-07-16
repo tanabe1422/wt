@@ -52,14 +52,23 @@ export function CommitList({
             <span className={styles.labels}>
               {commitLabels.length > 0 ? (
                 <>
-                  {commitLabels.slice(0, 2).map((name) => (
-                    <span key={name} className={styles.label}>
-                      {name}
-                    </span>
-                  ))}
-                  {commitLabels.length > 2 && (
-                    <span className={styles.labelMore}>+{commitLabels.length - 2}</span>
-                  )}
+                  <span className={styles.labelsVisible}>
+                    {commitLabels.slice(0, 2).map((name) => (
+                      <span key={name} className={styles.label}>
+                        {name}
+                      </span>
+                    ))}
+                    {commitLabels.length > 2 && (
+                      <span className={styles.labelMore}>+{commitLabels.length - 2}</span>
+                    )}
+                  </span>
+                  <span className={styles.labelsPopover} aria-hidden="true">
+                    {commitLabels.map((name) => (
+                      <span key={name} className={styles.label}>
+                        {name}
+                      </span>
+                    ))}
+                  </span>
                 </>
               ) : null}
             </span>
