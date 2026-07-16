@@ -6,7 +6,16 @@ import (
 )
 
 func (a *App) ListBranches(repoPath string) ([]git.BranchEntry, error) {
-	return listFromRepo(repoPath, git.ListBranches)
+	root, ok, err := tryResolveRepoRoot(repoPath)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return []git.BranchEntry{}, nil
+	}
+	return branchesReadCache.getOrLoad(root, func() ([]git.BranchEntry, error) {
+		return git.ListBranches(root)
+	})
 }
 
 func (a *App) GetBranchAheadBehind(repoPath, branch string) (git.AheadBehind, error) {
@@ -22,7 +31,16 @@ func (a *App) ListWorktrees(repoPath string) ([]git.WorktreeEntry, error) {
 }
 
 func (a *App) ListWorktreesMeta(repoPath string) ([]git.WorktreeEntry, error) {
-	return listFromRepo(repoPath, git.ListWorktreesMeta)
+	root, ok, err := tryResolveRepoRoot(repoPath)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return []git.WorktreeEntry{}, nil
+	}
+	return worktreesReadCache.getOrLoad(root, func() ([]git.WorktreeEntry, error) {
+		return git.ListWorktreesMeta(root)
+	})
 }
 
 func (a *App) GetWorktreeChangedCount(worktreePath string) (int, error) {
@@ -42,6 +60,7 @@ func (a *App) AddWorktree(repoPath, targetPath, branch string, isRemote bool) (s
 	if err != nil {
 		return "", err
 	}
+	clearGitReadCaches()
 	return git.AddWorktree(repoRoot, targetPath, branch, isRemote)
 }
 
@@ -50,11 +69,29 @@ func (a *App) RemoveWorktree(repoPath, worktreePath string, force bool) error {
 	if err != nil {
 		return err
 	}
+	clearGitReadCaches()
 	return git.RemoveWorktree(repoRoot, worktreePath, force)
 }
 
 func (a *App) GetStatus(worktreePath string) ([]git.FileStatus, error) {
-	return withWorktreeResult(worktreePath, git.GetStatus)
+	dir, err := resolveWorktreePath(worktreePath)
+	if err != nil {
+		return nil, err
+	}
+	return statusReadCache.getOrLoad(dir, func() ([]git.FileStatus, error) {
+		return git.GetStatus(dir)
+	})
+}
+
+// mutateWorktree clears startup read caches then runs a worktree-scoped write.
+func mutateWorktree(worktreePath string, fn func(dir string) error) error {
+	clearGitReadCaches()
+	return withWorktree(worktreePath, fn)
+}
+
+func mutateWorktreeResult[T any](worktreePath string, fn func(dir string) (T, error)) (T, error) {
+	clearGitReadCaches()
+	return withWorktreeResult(worktreePath, fn)
 }
 
 func (a *App) GetFileDiff(worktreePath, file string, staged bool) (git.FileDiff, error) {
@@ -64,79 +101,79 @@ func (a *App) GetFileDiff(worktreePath, file string, staged bool) (git.FileDiff,
 }
 
 func (a *App) StageFiles(worktreePath string, paths []string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.StageFiles(dir, paths)
 	})
 }
 
 func (a *App) StageAll(worktreePath string) error {
-	return withWorktree(worktreePath, git.StageAll)
+	return mutateWorktree(worktreePath, git.StageAll)
 }
 
 func (a *App) UnstageFiles(worktreePath string, paths []string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.UnstageFiles(dir, paths)
 	})
 }
 
 func (a *App) UnstageAll(worktreePath string) error {
-	return withWorktree(worktreePath, git.UnstageAll)
+	return mutateWorktree(worktreePath, git.UnstageAll)
 }
 
 func (a *App) StageHunk(worktreePath, file string, hunkIndex int) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.StageHunk(dir, file, hunkIndex)
 	})
 }
 
 func (a *App) UnstageHunk(worktreePath, file string, hunkIndex int) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.UnstageHunk(dir, file, hunkIndex)
 	})
 }
 
 func (a *App) DiscardHunk(worktreePath, file string, hunkIndex int, staged bool) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.DiscardHunk(dir, file, hunkIndex, staged)
 	})
 }
 
 func (a *App) StageLines(worktreePath, file string, hunkIndex int, lineIndices []int) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.StageLines(dir, file, hunkIndex, lineIndices)
 	})
 }
 
 func (a *App) UnstageLines(worktreePath, file string, hunkIndex int, lineIndices []int) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.UnstageLines(dir, file, hunkIndex, lineIndices)
 	})
 }
 
 func (a *App) DiscardLines(worktreePath, file string, hunkIndex int, lineIndices []int, staged bool) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.DiscardLines(dir, file, hunkIndex, lineIndices, staged)
 	})
 }
 
 func (a *App) DiscardFiles(worktreePath string, paths []string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.DiscardFiles(dir, paths)
 	})
 }
 
 func (a *App) DeleteUntracked(worktreePath string, paths []string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.DeleteUntracked(dir, paths)
 	})
 }
 
 func (a *App) DiscardAllChanges(worktreePath string) error {
-	return withWorktree(worktreePath, git.DiscardAllChanges)
+	return mutateWorktree(worktreePath, git.DiscardAllChanges)
 }
 
 func (a *App) AbortMerge(worktreePath string) error {
-	return withWorktree(worktreePath, git.AbortMerge)
+	return mutateWorktree(worktreePath, git.AbortMerge)
 }
 
 func (a *App) IsMerging(worktreePath string) (bool, error) {
@@ -152,21 +189,21 @@ func (a *App) IsRebasing(worktreePath string) (bool, error) {
 }
 
 func (a *App) RebaseBranch(worktreePath, upstream string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.RebaseBranch(dir, upstream)
 	})
 }
 
 func (a *App) ContinueRebase(worktreePath string) error {
-	return withWorktree(worktreePath, git.ContinueRebase)
+	return mutateWorktree(worktreePath, git.ContinueRebase)
 }
 
 func (a *App) AbortRebase(worktreePath string) error {
-	return withWorktree(worktreePath, git.AbortRebase)
+	return mutateWorktree(worktreePath, git.AbortRebase)
 }
 
 func (a *App) Commit(worktreePath, message string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.Commit(dir, message)
 	})
 }
@@ -176,49 +213,49 @@ func (a *App) GetAmendInfo(worktreePath string) (git.AmendInfo, error) {
 }
 
 func (a *App) AmendCommit(worktreePath, message string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.AmendCommit(dir, message)
 	})
 }
 
 func (a *App) Fetch(worktreePath string) error {
 	a.emitGitProgress("フェッチしています…")
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.FetchWithProgress(dir, a.emitGitProgress)
 	})
 }
 
 func (a *App) FetchPrune(worktreePath string) ([]string, error) {
 	a.emitGitProgress("フェッチしています…")
-	return withWorktreeResult(worktreePath, func(dir string) ([]string, error) {
+	return mutateWorktreeResult(worktreePath, func(dir string) ([]string, error) {
 		return git.FetchPruneWithProgress(dir, a.emitGitProgress)
 	})
 }
 
 func (a *App) Pull(worktreePath string) error {
 	a.emitGitProgress("プルしています…")
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.PullWithProgress(dir, a.emitGitProgress)
 	})
 }
 
 func (a *App) PullRebase(worktreePath string) error {
 	a.emitGitProgress("プルしています…")
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.PullRebaseWithProgress(dir, a.emitGitProgress)
 	})
 }
 
 func (a *App) Push(worktreePath string) error {
 	a.emitGitProgress("プッシュしています…")
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.PushWithProgress(dir, a.emitGitProgress)
 	})
 }
 
 func (a *App) PushSetUpstream(worktreePath, remote string) error {
 	a.emitGitProgress("プッシュしています…")
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.PushSetUpstreamWithProgress(dir, remote, a.emitGitProgress)
 	})
 }
@@ -306,25 +343,25 @@ func (a *App) GetRangeFileDiff(worktreePath, fromRef, toRef, file string) (git.F
 }
 
 func (a *App) SwitchBranch(worktreePath, branch string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.SwitchBranch(dir, branch)
 	})
 }
 
 func (a *App) CheckoutRemoteBranch(worktreePath, remoteRef string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.CheckoutRemoteBranch(dir, remoteRef)
 	})
 }
 
 func (a *App) CreateBranch(worktreePath, name string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.CreateBranch(dir, name)
 	})
 }
 
 func (a *App) DeleteBranch(worktreePath, name string, force bool) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.DeleteBranch(dir, name, force)
 	})
 }
@@ -340,31 +377,31 @@ func (a *App) ListRemoteMergeStatus(worktreePath, baseRef, mode string) ([]git.R
 }
 
 func (a *App) DeleteRemoteBranches(worktreePath string, remoteRefs []string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.DeleteRemoteBranches(dir, remoteRefs)
 	})
 }
 
 func (a *App) RenameBranch(worktreePath, oldName, newName string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.RenameBranch(dir, oldName, newName)
 	})
 }
 
 func (a *App) MergeBranch(worktreePath, source string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.MergeBranch(dir, source)
 	})
 }
 
 func (a *App) SquashMergeBranch(worktreePath, source string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.SquashMergeBranch(dir, source)
 	})
 }
 
 func (a *App) ResetToCommit(worktreePath, sha, mode string) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.ResetToCommit(dir, sha, git.ResetMode(mode))
 	})
 }
@@ -374,25 +411,25 @@ func (a *App) ListStashes(worktreePath string) ([]git.StashEntry, error) {
 }
 
 func (a *App) SaveStash(worktreePath, message string, includeUntracked bool) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.SaveStash(dir, message, includeUntracked)
 	})
 }
 
 func (a *App) ApplyStash(worktreePath string, index int) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.ApplyStash(dir, index)
 	})
 }
 
 func (a *App) PopStash(worktreePath string, index int) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.PopStash(dir, index)
 	})
 }
 
 func (a *App) DropStash(worktreePath string, index int) error {
-	return withWorktree(worktreePath, func(dir string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.DropStash(dir, index)
 	})
 }

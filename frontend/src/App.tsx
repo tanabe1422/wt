@@ -13,9 +13,10 @@ import { ToastProvider } from './hooks/useToast'
 import { useRepoSidebar } from './hooks/useRepoSidebar'
 import { useRepoTabs } from './hooks/useRepoTabs'
 import type { BusyChangeHandler } from './hooks/useBusy'
-import { invalidateRepoCaches } from './lib/repoDataCache'
+import { useWindowActivateRefresh } from './hooks/useWindowActivateRefresh'
+import { invalidateRepoCaches, setStatusCache } from './lib/repoDataCache'
 import { prefetchRepo } from './lib/repoPrefetch'
-import { isWailsRuntime } from './lib/wails'
+import { getStatus, isWailsRuntime } from './lib/wails'
 import { EventsOn } from '../wailsjs/runtime/runtime'
 import styles from './App.module.css'
 
@@ -36,6 +37,8 @@ function AppShell() {
   const [mainView, setMainView] = useState<MainView>('files')
   /** 同一 WT 内のコンテンツ変更。remount せず status 等を再同期する。 */
   const [workspaceContentRevision, setWorkspaceContentRevision] = useState(0)
+  /** ウィンドウ復帰時のカレント WT status 再取得（選択維持）。 */
+  const [statusRefreshRevision, setStatusRefreshRevision] = useState(0)
   const [workspaceBusy, setWorkspaceBusy] = useState(false)
   const [toolbarBusy, setToolbarBusy] = useState(false)
   const [sidebarBusy, setSidebarBusy] = useState(false)
@@ -122,6 +125,7 @@ function AppShell() {
     reload: reloadSidebar,
     reloadBranches,
     refreshWorktreeBadge,
+    refreshWorktreeBadges,
     reloadWorktreesMeta,
   } = useRepoSidebar(activeRepository)
 
@@ -161,6 +165,31 @@ function AppShell() {
     }
     await refreshWorktreeBadge(worktreePath)
   }, [refreshWorktreeBadge, worktreePath])
+
+  /** フォーカス復帰: カレント WT のローカル変更 + 他 WT バッジは裏で（busy なし） */
+  const handleWindowActivate = useCallback(() => {
+    if (!activeRepository || !worktreePath || overlayBusy) {
+      return
+    }
+    if (mainView === 'files') {
+      setStatusRefreshRevision((value) => value + 1)
+    } else {
+      void getStatus(worktreePath)
+        .then((status) => setStatusCache(worktreePath, status))
+        .catch(() => {
+          // キャッシュ温存失敗は非致命
+        })
+    }
+    refreshWorktreeBadges()
+  }, [
+    activeRepository,
+    worktreePath,
+    overlayBusy,
+    mainView,
+    refreshWorktreeBadges,
+  ])
+
+  useWindowActivateRefresh(handleWindowActivate, Boolean(activeRepository))
 
   /** ブランチ切替・stash 等: まず workspace を再同期し、バッジ status は裏で更新 */
   const handleLightRefresh = useCallback(async () => {
@@ -283,6 +312,7 @@ function AppShell() {
               onRefreshBadge={handleRefreshBadge}
               onRefreshBranches={reloadBranches}
               contentRevision={workspaceContentRevision}
+              statusRevision={statusRefreshRevision}
               onBusyChange={handleWorkspaceBusyChange}
             />
           ) : (

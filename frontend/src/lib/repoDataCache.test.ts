@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { BranchEntry, FileStatus, WorktreeEntry } from '../types'
 import {
   _resetRepoDataCacheForTests,
+  _setSidebarFetchedAtForTests,
+  _setStatusFetchedAtForTests,
   _sidebarCacheSizeForTests,
   _statusCacheSizeForTests,
   getSidebarCache,
@@ -10,11 +12,14 @@ import {
   invalidateRepoCaches,
   invalidateSidebarCache,
   invalidateStatusCache,
+  isSidebarCacheFresh,
+  isStatusCacheFresh,
   patchSidebarBranches,
   patchSidebarCurrentBranch,
   patchSidebarSelection,
   patchSidebarWorktreesMeta,
   patchWorktreeChangedCount,
+  REPO_CACHE_FRESH_MS,
   setSidebarCache,
   setStatusCache,
 } from './repoDataCache'
@@ -176,5 +181,22 @@ describe('repoDataCache', () => {
     expect(cached?.worktrees).toHaveLength(2)
     expect(cached?.worktrees[0]?.changedFileCount).toBe(5)
     expect(cached?.worktrees[1]?.changedFileCount).toBe(0)
+  })
+
+  it('reports sidebar/status freshness for skip-refetch', () => {
+    setSidebarCache('/repo-a', {
+      branches: [sampleBranch('main')],
+      worktrees: [sampleWorktree('/repo-a', 'main', true)],
+      selectedBranch: 'main',
+      selectedWorktree: '/repo-a',
+    })
+    setStatusCache('/repo-a', [sampleStatus('a.ts')])
+    expect(isSidebarCacheFresh('/repo-a')).toBe(true)
+    expect(isStatusCacheFresh('/repo-a')).toBe(true)
+
+    _setSidebarFetchedAtForTests('/repo-a', Date.now() - REPO_CACHE_FRESH_MS - 1)
+    _setStatusFetchedAtForTests('/repo-a', Date.now() - REPO_CACHE_FRESH_MS - 1)
+    expect(isSidebarCacheFresh('/repo-a')).toBe(false)
+    expect(isStatusCacheFresh('/repo-a')).toBe(false)
   })
 })

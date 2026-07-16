@@ -39,6 +39,11 @@ interface GitWorkspaceProps {
    * remount せず status / selection を再同期する。
    */
   contentRevision?: number
+  /**
+   * ウィンドウ復帰など、ローカル変更だけ再取得するとき。
+   * 選択は維持し status / フォーカス中 Diff のみ更新する。
+   */
+  statusRevision?: number
   onBusyChange?: BusyChangeHandler
 }
 
@@ -55,6 +60,7 @@ export function GitWorkspace({
   onRefreshBadge,
   onRefreshBranches,
   contentRevision = 0,
+  statusRevision = 0,
   onBusyChange,
 }: GitWorkspaceProps) {
   const { busy, runBusy } = useBusy(onBusyChange)
@@ -193,6 +199,7 @@ export function GitWorkspace({
   const reloadDiffRef = useRef(reloadDiff)
   reloadDiffRef.current = reloadDiff
   const contentRevisionSkipRef = useRef(true)
+  const statusRevisionSkipRef = useRef(true)
 
   // 同一 WT 内のコンテンツ変更（ブランチ切替など）: remount せず再同期
   useEffect(() => {
@@ -206,6 +213,16 @@ export function GitWorkspace({
     void reloadDiffRef.current()
     // reload / reloadDiff はファイル選択で identity が変わるため deps に含めない
   }, [contentRevision, worktreePath, clearAll])
+
+  // ウィンドウ復帰: ローカル status だけ。選択は維持。
+  useEffect(() => {
+    if (statusRevisionSkipRef.current) {
+      statusRevisionSkipRef.current = false
+      return
+    }
+    void reloadRef.current()
+    void reloadDiffRef.current()
+  }, [statusRevision, worktreePath])
 
   const destructive = useGitDestructiveConfirm({
     worktreePath,

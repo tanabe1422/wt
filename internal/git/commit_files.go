@@ -13,6 +13,7 @@ type CommitFileChange struct {
 }
 
 // ListCommitFiles returns the files changed by the given commit.
+// Merge commits use a first-parent diff (sha^..sha), matching OpenCommitDifftool.
 func ListCommitFiles(worktreePath, sha string) ([]CommitFileChange, error) {
 	if worktreePath == "" {
 		return nil, errors.New("ワークツリーが指定されていません")
@@ -27,13 +28,18 @@ func ListCommitFiles(worktreePath, sha string) ([]CommitFileChange, error) {
 		return nil, err
 	}
 
-	args := []string{"diff-tree", "--no-commit-id", "--name-status", "-r", "-z"}
-	if parentCount == 0 {
-		args = append(args, "--root")
+	var out string
+	if parentCount >= 2 {
+		// First-parent pairwise diff so merge commits show the same files as difftool.
+		out, err = runGitAllowDiffExit(worktreePath, "diff", "--name-status", "-z", sha+"^", sha)
+	} else {
+		args := []string{"diff-tree", "--no-commit-id", "--name-status", "-r", "-z"}
+		if parentCount == 0 {
+			args = append(args, "--root")
+		}
+		args = append(args, sha)
+		out, err = runGit(worktreePath, args...)
 	}
-	args = append(args, sha)
-
-	out, err := runGit(worktreePath, args...)
 	if err != nil {
 		return nil, err
 	}

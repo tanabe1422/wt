@@ -73,6 +73,7 @@ func GetFileDiff(worktreePath, file string, staged bool) (FileDiff, error) {
 }
 
 // GetCommitFileDiff returns a parsed unified diff for a file in a commit.
+// Merge commits use a first-parent diff (sha^..sha), matching OpenCommitDifftool.
 func GetCommitFileDiff(worktreePath, sha, file string) (FileDiff, error) {
 	dir, err := filepath.Abs(filepath.Clean(worktreePath))
 	if err != nil {
@@ -86,15 +87,33 @@ func GetCommitFileDiff(worktreePath, sha, file string) (FileDiff, error) {
 		return FileDiff{}, errors.New("ファイルパスが空です")
 	}
 
-	args := []string{
-		"show",
-		"-U" + strconv.Itoa(diffContextLines),
-		"--format=",
-		sha,
-		"--",
-		file,
+	parentCount, err := commitParentCount(dir, sha)
+	if err != nil {
+		return FileDiff{}, err
 	}
-	out, err := runGit(dir, args...)
+
+	var out string
+	if parentCount >= 2 {
+		out, err = runGitAllowDiffExit(
+			dir,
+			"diff",
+			"-U"+strconv.Itoa(diffContextLines),
+			sha+"^",
+			sha,
+			"--",
+			file,
+		)
+	} else {
+		args := []string{
+			"show",
+			"-U" + strconv.Itoa(diffContextLines),
+			"--format=",
+			sha,
+			"--",
+			file,
+		}
+		out, err = runGit(dir, args...)
+	}
 	if err != nil {
 		return FileDiff{}, err
 	}

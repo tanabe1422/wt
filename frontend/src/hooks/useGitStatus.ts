@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { invalidateWorktreeDiffs } from '../lib/diffCache'
-import { getStatusCache, setStatusCache } from '../lib/repoDataCache'
+import { getStatusCache, isStatusCacheFresh, setStatusCache } from '../lib/repoDataCache'
 import {
   getStatus,
   hasStagedChange,
@@ -68,6 +68,10 @@ export function useGitStatus(worktreePath: string) {
       hasLoadedRef.current = true
       setLoading(false)
       setError(null)
+      // prefetch / Go warm 直後は同じ GetStatus をやり直さない（明示 reload は従来どおり）
+      if (isStatusCacheFresh(worktreePath)) {
+        return
+      }
     } else {
       hasLoadedRef.current = false
     }

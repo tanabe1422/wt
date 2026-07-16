@@ -37,6 +37,7 @@ func TestListCommitFilesAndDiff(t *testing.T) {
 	fake.On("rev-list", "--parents", "-n", "1", "secondsha").Once().Return("secondsha rootsha", nil)
 	fake.On("diff-tree", "--no-commit-id", "--name-status", "-r", "-z", "secondsha").Once().
 		Return("M\x00a.txt\x00A\x00b.txt\x00", nil)
+	fake.On("rev-list", "--parents", "-n", "1", "secondsha").Once().Return("secondsha rootsha", nil)
 	fake.On("show", "-U3", "--format=", "secondsha", "--", "a.txt").Return(
 		"diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -1,1 +1,2 @@\n line1\n+line2\n",
 		nil,
@@ -87,6 +88,59 @@ func TestListCommitFilesAndDiff(t *testing.T) {
 	if !foundAdd {
 		t.Fatalf("expected added line2 in diff: %+v", diff)
 	}
+}
+
+func TestListCommitFilesAndDiffMergeFirstParent(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	mergeSHA := "mergesha"
+	fake.On("rev-list", "--parents", "-n", "1", mergeSHA).Once().
+		Return(mergeSHA+" parent1 parent2", nil)
+	fake.On("diff", "--name-status", "-z", mergeSHA+"^", mergeSHA).Once().
+		Return("M\x00feature.go\x00A\x00new.txt\x00", nil)
+	fake.On("rev-list", "--parents", "-n", "1", mergeSHA).Once().
+		Return(mergeSHA+" parent1 parent2", nil)
+	fake.On("diff", "-U3", mergeSHA+"^", mergeSHA, "--", "feature.go").Once().Return(
+		"diff --git a/feature.go b/feature.go\n--- a/feature.go\n+++ b/feature.go\n@@ -1,1 +1,2 @@\n pkg\n+func F() {}\n",
+		nil,
+	)
+	withFakeRunner(t, fake)
+
+	files, err := ListCommitFiles(dir, mergeSHA)
+	if err != nil {
+		t.Fatalf("ListCommitFiles merge: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files from first-parent diff, got %+v", files)
+	}
+	if files[0].Path != "feature.go" || files[0].Status != "M" {
+		t.Fatalf("unexpected first file: %+v", files[0])
+	}
+	if files[1].Path != "new.txt" || files[1].Status != "A" {
+		t.Fatalf("unexpected second file: %+v", files[1])
+	}
+
+	diff, err := GetCommitFileDiff(dir, mergeSHA, "feature.go")
+	if err != nil {
+		t.Fatalf("GetCommitFileDiff merge: %v", err)
+	}
+	if diff.Path != "feature.go" {
+		t.Fatalf("unexpected path: %s", diff.Path)
+	}
+	foundAdd := false
+	for _, hunk := range diff.Hunks {
+		for _, line := range hunk.Lines {
+			if line.Kind == "add" && line.Content == "func F() {}" {
+				foundAdd = true
+			}
+		}
+	}
+	if !foundAdd {
+		t.Fatalf("expected added func line in merge first-parent diff: %+v", diff)
+	}
+
+	fake.AssertNotCalledPrefix(t, "show")
+	fake.AssertNotCalledPrefix(t, "diff-tree")
 }
 
 func TestGetCommitFileDiffEmptyArgs(t *testing.T) {

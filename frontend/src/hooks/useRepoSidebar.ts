@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { BranchEntry, WorktreeEntry } from '../types'
 import {
   getSidebarCache,
+  isSidebarCacheFresh,
   patchSidebarBranches,
   patchSidebarSelection,
   patchSidebarWorktreesMeta,
@@ -345,7 +346,40 @@ export function useRepoSidebar(activeRepository: string) {
       return true
     }
 
+    const fillBackgroundFromCache = () => {
+      const cached = getSidebarCache(repoPath)
+      if (!cached) {
+        return
+      }
+      const requestId = ++requestIdRef.current
+      const isCurrent = () =>
+        requestId === requestIdRef.current && activeRepoRef.current === repoPath
+      void fillWorktreeBadges(
+        repoPath,
+        cached.worktrees,
+        cached.selectedWorktree,
+        isCurrent,
+        (path, count) => {
+          if (!isCurrent()) {
+            return
+          }
+          applyBadgeCount(path, count)
+        },
+      )
+      void fillBranchTracks(repoPath, cached.branches, isCurrent, (name, ahead, behind) => {
+        if (!isCurrent()) {
+          return
+        }
+        applyBranchTrack(name, ahead, behind)
+      })
+    }
+
     if (applyCached()) {
+      // prefetch / Go warm 直後は同じ ListBranches+Meta をやり直さない
+      if (isSidebarCacheFresh(repoPath)) {
+        fillBackgroundFromCache()
+        return
+      }
       void loadSidebar(repoPath, { keepVisible: true, preserveSelection: true })
       return
     }
@@ -362,6 +396,10 @@ export function useRepoSidebar(activeRepository: string) {
         return
       }
       if (applyCached()) {
+        if (isSidebarCacheFresh(repoPath)) {
+          fillBackgroundFromCache()
+          return
+        }
         void loadSidebar(repoPath, { keepVisible: true, preserveSelection: true })
         return
       }
@@ -477,6 +515,36 @@ export function useRepoSidebar(activeRepository: string) {
     }
   }, [activeRepository])
 
+  /**
+   * 全 WT の変更数バッジを裏で順次更新（busy なし・選択 WT 優先）。
+   * ウィンドウ復帰時など、フル sidebar 再取得なしでバッジだけ揃える用。
+   */
+  const refreshWorktreeBadges = useCallback(() => {
+    if (!activeRepository) {
+      return
+    }
+    const repoPath = activeRepository
+    const requestId = requestIdRef.current
+    const entries = worktreesRef.current
+    if (entries.length === 0) {
+      return
+    }
+    const isCurrent = () =>
+      requestId === requestIdRef.current && activeRepoRef.current === repoPath
+    void fillWorktreeBadges(
+      repoPath,
+      entries,
+      selectedWorktreeRef.current,
+      isCurrent,
+      (path, count) => {
+        if (!isCurrent()) {
+          return
+        }
+        applyBadgeCount(path, count)
+      },
+    )
+  }, [activeRepository, applyBadgeCount])
+
   return {
     branches,
     worktrees,
@@ -489,6 +557,7 @@ export function useRepoSidebar(activeRepository: string) {
     reload,
     reloadBranches,
     refreshWorktreeBadge,
+    refreshWorktreeBadges,
     reloadWorktreesMeta,
   }
 }

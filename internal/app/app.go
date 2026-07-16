@@ -21,6 +21,8 @@ func New() *App {
 
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
+	// Kick active-repo git reads so they overlap with frontend boot.
+	go a.warmActiveRepo()
 }
 
 func (a *App) Shutdown(ctx context.Context) {}

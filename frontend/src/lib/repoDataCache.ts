@@ -5,13 +5,23 @@ export type SidebarSnapshot = {
   worktrees: WorktreeEntry[]
   selectedBranch: string | null
   selectedWorktree: string | null
+  /** ms since epoch; used to skip immediate re-fetch after prefetch/warm */
+  fetchedAt: number
 }
+
+type StatusSnapshot = {
+  entries: FileStatus[]
+  fetchedAt: number
+}
+
+/** Skip keepVisible / mount reload when cache is newer than this. */
+export const REPO_CACHE_FRESH_MS = 2000
 
 const MAX_SIDEBAR_ENTRIES = 12
 const MAX_STATUS_ENTRIES = 24
 
 const sidebarCache = new Map<string, SidebarSnapshot>()
-const statusCache = new Map<string, FileStatus[]>()
+const statusCache = new Map<string, StatusSnapshot>()
 
 function touch<T>(cache: Map<string, T>, key: string, value: T, max: number): void {
   if (cache.has(key)) {
@@ -27,6 +37,10 @@ function touch<T>(cache: Map<string, T>, key: string, value: T, max: number): vo
   }
 }
 
+function isFresh(fetchedAt: number, maxAgeMs: number, now = Date.now()): boolean {
+  return now - fetchedAt <= maxAgeMs
+}
+
 export function getSidebarCache(repoPath: string): SidebarSnapshot | undefined {
   const value = sidebarCache.get(repoPath)
   if (value === undefined) {
@@ -37,8 +51,27 @@ export function getSidebarCache(repoPath: string): SidebarSnapshot | undefined {
   return value
 }
 
-export function setSidebarCache(repoPath: string, snapshot: SidebarSnapshot): void {
-  touch(sidebarCache, repoPath, snapshot, MAX_SIDEBAR_ENTRIES)
+export function isSidebarCacheFresh(
+  repoPath: string,
+  maxAgeMs: number = REPO_CACHE_FRESH_MS,
+): boolean {
+  const value = sidebarCache.get(repoPath)
+  if (!value) {
+    return false
+  }
+  return isFresh(value.fetchedAt, maxAgeMs)
+}
+
+export function setSidebarCache(
+  repoPath: string,
+  snapshot: Omit<SidebarSnapshot, 'fetchedAt'> & { fetchedAt?: number },
+): void {
+  touch(
+    sidebarCache,
+    repoPath,
+    { ...snapshot, fetchedAt: snapshot.fetchedAt ?? Date.now() },
+    MAX_SIDEBAR_ENTRIES,
+  )
 }
 
 export function patchSidebarSelection(
@@ -143,11 +176,22 @@ export function getStatusCache(worktreePath: string): FileStatus[] | undefined {
   }
   statusCache.delete(worktreePath)
   statusCache.set(worktreePath, value)
-  return value
+  return value.entries
+}
+
+export function isStatusCacheFresh(
+  worktreePath: string,
+  maxAgeMs: number = REPO_CACHE_FRESH_MS,
+): boolean {
+  const value = statusCache.get(worktreePath)
+  if (!value) {
+    return false
+  }
+  return isFresh(value.fetchedAt, maxAgeMs)
 }
 
 export function setStatusCache(worktreePath: string, entries: FileStatus[]): void {
-  touch(statusCache, worktreePath, entries, MAX_STATUS_ENTRIES)
+  touch(statusCache, worktreePath, { entries, fetchedAt: Date.now() }, MAX_STATUS_ENTRIES)
 }
 
 export function invalidateStatusCache(worktreePath: string): void {
@@ -178,4 +222,22 @@ export function _sidebarCacheSizeForTests(): number {
 /** @internal test helper */
 export function _statusCacheSizeForTests(): number {
   return statusCache.size
+}
+
+/** @internal test helper */
+export function _setSidebarFetchedAtForTests(repoPath: string, fetchedAt: number): void {
+  const current = sidebarCache.get(repoPath)
+  if (!current) {
+    return
+  }
+  touch(sidebarCache, repoPath, { ...current, fetchedAt }, MAX_SIDEBAR_ENTRIES)
+}
+
+/** @internal test helper */
+export function _setStatusFetchedAtForTests(worktreePath: string, fetchedAt: number): void {
+  const current = statusCache.get(worktreePath)
+  if (!current) {
+    return
+  }
+  touch(statusCache, worktreePath, { ...current, fetchedAt }, MAX_STATUS_ENTRIES)
 }
