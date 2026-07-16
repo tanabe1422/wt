@@ -45,6 +45,8 @@ export function DropStash(arg1:string,arg2:number):Promise<void>;
 
 export function Fetch(arg1:string):Promise<void>;
 
+export function FetchCurrentUpstream(arg1:string):Promise<void>;
+
 export function FetchPrune(arg1:string):Promise<Array<string>>;
 
 export function GetAmendInfo(arg1:string):Promise<git.AmendInfo>;

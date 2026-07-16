@@ -134,6 +134,66 @@ func TestFetchPruneArgs(t *testing.T) {
 	}
 }
 
+func TestParseUpstreamRef(t *testing.T) {
+	cases := []struct {
+		ref            string
+		remote, branch string
+		ok             bool
+	}{
+		{"origin/main", "origin", "main", true},
+		{"upstream/feature/foo", "upstream", "feature/foo", true},
+		{"main", "", "", false},
+		{"", "", "", false},
+		{"/main", "", "", false},
+	}
+	for _, tc := range cases {
+		remote, branch, ok := parseUpstreamRef(tc.ref)
+		if remote != tc.remote || branch != tc.branch || ok != tc.ok {
+			t.Fatalf("parseUpstreamRef(%q) = (%q, %q, %v), want (%q, %q, %v)",
+				tc.ref, remote, branch, ok, tc.remote, tc.branch, tc.ok)
+		}
+	}
+}
+
+func TestFetchCurrentUpstreamArgs(t *testing.T) {
+	args := fetchCurrentUpstreamArgs("origin", "feature/foo")
+	want := []string{"fetch", "--progress", "origin", "feature/foo"}
+	if len(args) != len(want) {
+		t.Fatalf("fetchCurrentUpstreamArgs()=%v want %v", args, want)
+	}
+	for i := range want {
+		if args[i] != want[i] {
+			t.Fatalf("fetchCurrentUpstreamArgs()=%v want %v", args, want)
+		}
+	}
+}
+
+func TestFetchCurrentUpstream(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("rev-parse", "--show-toplevel").Return(dir, nil)
+	fake.On("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}").Return("origin/feature/foo", nil)
+	fake.On("fetch", "--progress", "origin", "feature/foo").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := FetchCurrentUpstream(dir); err != nil {
+		t.Fatalf("FetchCurrentUpstream: %v", err)
+	}
+	fake.AssertCalled(t, "fetch", "--progress", "origin", "feature/foo")
+}
+
+func TestFetchCurrentUpstreamNoUpstream(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("rev-parse", "--show-toplevel").Return(dir, nil)
+	fake.On("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}").Return("", errors.New("no upstream"))
+	withFakeRunner(t, fake)
+
+	if err := FetchCurrentUpstream(dir); err == nil {
+		t.Fatal("expected error when upstream is missing")
+	}
+}
+
 func TestParsePrunedRefs(t *testing.T) {
 	out := strings.Join([]string{
 		"From https://example.com/repo.git",

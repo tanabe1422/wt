@@ -11,6 +11,7 @@ interface GitSyncActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElemen
   badgeCount?: number
   /** When set, renders a split button with a chevron menu (used for fetch options). */
   menuItems?: ContextMenuEntry[]
+  loading?: boolean
 }
 
 function badgeVariantForAction(action: GitSyncAction): 'ahead' | 'behind' | undefined {
@@ -28,6 +29,7 @@ export function GitSyncActionButton({
   label,
   badgeCount = 0,
   menuItems,
+  loading = false,
   ...rest
 }: GitSyncActionButtonProps) {
   const text = label ?? gitSyncActionLabel(action)
@@ -42,6 +44,7 @@ export function GitSyncActionButton({
         menuItems={menuItems}
         badgeCount={badgeCount}
         badgeVariant={badgeVariant}
+        loading={loading}
         {...rest}
       />
     )
@@ -53,6 +56,7 @@ export function GitSyncActionButton({
       icon={icon}
       badgeCount={badgeCount}
       badgeVariant={badgeVariant}
+      loading={loading}
       {...rest}
     />
   )

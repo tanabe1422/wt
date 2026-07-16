@@ -785,6 +785,13 @@ export const mockApp: WailsApp = {
 
   async Fetch(_worktreePath: string) {
     console.info('[mock] Fetch')
+    await delay(SYNC_MOCK_DELAY_MS)
+  },
+
+  async FetchCurrentUpstream(_worktreePath: string) {
+    console.info('[mock] FetchCurrentUpstream')
+    await delay(400)
+    updateCurrentBranchCounts({ behindCount: 0 })
   },
 
   async FetchPrune(_worktreePath: string) {

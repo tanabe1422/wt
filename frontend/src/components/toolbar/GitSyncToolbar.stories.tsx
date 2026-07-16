@@ -323,7 +323,7 @@ function BackgroundFetchDemo({
           hasUpstream={hasUpstream}
           pushAfterCommit={false}
           onPushAfterCommitChange={() => undefined}
-          backgroundFetching
+          fetchPhase="background"
         />
       </MainLayout>
     </div>

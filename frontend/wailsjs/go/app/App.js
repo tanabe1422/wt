@@ -86,6 +86,10 @@ export function Fetch(arg1) {
   return window['go']['app']['App']['Fetch'](arg1);
 }
 
+export function FetchCurrentUpstream(arg1) {
+  return window['go']['app']['App']['FetchCurrentUpstream'](arg1);
+}
+
 export function FetchPrune(arg1) {
   return window['go']['app']['App']['FetchPrune'](arg1);
 }

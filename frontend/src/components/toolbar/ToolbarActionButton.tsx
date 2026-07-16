@@ -13,6 +13,8 @@ interface ToolbarActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElemen
   showBadgeIcon?: boolean
   /** 件数なしの丸インジケータ（右上）。badgeCount より優先しない（数バッジがあるときは非表示）。 */
   showDot?: boolean
+  /** アイコンをスピナーに差し替え（フェッチ優先段階など）。 */
+  loading?: boolean
 }
 
 export function ToolbarActionButton({
@@ -23,6 +25,7 @@ export function ToolbarActionButton({
   badgeVariant,
   showBadgeIcon = false,
   showDot = false,
+  loading = false,
   className,
   type = 'button',
   ...rest
@@ -46,7 +49,9 @@ export function ToolbarActionButton({
       ) : (
         showDot && <span className={styles.dot} aria-hidden="true" />
       )}
-      <span className={styles.icon}>{icon}</span>
+      <span className={styles.icon}>
+        {loading ? <span className={styles.spinner} aria-hidden="true" /> : icon}
+      </span>
       <span className={styles.label}>{label}</span>
     </button>
   )

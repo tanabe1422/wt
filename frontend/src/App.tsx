@@ -5,7 +5,7 @@ import { GitWorkspace } from './components/git/GitWorkspace'
 import type { CompareRange } from './components/git/CompareDetailPane'
 import { BranchSidebar } from './components/sidebar/BranchSidebar'
 import { RepoTabBar } from './components/tabs/RepoTabBar'
-import { GitSyncToolbar } from './components/toolbar/GitSyncToolbar'
+import { GitSyncToolbar, type FetchPhase } from './components/toolbar/GitSyncToolbar'
 import type { MainView } from './components/toolbar/MainViewToolbarTabs'
 import { ErrorDialog } from './components/ui/ErrorDialog'
 import { useErrorDialog } from './hooks/useErrorDialog'
@@ -44,6 +44,7 @@ function AppShell() {
   const [sidebarBusy, setSidebarBusy] = useState(false)
   const [busyMessage, setBusyMessage] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [fetchPhase, setFetchPhase] = useState<FetchPhase | null>(null)
   const [compareRequest, setCompareRequest] = useState<CompareRange | null>(null)
   const handleWorkspaceBusyChange = useCallback<BusyChangeHandler>((busy, message) => {
     setWorkspaceBusy(busy)
@@ -65,6 +66,10 @@ function AppShell() {
   }, [])
   const handleCompareRequestConsumed = useCallback(() => {
     setCompareRequest(null)
+  }, [])
+
+  const handleFetchPhaseChange = useCallback((phase: FetchPhase | null) => {
+    setFetchPhase(phase)
   }, [])
 
   const overlayBusy = workspaceBusy || toolbarBusy || sidebarBusy
@@ -100,6 +105,10 @@ function AppShell() {
     updateSettings,
     updatePushAfterCommit,
   } = useRepoTabs()
+
+  useEffect(() => {
+    setFetchPhase(null)
+  }, [activeRepository])
 
   const handleCloseRepo = useCallback(
     async (path: string) => {
@@ -265,6 +274,8 @@ function AppShell() {
               onActionComplete={handleSyncComplete}
               onReload={handleSyncComplete}
               onBusyChange={handleToolbarBusyChange}
+              fetchPhase={fetchPhase}
+              onFetchPhaseChange={handleFetchPhaseChange}
               onOpenSettings={() => setSettingsOpen(true)}
             />
           ) : (
@@ -314,6 +325,7 @@ function AppShell() {
               contentRevision={workspaceContentRevision}
               statusRevision={statusRefreshRevision}
               onBusyChange={handleWorkspaceBusyChange}
+              fetchPhase={fetchPhase}
             />
           ) : (
             <Suspense

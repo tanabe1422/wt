@@ -23,6 +23,7 @@ import { ChangesPanel } from './ChangesPanel'
 import { CommitBar } from './CommitBar'
 import { DiffView } from './DiffView'
 import { GitWorkspaceDialogs } from './GitWorkspaceDialogs'
+import type { FetchPhase } from '../toolbar/GitSyncToolbar'
 import styles from './GitWorkspace.module.css'
 
 interface GitWorkspaceProps {
@@ -46,9 +47,9 @@ interface GitWorkspaceProps {
   statusRevision?: number
   onBusyChange?: BusyChangeHandler
   /**
-   * 優先フェッチ後の裏フェッチ中。CommitBar の上・差分パネル右下に表示し、操作はブロックしない。
+   * フェッチ優先 / 裏フェッチ中。差分パネル右下に表示し、操作はブロックしない。
    */
-  backgroundFetching?: boolean
+  fetchPhase?: FetchPhase | null
 }
 
 const FILES_SPLIT_STORAGE_KEY = 'wt-manager.filesSplitRatio'
@@ -66,7 +67,7 @@ export function GitWorkspace({
   contentRevision = 0,
   statusRevision = 0,
   onBusyChange,
-  backgroundFetching = false,
+  fetchPhase = null,
 }: GitWorkspaceProps) {
   const { busy, runBusy } = useBusy(onBusyChange)
   const {
@@ -352,10 +353,10 @@ export function GitWorkspace({
             onDiscardLines={(index, lines) => void actions.handleDiscardLines(index, lines)}
           />
         </div>
-        {backgroundFetching && !busy ? (
+        {fetchPhase && !busy ? (
           <div className={styles.backgroundFetch} role="status" aria-live="polite">
             <span className={styles.backgroundFetchSpinner} aria-hidden="true" />
-            他ブランチを取得中…
+            {fetchPhase === 'priority' ? 'ブランチを取得中…' : '他ブランチを取得中…'}
           </div>
         ) : null}
       </div>

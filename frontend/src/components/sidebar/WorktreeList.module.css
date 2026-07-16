@@ -56,6 +56,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.8125rem;
+  color: var(--color-slate-900);
+}
+
+.selected .name {
+  color: var(--branch-tone-active, var(--color-blue-600));
+  font-weight: 600;
 }
 
 .badge {
@@ -68,10 +74,18 @@
   font-weight: 600;
 }
 
+.selected .badge {
+  color: var(--branch-tone-active, var(--color-blue-600));
+}
+
 .branch {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.75rem;
   color: var(--color-slate-500);
+}
+
+.selected .branch {
+  color: var(--branch-tone-active, var(--color-blue-600));
 }

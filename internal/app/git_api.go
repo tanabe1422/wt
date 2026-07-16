@@ -225,6 +225,13 @@ func (a *App) Fetch(worktreePath string) error {
 	})
 }
 
+func (a *App) FetchCurrentUpstream(worktreePath string) error {
+	a.emitGitProgress("ブランチを取得中…")
+	return mutateWorktree(worktreePath, func(dir string) error {
+		return git.FetchCurrentUpstreamWithProgress(dir, a.emitGitProgress)
+	})
+}
+
 func (a *App) FetchPrune(worktreePath string) ([]string, error) {
 	a.emitGitProgress("フェッチしています…")
 	return mutateWorktreeResult(worktreePath, func(dir string) ([]string, error) {

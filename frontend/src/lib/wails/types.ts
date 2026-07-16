@@ -74,6 +74,7 @@ export interface WailsApp {
   GetAmendInfo(worktreePath: string): Promise<AmendInfo>
   AmendCommit(worktreePath: string, message: string): Promise<void>
   Fetch(worktreePath: string): Promise<void>
+  FetchCurrentUpstream(worktreePath: string): Promise<void>
   FetchPrune(worktreePath: string): Promise<string[]>
   Pull(worktreePath: string): Promise<void>
   PullRebase(worktreePath: string): Promise<void>

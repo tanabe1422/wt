@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { useErrorDialog } from '../../hooks/useErrorDialog'
 import type { BusyChangeHandler } from '../../hooks/useBusy'
-import { createBranch, fetchRemote, fetchRemotePrune, getRepoOperationState, pull, pullRebase, push, pushSetUpstream, saveStash, showInExplorer } from '../../lib/wails'
+import { createBranch, fetchRemote, fetchRemotePrune, fetchRemotePriority, getRepoOperationState, pull, pullRebase, push, pushSetUpstream, saveStash, showInExplorer } from '../../lib/wails'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ErrorDialog } from '../ui/ErrorDialog'
 import { PromptDialog } from '../ui/PromptDialog'
@@ -22,6 +22,9 @@ import styles from './GitSyncToolbar.module.css'
  */
 export type SyncRefreshScope = 'sidebar' | 'light' | 'workspace'
 
+/** フェッチの 2 段階: 優先（現行 upstream）→ 裏（全 ref）。 */
+export type FetchPhase = 'priority' | 'background'
+
 interface GitSyncToolbarProps {
   worktreePath: string
   repositoryPath?: string
@@ -39,6 +42,9 @@ interface GitSyncToolbarProps {
   onOpenSettings?: () => void
   /** MainLayout busy overlay（fetch / pull / push など同期操作中） */
   onBusyChange?: BusyChangeHandler
+  /** フェッチ優先 / 裏フェッチ中。同期ボタン無効・インジケータ表示に使う。 */
+  fetchPhase?: FetchPhase | null
+  onFetchPhaseChange?: (phase: FetchPhase | null) => void
   /** When true, only show the trailing settings control (no repo selected). */
   settingsOnly?: boolean
 }
@@ -175,10 +181,6 @@ function RemoteCleanupIcon({ size = 20 }: { size?: number }) {
 }
 
 async function runSyncAction(action: GitSyncAction, worktreePath: string): Promise<void> {
-  if (action === 'fetch') {
-    await fetchRemote(worktreePath)
-    return
-  }
   if (action === 'pull') {
     await pull(worktreePath)
     return
@@ -201,6 +203,8 @@ export function GitSyncToolbar({
   onReload,
   onOpenSettings,
   onBusyChange,
+  fetchPhase = null,
+  onFetchPhaseChange,
   settingsOnly = false,
 }: GitSyncToolbarProps) {
   const [actionError, setActionError] = useState<string | null>(null)
@@ -242,6 +246,52 @@ export function GitSyncToolbar({
     await onActionComplete?.(scope)
   }
 
+  const runFetch = async (prune: boolean) => {
+    setActionError(null)
+    setActing(true)
+
+    const failTitle = prune ? 'フェッチ（prune）に失敗しました' : actionTitles.fetch
+
+    try {
+      if (!hasUpstream) {
+        setOverlay(true, 'フェッチしています…')
+        if (prune) {
+          await fetchRemotePrune(worktreePath)
+        } else {
+          await fetchRemote(worktreePath)
+        }
+        await finishAction('sidebar')
+        return
+      }
+
+      onFetchPhaseChange?.('priority')
+      await fetchRemotePriority(worktreePath)
+      setActing(false)
+      await onActionComplete?.('sidebar')
+
+      onFetchPhaseChange?.('background')
+      try {
+        if (prune) {
+          await fetchRemotePrune(worktreePath)
+        } else {
+          await fetchRemote(worktreePath)
+        }
+        await onActionComplete?.('sidebar')
+      } catch (bgErr) {
+        setActionTitle(failTitle)
+        setActionError(bgErr instanceof Error ? bgErr.message : failTitle)
+      } finally {
+        onFetchPhaseChange?.(null)
+      }
+    } catch (err) {
+      setActionTitle(failTitle)
+      setActionError(err instanceof Error ? err.message : failTitle)
+      setOverlay(false)
+      setActing(false)
+      onFetchPhaseChange?.(null)
+    }
+  }
+
   const runPush = async () => {
     setActionError(null)
     setActing(true)
@@ -257,6 +307,10 @@ export function GitSyncToolbar({
   }
 
   const run = async (action: GitSyncAction) => {
+    if (action === 'fetch') {
+      await runFetch(false)
+      return
+    }
     if (action === 'push') {
       if (!hasUpstream) {
         setUpstreamPushOpen(true)
@@ -300,17 +354,7 @@ export function GitSyncToolbar({
   }
 
   const handleFetchPrune = async () => {
-    setActionError(null)
-    setActing(true)
-    setOverlay(true, 'フェッチしています…')
-    try {
-      await fetchRemotePrune(worktreePath)
-    } catch (err) {
-      setActionTitle('フェッチ（prune）に失敗しました')
-      setActionError(err instanceof Error ? err.message : 'フェッチ（prune）に失敗しました')
-    } finally {
-      await finishAction('sidebar')
-    }
+    await runFetch(true)
   }
 
   const handlePullRebase = async () => {
@@ -381,7 +425,7 @@ export function GitSyncToolbar({
     }
   }
 
-  const isDisabled = disabled || acting || !worktreePath
+  const isDisabled = disabled || acting || fetchPhase !== null || !worktreePath
 
   return (
     <header className={styles.bar}>
@@ -401,6 +445,7 @@ export function GitSyncToolbar({
                 action={action}
                 badgeCount={action === 'pull' ? behindCount : action === 'push' ? aheadCount : 0}
                 disabled={isDisabled}
+                loading={action === 'fetch' && fetchPhase === 'priority'}
                 menuItems={
                   action === 'fetch'
                     ? [

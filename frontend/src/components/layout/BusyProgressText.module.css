@@ -1,6 +1,6 @@
 .busyMessage {
-  --shimmer-base: var(--color-slate-700);
-  --shimmer-accent: var(--color-blue-600);
+  --pulse-base: var(--color-slate-700);
+  --pulse-accent: var(--color-blue-600);
   margin: 0;
   text-align: center;
   line-height: 1.4;
@@ -9,50 +9,31 @@
   transition: opacity 150ms ease;
 }
 
-.shimmerText {
-  position: relative;
+/* background-clip:text のシマーは環境差で消えることがあるため、color/opacity パルスにする */
+.pulseText {
   display: inline-block;
+  color: var(--pulse-base);
+  animation: busyTextPulse 1.6s ease-in-out infinite;
 }
 
-.shimmerBase {
-  color: var(--shimmer-base);
-}
-
-.shimmerHighlight {
-  position: absolute;
-  inset: 0;
-  color: transparent;
-  background-image: linear-gradient(
-    90deg,
-    transparent 0%,
-    transparent 38%,
-    var(--shimmer-accent) 50%,
-    transparent 62%,
-    transparent 100%
-  );
-  background-size: 250% 100%;
-  background-position: 100% center;
-  background-repeat: no-repeat;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  pointer-events: none;
-  animation: busyTextShimmer 2.4s linear infinite;
-}
-
-@keyframes busyTextShimmer {
-  0% {
-    background-position: 100% center;
+@keyframes busyTextPulse {
+  0%,
+  100% {
+    color: var(--pulse-base);
+    opacity: 0.72;
   }
 
-  100% {
-    background-position: 0% center;
+  50% {
+    color: var(--pulse-accent);
+    opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .shimmerHighlight {
-    display: none;
+  .pulseText {
+    animation: none;
+    color: var(--pulse-accent);
+    opacity: 1;
   }
 }
 
@@ -68,14 +49,14 @@
 
 /** 現行: オーバーレイ上にそのまま文字。背景の枝名などと同化しやすい */
 .bare {
-  --shimmer-base: var(--color-slate-700);
+  --pulse-base: var(--color-slate-700);
   font-size: var(--font-size-compact);
   color: var(--color-slate-700);
 }
 
 /** 黒文字＋白シャドウ: オーバーレイ透過でも文字を浮かせる */
 .strong {
-  --shimmer-base: var(--color-slate-900);
+  --pulse-base: var(--color-slate-900);
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--color-slate-900);
@@ -86,8 +67,8 @@
 
 /** 白文字＋黒シャドウ: strong の反転 */
 .strongInverse {
-  --shimmer-base: var(--color-white);
-  --shimmer-accent: var(--color-blue-300);
+  --pulse-base: var(--color-white);
+  --pulse-accent: var(--color-blue-300);
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--color-white);
@@ -98,7 +79,7 @@
 
 /** 白チップ: 半透明オーバーレイ上でもプレートで切り離す */
 .chip {
-  --shimmer-base: var(--color-slate-800);
+  --pulse-base: var(--color-slate-800);
   font-size: 0.8125rem;
   color: var(--color-slate-800);
   padding: 0.5rem 0.875rem;
@@ -110,7 +91,7 @@
 
 /** 白パネル: ProgressDialog に近いカード */
 .panel {
-  --shimmer-base: var(--color-slate-700);
+  --pulse-base: var(--color-slate-700);
   font-size: var(--font-size-compact);
   color: var(--color-slate-700);
   padding: 0.75rem 1rem;
@@ -123,8 +104,8 @@
 
 /** 濃色プレート: オーバーレイ透過で下が見えてもコントラスト確保 */
 .ink {
-  --shimmer-base: var(--color-white);
-  --shimmer-accent: var(--color-blue-300);
+  --pulse-base: var(--color-white);
+  --pulse-accent: var(--color-blue-300);
   font-size: var(--font-size-compact);
   font-weight: 500;
   color: var(--color-white);
@@ -136,8 +117,8 @@
 
 /** ゲーム · HUD: 四隅ブラケット＋等幅 */
 .hud {
-  --shimmer-base: var(--color-slate-100);
-  --shimmer-accent: var(--color-cyan-600);
+  --pulse-base: var(--color-slate-100);
+  --pulse-accent: var(--color-cyan-600);
   position: relative;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.8125rem;
@@ -183,8 +164,8 @@
 
 /** ゲーム · アーケード: 太い枠＋ずらし影 */
 .arcade {
-  --shimmer-base: var(--color-white);
-  --shimmer-accent: var(--color-blue-300);
+  --pulse-base: var(--color-white);
+  --pulse-accent: var(--color-blue-300);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.8125rem;
   font-weight: 700;
@@ -203,7 +184,7 @@
 
 /** ゲーム · RPG: 二重枠のステータス／ダイアログ窓 */
 .rpg {
-  --shimmer-base: var(--color-slate-900);
+  --pulse-base: var(--color-slate-900);
   font-size: var(--font-size-compact);
   font-weight: 600;
   color: var(--color-slate-900);

@@ -15,6 +15,7 @@ interface SplitToolbarActionButtonProps
   badgeCount?: number
   badgeVariant?: CountBadgeVariant
   showBadgeIcon?: boolean
+  loading?: boolean
 }
 
 function ChevronDownIcon({ size = 10 }: { size?: number }) {
@@ -46,6 +47,7 @@ export function SplitToolbarActionButton({
   badgeCount = 0,
   badgeVariant,
   showBadgeIcon = false,
+  loading = false,
   className,
   type = 'button',
   disabled,
@@ -96,7 +98,9 @@ export function SplitToolbarActionButton({
               className={styles.badge}
             />
           )}
-          <span className={styles.icon}>{icon}</span>
+          <span className={styles.icon}>
+            {loading ? <span className={styles.spinner} aria-hidden="true" /> : icon}
+          </span>
           <span className={styles.label}>{label}</span>
         </button>
         <button

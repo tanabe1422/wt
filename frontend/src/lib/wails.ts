@@ -308,6 +308,10 @@ export async function fetchRemote(worktreePath: string): Promise<void> {
   return callApp('Fetch', worktreePath)
 }
 
+export async function fetchRemotePriority(worktreePath: string): Promise<void> {
+  return callApp('FetchCurrentUpstream', worktreePath)
+}
+
 export async function fetchRemotePrune(worktreePath: string): Promise<string[]> {
   return callApp('FetchPrune', worktreePath)
 }
