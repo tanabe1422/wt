@@ -106,6 +106,14 @@ export async function setFsMonitor(repoPath: string, enabled: boolean): Promise<
   return callApp('SetFsMonitor', repoPath, enabled)
 }
 
+export async function getGitLogsDir(): Promise<string> {
+  return callApp('GetGitLogsDir')
+}
+
+export async function openGitLogsDir(): Promise<void> {
+  return callApp('OpenGitLogsDir')
+}
+
 export async function pickDirectory(): Promise<string> {
   return callApp('PickDirectory')
 }

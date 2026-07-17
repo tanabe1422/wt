@@ -2,10 +2,12 @@ package git
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // gitRunner executes git commands. Tests replace defaultRunner with a fake.
@@ -16,9 +18,19 @@ type gitRunner interface {
 
 type realRunner struct{}
 
-func (realRunner) Run(dir, stdin string, extraOKExit int, args ...string) (string, string, error) {
-	cmd := exec.Command("git", args...)
+func newGitCmd(ctx context.Context, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, "git", args...)
 	configureCmd(cmd)
+	applyNonInteractiveEnv(cmd)
+	setProcessCancel(cmd)
+	return cmd
+}
+
+func (realRunner) Run(dir, stdin string, extraOKExit int, args ...string) (string, string, error) {
+	ctx := cmdContext()
+	start := time.Now()
+
+	cmd := newGitCmd(ctx, args...)
 	cmd.Dir = dir
 	if stdin != "" {
 		cmd.Stdin = strings.NewReader(stdin)
@@ -30,21 +42,35 @@ func (realRunner) Run(dir, stdin string, extraOKExit int, args ...string) (strin
 	if err := cmd.Run(); err != nil {
 		if extraOKExit > 0 {
 			if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == extraOKExit {
-				return strings.TrimSuffix(outBuf.String(), "\n"), strings.TrimSuffix(errBuf.String(), "\n"), nil
+				stdout := strings.TrimSuffix(outBuf.String(), "\n")
+				stderr := strings.TrimSuffix(errBuf.String(), "\n")
+				logGitCommand(dir, args, time.Since(start), nil, stdout, stderr)
+				return stdout, stderr, nil
 			}
 		}
 		msg := strings.TrimSpace(errBuf.String())
 		if msg == "" {
 			msg = err.Error()
 		}
-		return "", "", errors.New(msg)
+		if ctx.Err() != nil {
+			msg = contextErrorMessage(ctx, msg)
+		}
+		runErr := errors.New(msg)
+		logGitCommand(dir, args, time.Since(start), runErr, outBuf.String(), errBuf.String())
+		return "", "", runErr
 	}
-	return strings.TrimSuffix(outBuf.String(), "\n"), strings.TrimSuffix(errBuf.String(), "\n"), nil
+	stdout := strings.TrimSuffix(outBuf.String(), "\n")
+	stderr := strings.TrimSuffix(errBuf.String(), "\n")
+	logGitCommand(dir, args, time.Since(start), nil, stdout, stderr)
+	return stdout, stderr, nil
 }
 
 func (realRunner) RunProgress(dir string, onLine ProgressFunc, args ...string) (string, string, error) {
-	cmd := exec.Command("git", args...)
-	configureCmd(cmd)
+	ctx, cancel := context.WithTimeout(cmdContext(), gitProgressTimeout)
+	defer cancel()
+	start := time.Now()
+
+	cmd := newGitCmd(ctx, args...)
 	cmd.Dir = dir
 
 	var outBuf bytes.Buffer
@@ -53,10 +79,12 @@ func (realRunner) RunProgress(dir string, onLine ProgressFunc, args ...string) (
 
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
+		logGitCommand(dir, args, time.Since(start), err, "", "")
 		return "", "", err
 	}
 
 	if err := cmd.Start(); err != nil {
+		logGitCommand(dir, args, time.Since(start), err, "", "")
 		return "", "", err
 	}
 
@@ -70,9 +98,30 @@ func (realRunner) RunProgress(dir string, onLine ProgressFunc, args ...string) (
 		if msg == "" {
 			msg = waitErr.Error()
 		}
-		return "", "", errors.New(msg)
+		if ctx.Err() != nil {
+			msg = contextErrorMessage(ctx, msg)
+		}
+		runErr := errors.New(msg)
+		logGitCommand(dir, args, time.Since(start), runErr, outBuf.String(), errBuf.String())
+		return "", "", runErr
 	}
-	return strings.TrimSuffix(outBuf.String(), "\n"), strings.TrimSuffix(errBuf.String(), "\n"), nil
+	stdout := strings.TrimSuffix(outBuf.String(), "\n")
+	stderr := strings.TrimSuffix(errBuf.String(), "\n")
+	logGitCommand(dir, args, time.Since(start), nil, stdout, stderr)
+	return stdout, stderr, nil
+}
+
+func contextErrorMessage(ctx context.Context, fallback string) string {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return "Git 操作がタイムアウトしました"
+	}
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return "Git 操作がキャンセルされました"
+	}
+	if fallback != "" {
+		return fallback
+	}
+	return ctx.Err().Error()
 }
 
 var defaultRunner gitRunner = realRunner{}

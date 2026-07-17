@@ -253,6 +253,16 @@ func TestNormalizeSettingsNormalizesTools(t *testing.T) {
 	}
 }
 
+func TestNormalizeSettingsKeepsEnableGitLogging(t *testing.T) {
+	got, err := normalizeSettings(Settings{EnableGitLogging: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.EnableGitLogging {
+		t.Fatal("EnableGitLogging should be preserved")
+	}
+}
+
 func TestNormalizeSettingsDefaultRemoteCleanupExcluded(t *testing.T) {
 	got, err := normalizeSettings(Settings{})
 	if err != nil {

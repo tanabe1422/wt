@@ -30,7 +30,21 @@ func (a *App) SaveSettings(settings config.Settings) (config.Settings, error) {
 		return config.Settings{}, err
 	}
 
+	git.SetLoggingEnabled(settings.EnableGitLogging)
+
 	return config.Load()
+}
+
+func (a *App) GetGitLogsDir() (string, error) {
+	return git.LogsDir()
+}
+
+func (a *App) OpenGitLogsDir() error {
+	dir, err := git.EnsureLogsDir()
+	if err != nil {
+		return err
+	}
+	return showInExplorer(dir)
 }
 
 func (a *App) AddRepository(path string) (config.Settings, error) {

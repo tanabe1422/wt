@@ -22,6 +22,26 @@ type Settings struct {
 	MergeTool             ExternalTool    `json:"mergeTool"`
 	RemoteCleanupExcluded []string        `json:"remoteCleanupExcluded"`
 	PushAfterCommit       map[string]bool `json:"pushAfterCommit,omitempty"`
+	// EnableGitLogging writes each git invocation (and GIT_TRACE) under logs/.
+	EnableGitLogging bool `json:"enableGitLogging"`
+}
+
+// AppDir is %AppData%/wt-manager (or OS equivalent).
+func AppDir() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "wt-manager"), nil
+}
+
+// LogsDir is AppDir()/logs — git command and GIT_TRACE output when logging is on.
+func LogsDir() (string, error) {
+	app, err := AppDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(app, "logs"), nil
 }
 
 // DefaultRemoteCleanupExcluded is applied when remoteCleanupExcluded is unset (nil).
@@ -50,11 +70,11 @@ func normalizeRemoteCleanupExcluded(excluded []string) []string {
 }
 
 func configPath() (string, error) {
-	dir, err := os.UserConfigDir()
+	dir, err := AppDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "wt-manager", "config.json"), nil
+	return filepath.Join(dir, "config.json"), nil
 }
 
 func normalizePath(path string) (string, error) {
@@ -194,6 +214,7 @@ func normalizeSettings(settings Settings) (Settings, error) {
 		MergeTool:             normalizeExternalTool(settings.MergeTool),
 		RemoteCleanupExcluded: normalizeRemoteCleanupExcluded(settings.RemoteCleanupExcluded),
 		PushAfterCommit:       normalizePushAfterCommit(settings.PushAfterCommit, repositories),
+		EnableGitLogging:      settings.EnableGitLogging,
 	}, nil
 }
 

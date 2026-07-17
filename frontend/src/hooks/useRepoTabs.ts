@@ -20,6 +20,7 @@ const emptySettings: Settings = {
   mergeTool: emptyExternalTool(),
   remoteCleanupExcluded: ['main', 'master', 'develop'],
   pushAfterCommit: {},
+  enableGitLogging: false,
 }
 
 function normalizeLoadedSettings(settings: Settings): Settings {
@@ -31,6 +32,7 @@ function normalizeLoadedSettings(settings: Settings): Settings {
     mergeTool: migrateExternalTool({ ...emptyExternalTool(), ...settings.mergeTool }),
     remoteCleanupExcluded: settings.remoteCleanupExcluded ?? ['main', 'master', 'develop'],
     pushAfterCommit: settings.pushAfterCommit ?? {},
+    enableGitLogging: settings.enableGitLogging ?? false,
   }
 }
 

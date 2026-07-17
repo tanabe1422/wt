@@ -22,6 +22,7 @@ let mockSettings: Settings = {
   mergeTool: { preset: 'custom', path: '', args: '' },
   remoteCleanupExcluded: ['main', 'master', 'develop'],
   pushAfterCommit: {},
+  enableGitLogging: false,
 }
 
 let mockFsMonitorEnabled = false
@@ -290,6 +291,7 @@ export const mockApp: WailsApp = {
       mergeTool: { ...mockSettings.mergeTool },
       remoteCleanupExcluded: [...(mockSettings.remoteCleanupExcluded ?? [])],
       pushAfterCommit: { ...(mockSettings.pushAfterCommit ?? {}) },
+      enableGitLogging: mockSettings.enableGitLogging ?? false,
     }
   },
 
@@ -300,6 +302,7 @@ export const mockApp: WailsApp = {
       mergeTool: { ...settings.mergeTool },
       remoteCleanupExcluded: [...(settings.remoteCleanupExcluded ?? [])],
       pushAfterCommit: { ...(mockSettings.pushAfterCommit ?? {}) },
+      enableGitLogging: settings.enableGitLogging ?? false,
     }
     return mockApp.GetSettings()
   },
@@ -371,6 +374,14 @@ export const mockApp: WailsApp = {
   async SetFsMonitor(_repoPath: string, enabled: boolean) {
     mockFsMonitorEnabled = enabled
     return { supported: true, enabled: mockFsMonitorEnabled }
+  },
+
+  async GetGitLogsDir() {
+    return 'C:/Users/mock/AppData/Roaming/wt-manager/logs'
+  },
+
+  async OpenGitLogsDir() {
+    console.info('[mock] OpenGitLogsDir')
   },
 
   async PickDirectory() {

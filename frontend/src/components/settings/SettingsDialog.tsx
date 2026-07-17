@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { getFsMonitor, pickFile, setFsMonitor } from '../../lib/wails'
+import { getFsMonitor, getGitLogsDir, openGitLogsDir, pickFile, setFsMonitor } from '../../lib/wails'
 import {
   applyPreset,
   emptyExternalTool,
@@ -115,6 +115,8 @@ function ToolFields({
 export function SettingsDialog({ open, settings, onClose, onSave }: SettingsDialogProps) {
   const [diffTool, setDiffTool] = useState<ExternalTool>(emptyExternalTool())
   const [mergeTool, setMergeTool] = useState<ExternalTool>(emptyExternalTool())
+  const [enableGitLogging, setEnableGitLogging] = useState(false)
+  const [logsDir, setLogsDir] = useState('')
   const [fsMonitorEnabled, setFsMonitorEnabled] = useState(false)
   const [fsMonitorSupported, setFsMonitorSupported] = useState(true)
   const [fsMonitorLoaded, setFsMonitorLoaded] = useState(false)
@@ -129,6 +131,7 @@ export function SettingsDialog({ open, settings, onClose, onSave }: SettingsDial
     }
     setDiffTool({ ...emptyExternalTool(), ...settings.diffTool })
     setMergeTool({ ...emptyExternalTool(), ...settings.mergeTool })
+    setEnableGitLogging(settings.enableGitLogging ?? false)
     setSaveError(null)
     setFsMonitorLoaded(false)
 
@@ -149,6 +152,18 @@ export function SettingsDialog({ open, settings, onClose, onSave }: SettingsDial
         setFsMonitorSupported(false)
         setFsMonitorEnabled(false)
         setFsMonitorLoaded(true)
+      })
+
+    void getGitLogsDir()
+      .then((dir) => {
+        if (!cancelled) {
+          setLogsDir(dir)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLogsDir('')
+        }
       })
 
     return () => {
@@ -177,6 +192,7 @@ export function SettingsDialog({ open, settings, onClose, onSave }: SettingsDial
         ...settings,
         diffTool,
         mergeTool,
+        enableGitLogging,
       })
       if (activeRepo && fsMonitorSupported && fsMonitorLoaded) {
         await setFsMonitor(activeRepo, fsMonitorEnabled)
@@ -186,6 +202,14 @@ export function SettingsDialog({ open, settings, onClose, onSave }: SettingsDial
       setSaveError(err instanceof Error ? err.message : '設定の保存に失敗しました')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleOpenLogs = async () => {
+    try {
+      await openGitLogsDir()
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'ログフォルダを開けませんでした')
     }
   }
 
@@ -221,6 +245,33 @@ export function SettingsDialog({ open, settings, onClose, onSave }: SettingsDial
                 </span>
               </label>
               <p className={styles.toolDesc}>{fsMonitorHint}</p>
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <h3 className={styles.sectionTitle}>診断</h3>
+            <div className={styles.toolBlock}>
+              <label className={styles.checkRow}>
+                <input
+                  type="checkbox"
+                  className={styles.checkbox}
+                  checked={enableGitLogging}
+                  disabled={saving}
+                  onChange={(event) => setEnableGitLogging(event.target.checked)}
+                />
+                <span className={styles.checkLabel}>Git 実行ログを有効にする</span>
+              </label>
+              <p className={styles.toolDesc}>
+                各 git コマンドの引数・所要時間・出力要約と、GIT_TRACE /
+                GIT_TRACE_PERFORMANCE をログファイルに書き出します。重い PC
+                での切り分け用です（通常はオフ推奨）。
+              </p>
+              {logsDir ? <p className={styles.hint}>{logsDir}</p> : null}
+              <div className={styles.pathRow}>
+                <Button type="button" variant="ghost" disabled={saving} onClick={() => void handleOpenLogs()}>
+                  ログフォルダを開く
+                </Button>
+              </div>
             </div>
           </section>
 

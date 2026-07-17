@@ -25,6 +25,8 @@ export interface WailsApp {
   SetPushAfterCommit(repoPath: string, enabled: boolean): Promise<Settings>
   GetFsMonitor(repoPath: string): Promise<FsMonitorState>
   SetFsMonitor(repoPath: string, enabled: boolean): Promise<FsMonitorState>
+  GetGitLogsDir(): Promise<string>
+  OpenGitLogsDir(): Promise<void>
   PickDirectory(): Promise<string>
   PickFile(): Promise<string>
   ShowInExplorer(path: string): Promise<void>

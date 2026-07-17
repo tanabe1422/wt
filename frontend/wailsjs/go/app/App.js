@@ -114,6 +114,10 @@ export function GetFsMonitor(arg1) {
   return window['go']['app']['App']['GetFsMonitor'](arg1);
 }
 
+export function GetGitLogsDir() {
+  return window['go']['app']['App']['GetGitLogsDir']();
+}
+
 export function GetRangeFileDiff(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['GetRangeFileDiff'](arg1, arg2, arg3, arg4);
 }
@@ -188,6 +192,10 @@ export function OpenCommitDifftool(arg1, arg2, arg3) {
 
 export function OpenDifftool(arg1, arg2, arg3) {
   return window['go']['app']['App']['OpenDifftool'](arg1, arg2, arg3);
+}
+
+export function OpenGitLogsDir() {
+  return window['go']['app']['App']['OpenGitLogsDir']();
 }
 
 export function OpenMergetool(arg1, arg2) {

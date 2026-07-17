@@ -59,6 +59,8 @@ export function GetFileDiff(arg1:string,arg2:string,arg3:boolean):Promise<git.Fi
 
 export function GetFsMonitor(arg1:string):Promise<git.FsMonitorState>;
 
+export function GetGitLogsDir():Promise<string>;
+
 export function GetRangeFileDiff(arg1:string,arg2:string,arg3:string,arg4:string):Promise<git.FileDiff>;
 
 export function GetRepoOperationState(arg1:string):Promise<git.RepoOperationState>;
@@ -96,6 +98,8 @@ export function MergeBranch(arg1:string,arg2:string):Promise<void>;
 export function OpenCommitDifftool(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function OpenDifftool(arg1:string,arg2:string,arg3:boolean):Promise<void>;
+
+export function OpenGitLogsDir():Promise<void>;
 
 export function OpenMergetool(arg1:string,arg2:string):Promise<void>;
 

@@ -15,6 +15,8 @@ export interface Settings {
   remoteCleanupExcluded: string[]
   /** Commit 後に自動プッシュするリポジトリ（キーはリポジトリルートパス）。 */
   pushAfterCommit?: Record<string, boolean>
+  /** Git 実行ログ（コマンド要約 + GIT_TRACE）を %AppData%/wt-manager/logs に書く。 */
+  enableGitLogging?: boolean
 }
 
 export interface AmendInfo {

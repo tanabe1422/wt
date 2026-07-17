@@ -23,6 +23,7 @@ export namespace config {
 	    mergeTool: ExternalTool;
 	    remoteCleanupExcluded: string[];
 	    pushAfterCommit?: Record<string, boolean>;
+	    enableGitLogging: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -36,6 +37,7 @@ export namespace config {
 	        this.mergeTool = this.convertValues(source["mergeTool"], ExternalTool);
 	        this.remoteCleanupExcluded = source["remoteCleanupExcluded"];
 	        this.pushAfterCommit = source["pushAfterCommit"];
+	        this.enableGitLogging = source["enableGitLogging"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
