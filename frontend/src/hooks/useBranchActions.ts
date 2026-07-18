@@ -106,9 +106,9 @@ export function useBranchActions({
   )
 
   const merge = useCallback(
-    (source: string) =>
+    (source: string, allowFastForward: boolean) =>
       runMergeAction(
-        () => mergeBranch(worktreePath!, source),
+        () => mergeBranch(worktreePath!, source, allowFastForward),
         'マージに失敗しました',
       ),
     [runMergeAction, worktreePath],

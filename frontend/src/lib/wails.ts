@@ -99,6 +99,13 @@ export async function setPushAfterCommit(repoPath: string, enabled: boolean): Pr
   return callApp('SetPushAfterCommit', repoPath, enabled)
 }
 
+export async function setMergeAllowFastForward(
+  repoPath: string,
+  enabled: boolean,
+): Promise<Settings> {
+  return callApp('SetMergeAllowFastForward', repoPath, enabled)
+}
+
 export async function getFsMonitor(repoPath: string): Promise<FsMonitorState> {
   return callApp('GetFsMonitor', repoPath)
 }
@@ -480,8 +487,12 @@ export async function renameBranch(
   return callApp('RenameBranch', worktreePath, oldName, newName)
 }
 
-export async function mergeBranch(worktreePath: string, source: string): Promise<void> {
-  return callApp('MergeBranch', worktreePath, source)
+export async function mergeBranch(
+  worktreePath: string,
+  source: string,
+  allowFastForward: boolean,
+): Promise<void> {
+  return callApp('MergeBranch', worktreePath, source, allowFastForward)
 }
 
 export async function squashMergeBranch(

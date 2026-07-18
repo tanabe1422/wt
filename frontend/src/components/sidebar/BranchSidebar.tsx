@@ -16,7 +16,10 @@ import {
   getSelectedWorktreeBranch,
 } from '../../utils/branchMarks'
 import { localBranchFromRemote } from '../../utils/branchTree'
+import { RemoteCleanupIcon } from '../toolbar/GitSyncIcons'
+import { IconButton } from '../ui/IconButton'
 import { BranchSidebarDialogs } from './BranchSidebarDialogs'
+import { LocalBranchCleanupDialog } from './LocalBranchCleanupDialog'
 import { RepoSidebarContent } from './RepoSidebarContent'
 import styles from './BranchSidebar.module.css'
 
@@ -31,6 +34,8 @@ interface BranchSidebarProps {
   selectedWorktree: string | null
   onSelectWorktree: (path: string) => void
   openApps?: OpenApp[]
+  mergeAllowFastForward?: boolean
+  onMergeAllowFastForwardChange?: (enabled: boolean) => void
   /** フルサイドバー更新（WF: branches + 全 WT status） */
   onReload: () => void | Promise<void>
   /** 軽量更新: branches + 現行 WT バッジ + workspace content */
@@ -53,6 +58,8 @@ export function BranchSidebar({
   selectedWorktree,
   onSelectWorktree,
   openApps = [],
+  mergeAllowFastForward = true,
+  onMergeAllowFastForwardChange,
   onReload,
   onLightRefresh,
   onWorkspaceContentChanged,
@@ -73,6 +80,9 @@ export function BranchSidebar({
   const [forceDelete, setForceDelete] = useState(false)
   const [renameTarget, setRenameTarget] = useState<string | null>(null)
   const [rebaseTarget, setRebaseTarget] = useState<string | null>(null)
+  const [mergeTarget, setMergeTarget] = useState<string | null>(null)
+  const [mergeAllowFFDraft, setMergeAllowFFDraft] = useState(true)
+  const [cleanupOpen, setCleanupOpen] = useState(false)
   const [filterQuery, setFilterQuery] = useState('')
   const toast = useToast()
 
@@ -178,7 +188,8 @@ export function BranchSidebar({
     },
     onCompareWithCurrent,
     onMerge: (branch) => {
-      void branchActions.merge(branch)
+      setMergeAllowFFDraft(mergeAllowFastForward)
+      setMergeTarget(branch)
     },
     onSquashMerge: (branch) => {
       void (async () => {
@@ -281,6 +292,16 @@ export function BranchSidebar({
     })()
   }
 
+  const handleConfirmMerge = () => {
+    if (!mergeTarget) {
+      return
+    }
+    const source = mergeTarget
+    const allowFF = mergeAllowFFDraft
+    setMergeTarget(null)
+    void branchActions.merge(source, allowFF)
+  }
+
   const rebaseConfirmMessage = rebaseTarget && checkedOutBranch
     ? [
         `「${checkedOutBranch}」を「${rebaseTarget}」の上にリベースしますか？`,
@@ -291,6 +312,13 @@ export function BranchSidebar({
         .filter(Boolean)
         .join('\n')
     : ''
+
+  const mergeConfirmMessage =
+    mergeTarget && checkedOutBranch
+      ? `「${mergeTarget}」を現在のブランチ「${checkedOutBranch}」にマージしますか？`
+      : mergeTarget
+        ? `「${mergeTarget}」を現在のブランチにマージしますか？`
+        : ''
 
   return (
     <div className={styles.panel}>
@@ -329,9 +357,32 @@ export function BranchSidebar({
             onRemoteContextMenu={remoteContextMenu.openBranchMenu}
             onWorktreeContextMenu={worktreeDialogs.handleWorktreeContextMenu}
             onStashContextMenu={stashActions.openMenu}
+            localBranchHeaderAction={
+              <IconButton
+                type="button"
+                size="sm"
+                title="ブランチの整理"
+                aria-label="ブランチの整理"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setCleanupOpen(true)
+                }}
+              >
+                <RemoteCleanupIcon size={14} />
+              </IconButton>
+            }
           />
         )}
       </div>
+      <LocalBranchCleanupDialog
+        open={cleanupOpen}
+        worktreePath={actionWorktreePath}
+        branches={branches}
+        checkedOutBranch={checkedOutBranch}
+        worktreeBranches={worktreeBranches}
+        onClose={() => setCleanupOpen(false)}
+        onDeleted={handleStructureSuccess}
+      />
       <BranchSidebarDialogs
         loadError={errorDialog}
         actionError={actionErrorDialog}
@@ -358,6 +409,15 @@ export function BranchSidebar({
         rebaseConfirmMessage={rebaseConfirmMessage}
         onConfirmRebase={handleConfirmRebase}
         onCancelRebase={() => setRebaseTarget(null)}
+        mergeTarget={mergeTarget}
+        mergeConfirmMessage={mergeConfirmMessage}
+        mergeAllowFastForward={mergeAllowFFDraft}
+        onMergeAllowFastForwardChange={(checked) => {
+          setMergeAllowFFDraft(checked)
+          onMergeAllowFastForwardChange?.(checked)
+        }}
+        onConfirmMerge={handleConfirmMerge}
+        onCancelMerge={() => setMergeTarget(null)}
         removeWorktreeTarget={worktreeDialogs.removeWorktreeTarget}
         forceRemoveWorktree={worktreeDialogs.forceRemoveWorktree}
         onForceRemoveWorktreeChange={worktreeDialogs.setForceRemoveWorktree}

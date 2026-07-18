@@ -97,7 +97,7 @@ export function ListWorktrees(arg1:string):Promise<Array<git.WorktreeEntry>>;
 
 export function ListWorktreesMeta(arg1:string):Promise<Array<git.WorktreeEntry>>;
 
-export function MergeBranch(arg1:string,arg2:string):Promise<void>;
+export function MergeBranch(arg1:string,arg2:string,arg3:boolean):Promise<void>;
 
 export function OpenCommitDifftool(arg1:string,arg2:string,arg3:string):Promise<void>;
 
@@ -146,6 +146,8 @@ export function SaveStash(arg1:string,arg2:string,arg3:boolean):Promise<void>;
 export function SetActiveRepository(arg1:string):Promise<config.Settings>;
 
 export function SetFsMonitor(arg1:string,arg2:boolean):Promise<git.FsMonitorState>;
+
+export function SetMergeAllowFastForward(arg1:string,arg2:boolean):Promise<config.Settings>;
 
 export function SetPushAfterCommit(arg1:string,arg2:boolean):Promise<config.Settings>;
 

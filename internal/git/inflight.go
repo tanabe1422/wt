@@ -33,9 +33,13 @@ type RecentGitCommand struct {
 
 // GitDebugSnapshot is the payload for the debug window.
 type GitDebugSnapshot struct {
-	Inflight        []InflightGitCommand `json:"inflight"`
-	Recent          []RecentGitCommand   `json:"recent"`
-	LastMinuteCount int                  `json:"lastMinuteCount"`
+	Inflight               []InflightGitCommand `json:"inflight"`
+	Recent                 []RecentGitCommand   `json:"recent"`
+	LastMinuteCount        int                  `json:"lastMinuteCount"`
+	LastMinuteLocalCount   int                  `json:"lastMinuteLocalCount"`
+	LastMinuteNetworkCount int                  `json:"lastMinuteNetworkCount"`
+	LastMinuteGoGitCount   int                  `json:"lastMinuteGoGitCount"`
+	InflightNetworkCount   int                  `json:"inflightNetworkCount"`
 }
 
 type inflightEntry struct {
@@ -45,18 +49,50 @@ type inflightEntry struct {
 	startedAt time.Time
 }
 
+type startKind uint8
+
+const (
+	startLocal startKind = iota
+	startNetwork
+	startGoGit
+)
+
+// recentStartMark records when a git operation started and its kind.
+type recentStartMark struct {
+	at   int64
+	kind startKind
+}
+
 var (
 	inflightMu       sync.Mutex
 	inflightNextID   atomic.Uint64
 	inflightActive   = map[uint64]*inflightEntry{}
 	recentGitRing    []RecentGitCommand
-	recentStartTimes []int64 // unix ms; pruned to lastMinuteWindow
+	recentStartTimes []recentStartMark // pruned to lastMinuteWindow
 )
+
+// isNetworkGitArgs reports whether args are for a network-touching git subcommand
+// (fetch / pull / push / ls-remote / clone). Nested commands like `stash push` are local.
+func isNetworkGitArgs(args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	switch args[0] {
+	case "fetch", "pull", "push", "ls-remote", "clone":
+		return true
+	default:
+		return false
+	}
+}
 
 func beginInflight(dir string, args []string) uint64 {
 	id := inflightNextID.Add(1)
 	cp := append([]string(nil), args...)
 	now := time.Now()
+	kind := startLocal
+	if isNetworkGitArgs(cp) {
+		kind = startNetwork
+	}
 	inflightMu.Lock()
 	inflightActive[id] = &inflightEntry{
 		id:        id,
@@ -64,10 +100,26 @@ func beginInflight(dir string, args []string) uint64 {
 		args:      cp,
 		startedAt: now,
 	}
-	recentStartTimes = append(recentStartTimes, now.UnixMilli())
+	recentStartTimes = append(recentStartTimes, recentStartMark{
+		at:   now.UnixMilli(),
+		kind: kind,
+	})
 	pruneRecentStartTimesLocked(now)
 	inflightMu.Unlock()
 	return id
+}
+
+// recordGoGitStart counts a go-git hotpath open toward lastMinuteGoGitCount.
+// It does not appear in Inflight / Recent (CLI debug lists stay CLI-only).
+func recordGoGitStart() {
+	now := time.Now()
+	inflightMu.Lock()
+	recentStartTimes = append(recentStartTimes, recentStartMark{
+		at:   now.UnixMilli(),
+		kind: startGoGit,
+	})
+	pruneRecentStartTimesLocked(now)
+	inflightMu.Unlock()
 }
 
 // pruneRecentStartTimesLocked drops start timestamps older than lastMinuteWindow.
@@ -75,13 +127,13 @@ func beginInflight(dir string, args []string) uint64 {
 func pruneRecentStartTimesLocked(now time.Time) {
 	cutoff := now.Add(-lastMinuteWindow).UnixMilli()
 	i := 0
-	for i < len(recentStartTimes) && recentStartTimes[i] < cutoff {
+	for i < len(recentStartTimes) && recentStartTimes[i].at < cutoff {
 		i++
 	}
 	if i == 0 {
 		return
 	}
-	recentStartTimes = append([]int64(nil), recentStartTimes[i:]...)
+	recentStartTimes = append([]recentStartMark(nil), recentStartTimes[i:]...)
 }
 
 func endInflight(id uint64, runErr error) {
@@ -118,9 +170,26 @@ func ListGitDebugSnapshot() GitDebugSnapshot {
 	now := time.Now()
 	pruneRecentStartTimesLocked(now)
 	lastMinuteCount := len(recentStartTimes)
+	lastMinuteLocal := 0
+	lastMinuteNetwork := 0
+	lastMinuteGoGit := 0
+	for _, mark := range recentStartTimes {
+		switch mark.kind {
+		case startNetwork:
+			lastMinuteNetwork++
+		case startGoGit:
+			lastMinuteGoGit++
+		default:
+			lastMinuteLocal++
+		}
+	}
 
 	inflight := make([]InflightGitCommand, 0, len(inflightActive))
+	inflightNetwork := 0
 	for _, entry := range inflightActive {
+		if isNetworkGitArgs(entry.args) {
+			inflightNetwork++
+		}
 		inflight = append(inflight, InflightGitCommand{
 			ID:        entry.id,
 			Dir:       entry.dir,
@@ -143,9 +212,13 @@ func ListGitDebugSnapshot() GitDebugSnapshot {
 	}
 
 	return GitDebugSnapshot{
-		Inflight:        inflight,
-		Recent:          recent,
-		LastMinuteCount: lastMinuteCount,
+		Inflight:               inflight,
+		Recent:                 recent,
+		LastMinuteCount:        lastMinuteCount,
+		LastMinuteLocalCount:   lastMinuteLocal,
+		LastMinuteNetworkCount: lastMinuteNetwork,
+		LastMinuteGoGitCount:   lastMinuteGoGit,
+		InflightNetworkCount:   inflightNetwork,
 	}
 }
 

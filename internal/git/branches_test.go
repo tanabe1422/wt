@@ -97,14 +97,27 @@ func TestRenameBranchSameNameNoop(t *testing.T) {
 }
 
 func TestMergeBranch(t *testing.T) {
-	fake := newFakeRunner()
-	fake.On("merge", "--no-edit", "feature").Return("", nil)
-	withFakeRunner(t, fake)
+	t.Run("allowFastForward", func(t *testing.T) {
+		fake := newFakeRunner()
+		fake.On("merge", "--ff", "--no-edit", "feature").Return("", nil)
+		withFakeRunner(t, fake)
 
-	if err := MergeBranch("/repo", "feature"); err != nil {
-		t.Fatalf("MergeBranch: %v", err)
-	}
-	fake.AssertCalled(t, "merge", "--no-edit", "feature")
+		if err := MergeBranch("/repo", "feature", true); err != nil {
+			t.Fatalf("MergeBranch: %v", err)
+		}
+		fake.AssertCalled(t, "merge", "--ff", "--no-edit", "feature")
+	})
+
+	t.Run("noFastForward", func(t *testing.T) {
+		fake := newFakeRunner()
+		fake.On("merge", "--no-ff", "--no-edit", "feature").Return("", nil)
+		withFakeRunner(t, fake)
+
+		if err := MergeBranch("/repo", "feature", false); err != nil {
+			t.Fatalf("MergeBranch: %v", err)
+		}
+		fake.AssertCalled(t, "merge", "--no-ff", "--no-edit", "feature")
+	})
 }
 
 func TestSquashMergeBranch(t *testing.T) {

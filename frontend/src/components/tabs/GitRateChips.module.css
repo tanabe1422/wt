@@ -1,0 +1,68 @@
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  align-self: stretch;
+  padding: 0 0.375rem;
+  background: var(--color-slate-200);
+  color: var(--color-slate-500);
+  user-select: none;
+}
+
+.chip {
+  display: grid;
+  grid-template-columns: 16px max-content;
+  column-gap: 0.0625rem;
+  align-items: center;
+  padding: 0.0625rem 0.125rem;
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--color-slate-600);
+}
+
+/* ぐるぐる・雲はグリフが内側寄りなので、ストレージに合わせて少しだけ広げる */
+.chipLoose {
+  column-gap: 0.1875rem;
+}
+
+/* 処理中とストレージの間だけ少し空ける */
+.afterInflight {
+  margin-left: 0.1875rem;
+}
+
+.chip:hover {
+  background: var(--color-slate-300);
+  color: var(--color-slate-800);
+}
+
+.icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.value {
+  min-width: 2ch;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.spin {
+  animation: gitRateSpin 0.8s linear infinite;
+}
+
+@keyframes gitRateSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

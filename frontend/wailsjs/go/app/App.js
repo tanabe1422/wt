@@ -190,8 +190,8 @@ export function ListWorktreesMeta(arg1) {
   return window['go']['app']['App']['ListWorktreesMeta'](arg1);
 }
 
-export function MergeBranch(arg1, arg2) {
-  return window['go']['app']['App']['MergeBranch'](arg1, arg2);
+export function MergeBranch(arg1, arg2, arg3) {
+  return window['go']['app']['App']['MergeBranch'](arg1, arg2, arg3);
 }
 
 export function OpenCommitDifftool(arg1, arg2, arg3) {
@@ -288,6 +288,10 @@ export function SetActiveRepository(arg1) {
 
 export function SetFsMonitor(arg1, arg2) {
   return window['go']['app']['App']['SetFsMonitor'](arg1, arg2);
+}
+
+export function SetMergeAllowFastForward(arg1, arg2) {
+  return window['go']['app']['App']['SetMergeAllowFastForward'](arg1, arg2);
 }
 
 export function SetPushAfterCommit(arg1, arg2) {

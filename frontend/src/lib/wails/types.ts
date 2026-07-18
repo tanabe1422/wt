@@ -24,6 +24,7 @@ export interface WailsApp {
   RemoveRepository(path: string): Promise<Settings>
   SetActiveRepository(path: string): Promise<Settings>
   SetPushAfterCommit(repoPath: string, enabled: boolean): Promise<Settings>
+  SetMergeAllowFastForward(repoPath: string, enabled: boolean): Promise<Settings>
   GetFsMonitor(repoPath: string): Promise<FsMonitorState>
   SetFsMonitor(repoPath: string, enabled: boolean): Promise<FsMonitorState>
   GetGitDebugSnapshot(): Promise<GitDebugSnapshot>
@@ -126,7 +127,11 @@ export interface WailsApp {
   ): Promise<RemoteMergeEntry[]>
   DeleteRemoteBranches(worktreePath: string, remoteRefs: string[]): Promise<void>
   RenameBranch(worktreePath: string, oldName: string, newName: string): Promise<void>
-  MergeBranch(worktreePath: string, source: string): Promise<void>
+  MergeBranch(
+    worktreePath: string,
+    source: string,
+    allowFastForward: boolean,
+  ): Promise<void>
   SquashMergeBranch(worktreePath: string, source: string): Promise<void>
   ResetToCommit(worktreePath: string, sha: string, mode: string): Promise<void>
   ListStashes(worktreePath: string): Promise<StashEntry[]>

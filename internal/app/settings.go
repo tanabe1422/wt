@@ -25,6 +25,7 @@ func (a *App) SaveSettings(settings config.Settings) (config.Settings, error) {
 	settings.Repositories = current.Repositories
 	settings.ActiveRepository = current.ActiveRepository
 	settings.PushAfterCommit = current.PushAfterCommit
+	settings.MergeAllowFastForward = current.MergeAllowFastForward
 
 	if err := config.Save(settings); err != nil {
 		return config.Settings{}, err
@@ -144,6 +145,24 @@ func (a *App) SetPushAfterCommit(path string, enabled bool) (config.Settings, er
 	return settings, nil
 }
 
+func (a *App) SetMergeAllowFastForward(path string, enabled bool) (config.Settings, error) {
+	settings, err := config.Load()
+	if err != nil {
+		return config.Settings{}, err
+	}
+
+	settings, err = config.SetMergeAllowFastForward(settings, path, enabled)
+	if err != nil {
+		return config.Settings{}, err
+	}
+
+	if err := config.Save(settings); err != nil {
+		return config.Settings{}, err
+	}
+
+	return settings, nil
+}
+
 func (a *App) GetFsMonitor(repoPath string) (git.FsMonitorState, error) {
 	root, ok, err := tryResolveRepoRoot(repoPath)
 	if err != nil {
@@ -171,8 +190,10 @@ func (a *App) PickDirectory() (string, error) {
 		return "", errors.New("application context is not ready")
 	}
 
-	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "Git リポジトリを選択",
+	return withoutSnapToDefaultButton(func() (string, error) {
+		return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+			Title: "Git リポジトリを選択",
+		})
 	})
 }
 
@@ -181,11 +202,13 @@ func (a *App) PickFile() (string, error) {
 		return "", errors.New("application context is not ready")
 	}
 
-	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "実行ファイルを選択",
-		Filters: []runtime.FileFilter{
-			{DisplayName: "実行ファイル", Pattern: "*.exe;*.cmd;*.bat;*"},
-			{DisplayName: "すべてのファイル", Pattern: "*"},
-		},
+	return withoutSnapToDefaultButton(func() (string, error) {
+		return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+			Title: "実行ファイルを選択",
+			Filters: []runtime.FileFilter{
+				{DisplayName: "実行ファイル", Pattern: "*.exe;*.cmd;*.bat;*"},
+				{DisplayName: "すべてのファイル", Pattern: "*"},
+			},
+		})
 	})
 }

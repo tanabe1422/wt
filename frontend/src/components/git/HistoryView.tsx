@@ -361,47 +361,42 @@ export function HistoryView({
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
       />
-      {loading && commits.length === 0 ? (
-        <div className={styles.placeholder}>
-          <p>コミット履歴を読み込み中…</p>
-        </div>
-      ) : (
-        <div
-          ref={splitRef}
-          className={cx(styles.split, resizing && styles.splitResizing)}
-        >
-          <div className={styles.treePane} style={{ flex: `${treeRatio} 1 0%` }}>
-            <div ref={scrollRef} className={styles.scroll}>
-              <CommitHistoryTable
-                commits={commits}
-                labels={labels}
-                selectedSha={selectedSha}
-                onSelect={handleSelectCommit}
-                onContextMenu={handleContextMenu}
-                showGraph={!searching}
-                emptyMessage={
-                  searching ? '該当するコミットがありません' : 'コミットがありません'
-                }
-              />
-              <div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />
-              {loadingMore && (
-                <p className={styles.loadingMore}>
-                  {searching ? '検索を続けています…' : 'さらに読み込み中…'}
-                </p>
-              )}
-            </div>
-          </div>
-          <ResizeHandle
-            orientation="vertical"
-            onPointerDown={handleResizeStart}
-            ariaLabel="履歴と詳細の高さを調整"
-            active={resizing}
-          />
-          <div className={styles.detailPane} style={{ flex: `${1 - treeRatio} 1 0%` }}>
-            {detailPane}
+      <div
+        ref={splitRef}
+        className={cx(styles.split, resizing && styles.splitResizing)}
+      >
+        <div className={styles.treePane} style={{ flex: `${treeRatio} 1 0%` }}>
+          <div ref={scrollRef} className={styles.scroll}>
+            <CommitHistoryTable
+              commits={commits}
+              labels={labels}
+              selectedSha={selectedSha}
+              onSelect={handleSelectCommit}
+              onContextMenu={handleContextMenu}
+              showGraph={!searching}
+              loading={loading && commits.length === 0}
+              emptyMessage={
+                searching ? '該当するコミットがありません' : 'コミットがありません'
+              }
+            />
+            <div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />
+            {loadingMore && (
+              <p className={styles.loadingMore}>
+                {searching ? '検索を続けています…' : 'さらに読み込み中…'}
+              </p>
+            )}
           </div>
         </div>
-      )}
+        <ResizeHandle
+          orientation="vertical"
+          onPointerDown={handleResizeStart}
+          ariaLabel="履歴と詳細の高さを調整"
+          active={resizing}
+        />
+        <div className={styles.detailPane} style={{ flex: `${1 - treeRatio} 1 0%` }}>
+          {detailPane}
+        </div>
+      </div>
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} />
       )}

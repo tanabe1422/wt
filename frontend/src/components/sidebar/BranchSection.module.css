@@ -9,11 +9,19 @@
   border-top: 1px solid var(--border-grid);
 }
 
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding-right: 0.25rem;
+}
+
 .header {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 0.375rem 0.5rem 0.375rem 0.75rem;
   border: none;
   background: transparent;
@@ -23,6 +31,13 @@
   color: var(--color-slate-700);
   cursor: pointer;
   text-align: left;
+}
+
+.headerAction {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-slate-500);
 }
 
 .caret {

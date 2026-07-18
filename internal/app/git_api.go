@@ -395,9 +395,9 @@ func (a *App) RenameBranch(worktreePath, oldName, newName string) error {
 	})
 }
 
-func (a *App) MergeBranch(worktreePath, source string) error {
+func (a *App) MergeBranch(worktreePath, source string, allowFastForward bool) error {
 	return mutateWorktree(worktreePath, func(dir string) error {
-		return git.MergeBranch(dir, source)
+		return git.MergeBranch(dir, source, allowFastForward)
 	})
 }
 

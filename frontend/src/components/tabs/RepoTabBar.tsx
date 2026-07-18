@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 
 import { IconButton } from '../ui/IconButton'
+import { GitRateChips } from './GitRateChips'
 import styles from './RepoTabBar.module.css'
 
 interface RepoTabBarProps {
@@ -150,6 +151,7 @@ export function RepoTabBar({
           )
         })}
       </div>
+      <GitRateChips />
       <button
         type="button"
         className={styles.addButton}

@@ -180,12 +180,17 @@ func RenameBranch(worktreePath, oldName, newName string) error {
 }
 
 // MergeBranch merges source into the currently checked-out branch.
-func MergeBranch(worktreePath, source string) error {
+// When allowFastForward is true, uses --ff; otherwise --no-ff.
+func MergeBranch(worktreePath, source string, allowFastForward bool) error {
 	source = strings.TrimSpace(source)
 	if source == "" {
 		return errors.New("ブランチ名が空です")
 	}
-	_, err := runGit(worktreePath, "merge", "--no-edit", source)
+	ffFlag := "--ff"
+	if !allowFastForward {
+		ffFlag = "--no-ff"
+	}
+	_, err := runGit(worktreePath, "merge", ffFlag, "--no-edit", source)
 	return err
 }
 

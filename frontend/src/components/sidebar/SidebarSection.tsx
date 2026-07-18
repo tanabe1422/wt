@@ -11,6 +11,8 @@ interface SidebarSectionProps {
   defaultExpanded?: boolean
   /** リポジトリ単位で展開状態を保持するキー（未指定時はローカルのみ） */
   storageKey?: string | null
+  /** 見出し右端のアクション（展開トグルとは独立） */
+  headerAction?: ReactNode
 }
 
 export function SidebarSection({
@@ -19,6 +21,7 @@ export function SidebarSection({
   children,
   defaultExpanded = true,
   storageKey = null,
+  headerAction = null,
 }: SidebarSectionProps) {
   const [, bump] = useReducer((version: number) => version + 1, 0)
   const [localExpanded, setLocalExpanded] = useState(defaultExpanded)
@@ -43,17 +46,20 @@ export function SidebarSection({
 
   return (
     <section className={styles.section}>
-      <button
-        type="button"
-        className={styles.header}
-        onClick={() => setExpanded((value) => !value)}
-      >
-        <span className={styles.caret}>
-          {expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
-        </span>
-        <span className={styles.sectionIcon}>{icon}</span>
-        {title}
-      </button>
+      <div className={styles.headerRow}>
+        <button
+          type="button"
+          className={styles.header}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          <span className={styles.caret}>
+            {expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+          </span>
+          <span className={styles.sectionIcon}>{icon}</span>
+          {title}
+        </button>
+        {headerAction ? <div className={styles.headerAction}>{headerAction}</div> : null}
+      </div>
       {expanded && <div className={styles.body}>{children}</div>}
     </section>
   )

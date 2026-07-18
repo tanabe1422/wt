@@ -7,7 +7,15 @@ import styles from './GitDebugWindow.module.css'
 
 const POLL_MS = 250
 
-const emptySnapshot: GitDebugSnapshot = { inflight: [], recent: [], lastMinuteCount: 0 }
+const emptySnapshot: GitDebugSnapshot = {
+  inflight: [],
+  recent: [],
+  lastMinuteCount: 0,
+  lastMinuteLocalCount: 0,
+  lastMinuteNetworkCount: 0,
+  lastMinuteGoGitCount: 0,
+  inflightNetworkCount: 0,
+}
 
 interface GitDebugWindowProps {
   open: boolean
@@ -110,6 +118,10 @@ export function GitDebugWindow({ open, onClose }: GitDebugWindowProps) {
             inflight: next.inflight ?? [],
             recent: next.recent ?? [],
             lastMinuteCount: next.lastMinuteCount ?? 0,
+            lastMinuteLocalCount: next.lastMinuteLocalCount ?? 0,
+            lastMinuteNetworkCount: next.lastMinuteNetworkCount ?? 0,
+            lastMinuteGoGitCount: next.lastMinuteGoGitCount ?? 0,
+            inflightNetworkCount: next.inflightNetworkCount ?? 0,
           })
           setNow(Date.now())
           setError(null)
@@ -144,6 +156,12 @@ export function GitDebugWindow({ open, onClose }: GitDebugWindowProps) {
           <p className={styles.subtitle}>
             直近1分
             <span className={styles.count}>{snapshot.lastMinuteCount}</span>
+            <span className={styles.subtitleSep}>·</span>
+            ローカル
+            <span className={styles.count}>{snapshot.lastMinuteLocalCount}</span>
+            <span className={styles.subtitleSep}>·</span>
+            NW
+            <span className={styles.count}>{snapshot.lastMinuteNetworkCount}</span>
             <span className={styles.subtitleSep}>·</span>
             250ms 更新
           </p>

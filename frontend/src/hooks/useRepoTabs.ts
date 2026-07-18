@@ -9,6 +9,7 @@ import {
   removeRepository,
   saveSettings,
   setActiveRepository,
+  setMergeAllowFastForward,
   setPushAfterCommit,
 } from '../lib/wails'
 import type { Settings } from '../types'
@@ -21,6 +22,7 @@ const emptySettings: Settings = {
   openApps: [],
   remoteCleanupExcluded: ['main', 'master', 'develop'],
   pushAfterCommit: {},
+  mergeAllowFastForward: {},
   enableGitLogging: false,
 }
 
@@ -34,6 +36,7 @@ function normalizeLoadedSettings(settings: Settings): Settings {
     openApps: (settings.openApps ?? []).map((app) => ({ ...app })),
     remoteCleanupExcluded: settings.remoteCleanupExcluded ?? ['main', 'master', 'develop'],
     pushAfterCommit: settings.pushAfterCommit ?? {},
+    mergeAllowFastForward: settings.mergeAllowFastForward ?? {},
     enableGitLogging: settings.enableGitLogging ?? false,
   }
 }
@@ -110,6 +113,16 @@ export function useRepoTabs() {
     }
   }, [])
 
+  const updateMergeAllowFastForward = useCallback(async (repoPath: string, enabled: boolean) => {
+    try {
+      setError(null)
+      const next = await setMergeAllowFastForward(repoPath, enabled)
+      setSettings(normalizeLoadedSettings(next))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [])
+
   return {
     settings,
     repositories: settings.repositories,
@@ -121,5 +134,6 @@ export function useRepoTabs() {
     addRepo,
     updateSettings,
     updatePushAfterCommit,
+    updateMergeAllowFastForward,
   }
 }

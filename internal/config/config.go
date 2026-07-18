@@ -34,6 +34,9 @@ type Settings struct {
 	OpenApps              []OpenApp       `json:"openApps"`
 	RemoteCleanupExcluded []string        `json:"remoteCleanupExcluded"`
 	PushAfterCommit       map[string]bool `json:"pushAfterCommit,omitempty"`
+	// MergeAllowFastForward maps repo root → whether merge may fast-forward.
+	// Missing key means true (git default). Both true and false are persisted.
+	MergeAllowFastForward map[string]bool `json:"mergeAllowFastForward,omitempty"`
 	// EnableGitLogging writes each git invocation (and GIT_TRACE) under logs/.
 	EnableGitLogging bool `json:"enableGitLogging"`
 }
@@ -282,6 +285,7 @@ func normalizeSettings(settings Settings) (Settings, error) {
 		OpenApps:              normalizeOpenApps(settings.OpenApps),
 		RemoteCleanupExcluded: normalizeRemoteCleanupExcluded(settings.RemoteCleanupExcluded),
 		PushAfterCommit:       normalizePushAfterCommit(settings.PushAfterCommit, repositories),
+		MergeAllowFastForward: normalizeMergeAllowFastForward(settings.MergeAllowFastForward, repositories),
 		EnableGitLogging:      settings.EnableGitLogging,
 	}, nil
 }
@@ -305,6 +309,28 @@ func normalizePushAfterCommit(raw map[string]bool, repositories []string) map[st
 			continue
 		}
 		out[normalized] = true
+	}
+	return out
+}
+
+// normalizeMergeAllowFastForward keeps both true and false for registered repos.
+// Missing keys are treated as true (allow FF) by callers.
+func normalizeMergeAllowFastForward(raw map[string]bool, repositories []string) map[string]bool {
+	repoSet := make(map[string]struct{}, len(repositories))
+	for _, repo := range repositories {
+		repoSet[repo] = struct{}{}
+	}
+
+	out := make(map[string]bool)
+	for key, enabled := range raw {
+		normalized, err := normalizePath(key)
+		if err != nil || normalized == "" {
+			continue
+		}
+		if _, exists := repoSet[normalized]; !exists {
+			continue
+		}
+		out[normalized] = enabled
 	}
 	return out
 }
@@ -352,6 +378,9 @@ func RemoveRepository(settings Settings, path string) (Settings, error) {
 	if settings.PushAfterCommit != nil {
 		delete(settings.PushAfterCommit, normalized)
 	}
+	if settings.MergeAllowFastForward != nil {
+		delete(settings.MergeAllowFastForward, normalized)
+	}
 
 	return normalizeSettings(settings)
 }
@@ -389,6 +418,23 @@ func SetPushAfterCommit(settings Settings, path string, enabled bool) (Settings,
 	} else {
 		delete(settings.PushAfterCommit, normalized)
 	}
+
+	return normalizeSettings(settings)
+}
+
+func SetMergeAllowFastForward(settings Settings, path string, enabled bool) (Settings, error) {
+	normalized, err := normalizePath(path)
+	if err != nil {
+		return Settings{}, err
+	}
+	if normalized == "" {
+		return normalizeSettings(settings)
+	}
+
+	if settings.MergeAllowFastForward == nil {
+		settings.MergeAllowFastForward = map[string]bool{}
+	}
+	settings.MergeAllowFastForward[normalized] = enabled
 
 	return normalizeSettings(settings)
 }

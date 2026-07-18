@@ -28,6 +28,8 @@ interface BranchSectionProps {
   expansionScope?: string | null
   /** ブランチツリー先頭に差し込む情報行（detached HEAD など） */
   leading?: ReactNode
+  /** 見出し右端のアクション */
+  headerAction?: ReactNode
   onActivate?: (fullName: string) => void
   onContextMenu?: (fullName: string, event: MouseEvent) => void
 }
@@ -48,6 +50,7 @@ export function BranchSection({
   expansionThreshold = 2,
   expansionScope = null,
   leading = null,
+  headerAction = null,
   onActivate,
   onContextMenu,
 }: BranchSectionProps) {
@@ -61,6 +64,7 @@ export function BranchSection({
       icon={icon}
       defaultExpanded={defaultExpanded}
       storageKey={sectionStorageKey}
+      headerAction={headerAction}
     >
       {leading}
       {nodes.map((node) => (

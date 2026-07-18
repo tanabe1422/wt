@@ -55,6 +55,12 @@ interface BranchSidebarDialogsProps {
   rebaseConfirmMessage: string
   onConfirmRebase: () => void
   onCancelRebase: () => void
+  mergeTarget: string | null
+  mergeConfirmMessage: string
+  mergeAllowFastForward: boolean
+  onMergeAllowFastForwardChange: (checked: boolean) => void
+  onConfirmMerge: () => void
+  onCancelMerge: () => void
   removeWorktreeTarget: WorktreeEntry | null
   forceRemoveWorktree: boolean
   onForceRemoveWorktreeChange: (checked: boolean) => void
@@ -173,6 +179,12 @@ export function BranchSidebarDialogs({
   rebaseConfirmMessage,
   onConfirmRebase,
   onCancelRebase,
+  mergeTarget,
+  mergeConfirmMessage,
+  mergeAllowFastForward,
+  onMergeAllowFastForwardChange,
+  onConfirmMerge,
+  onCancelMerge,
   removeWorktreeTarget,
   forceRemoveWorktree,
   onForceRemoveWorktreeChange,
@@ -271,6 +283,17 @@ export function BranchSidebarDialogs({
         confirmLabel="リベース"
         onConfirm={onConfirmRebase}
         onCancel={onCancelRebase}
+      />
+      <ConfirmDialog
+        open={mergeTarget !== null}
+        title="マージの確認"
+        message={mergeConfirmMessage}
+        confirmLabel="マージ"
+        checkboxLabel="ファストフォワードを許可"
+        checked={mergeAllowFastForward}
+        onCheckedChange={onMergeAllowFastForwardChange}
+        onConfirm={onConfirmMerge}
+        onCancel={onCancelMerge}
       />
       <ConfirmDialog
         open={removeWorktreeTarget !== null}

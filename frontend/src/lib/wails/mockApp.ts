@@ -23,6 +23,7 @@ let mockSettings: Settings = {
   openApps: [],
   remoteCleanupExcluded: ['main', 'master', 'develop'],
   pushAfterCommit: {},
+  mergeAllowFastForward: {},
   enableGitLogging: false,
 }
 
@@ -293,6 +294,7 @@ export const mockApp: WailsApp = {
       openApps: (mockSettings.openApps ?? []).map((app) => ({ ...app })),
       remoteCleanupExcluded: [...(mockSettings.remoteCleanupExcluded ?? [])],
       pushAfterCommit: { ...(mockSettings.pushAfterCommit ?? {}) },
+      mergeAllowFastForward: { ...(mockSettings.mergeAllowFastForward ?? {}) },
       enableGitLogging: mockSettings.enableGitLogging ?? false,
     }
   },
@@ -305,6 +307,7 @@ export const mockApp: WailsApp = {
       openApps: (settings.openApps ?? []).map((app) => ({ ...app })),
       remoteCleanupExcluded: [...(settings.remoteCleanupExcluded ?? [])],
       pushAfterCommit: { ...(mockSettings.pushAfterCommit ?? {}) },
+      mergeAllowFastForward: { ...(mockSettings.mergeAllowFastForward ?? {}) },
       enableGitLogging: settings.enableGitLogging ?? false,
     }
     return mockApp.GetSettings()
@@ -343,6 +346,12 @@ export const mockApp: WailsApp = {
     if (normalizePath(mockSettings.activeRepository) === normalized) {
       mockSettings.activeRepository = mockSettings.repositories[0] ?? ''
     }
+    if (mockSettings.pushAfterCommit) {
+      delete mockSettings.pushAfterCommit[normalized]
+    }
+    if (mockSettings.mergeAllowFastForward) {
+      delete mockSettings.mergeAllowFastForward[normalized]
+    }
     return mockApp.GetSettings()
   },
 
@@ -367,6 +376,18 @@ export const mockApp: WailsApp = {
     } else {
       delete mockSettings.pushAfterCommit[normalized]
     }
+    return mockApp.GetSettings()
+  },
+
+  async SetMergeAllowFastForward(repoPath: string, enabled: boolean) {
+    const normalized = normalizePath(repoPath)
+    if (!normalized) {
+      return mockApp.GetSettings()
+    }
+    if (!mockSettings.mergeAllowFastForward) {
+      mockSettings.mergeAllowFastForward = {}
+    }
+    mockSettings.mergeAllowFastForward[normalized] = enabled
     return mockApp.GetSettings()
   },
 
@@ -412,6 +433,10 @@ export const mockApp: WailsApp = {
         },
       ],
       lastMinuteCount: 12,
+      lastMinuteLocalCount: 10,
+      lastMinuteNetworkCount: 2,
+      lastMinuteGoGitCount: 24,
+      inflightNetworkCount: 1,
     }
   },
 
@@ -1126,8 +1151,8 @@ export const mockApp: WailsApp = {
     console.info('[mock] RenameBranch', trimmedOld, trimmedNew)
   },
 
-  async MergeBranch(_worktreePath: string, source: string) {
-    console.info('[mock] MergeBranch', source)
+  async MergeBranch(_worktreePath: string, source: string, allowFastForward: boolean) {
+    console.info('[mock] MergeBranch', source, allowFastForward ? '--ff' : '--no-ff')
   },
 
   async SquashMergeBranch(_worktreePath: string, source: string) {

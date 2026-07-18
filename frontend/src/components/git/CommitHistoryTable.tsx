@@ -16,6 +16,7 @@ interface CommitHistoryTableProps {
   onSelect: (sha: string) => void
   onContextMenu?: (sha: string, event: MouseEvent) => void
   showGraph?: boolean
+  loading?: boolean
   emptyMessage?: string
 }
 
@@ -35,6 +36,7 @@ export function CommitHistoryTable({
   onSelect,
   onContextMenu,
   showGraph = true,
+  loading = false,
   emptyMessage = 'コミットがありません',
 }: CommitHistoryTableProps) {
   const {
@@ -74,10 +76,6 @@ export function CommitHistoryTable({
     [commits, onContextMenu],
   )
 
-  if (commits.length === 0) {
-    return <p className={styles.empty}>{emptyMessage}</p>
-  }
-
   return (
     <div className={styles.table}>
       <CommitHistoryHeader
@@ -86,39 +84,45 @@ export function CommitHistoryTable({
         onResizeStart={startResize}
         showGraph={showGraph}
       />
-      <div className={styles.body}>
-        {selectedRowIndex >= 0 && (
-          <div
-            className={styles.rowHighlight}
-            style={{
-              top: selectedRowIndex * COMMIT_ROW_HEIGHT,
-              height: COMMIT_ROW_HEIGHT,
-            }}
-            aria-hidden="true"
-          />
-        )}
-        {showGraph ? (
-          <div
-            className={styles.graphColumn}
-            style={{ width: widths.graph }}
-            onClick={handleGraphClick}
-            onContextMenu={handleGraphContextMenu}
-          >
-            <CommitHistoryGraph commits={commits} rowHeight={COMMIT_ROW_HEIGHT} />
+      {commits.length === 0 ? (
+        <p className={styles.empty} aria-live="polite">
+          {loading ? 'コミット履歴を読み込み中…' : emptyMessage}
+        </p>
+      ) : (
+        <div className={styles.body}>
+          {selectedRowIndex >= 0 && (
+            <div
+              className={styles.rowHighlight}
+              style={{
+                top: selectedRowIndex * COMMIT_ROW_HEIGHT,
+                height: COMMIT_ROW_HEIGHT,
+              }}
+              aria-hidden="true"
+            />
+          )}
+          {showGraph ? (
+            <div
+              className={styles.graphColumn}
+              style={{ width: widths.graph }}
+              onClick={handleGraphClick}
+              onContextMenu={handleGraphContextMenu}
+            >
+              <CommitHistoryGraph commits={commits} rowHeight={COMMIT_ROW_HEIGHT} />
+            </div>
+          ) : null}
+          <div className={styles.rowsColumn}>
+            <CommitList
+              commits={commits}
+              labels={labels}
+              rowHeight={COMMIT_ROW_HEIGHT}
+              rowGridTemplateColumns={rowGridTemplateColumns}
+              selectedSha={selectedSha}
+              onSelect={onSelect}
+              onContextMenu={onContextMenu}
+            />
           </div>
-        ) : null}
-        <div className={styles.rowsColumn}>
-          <CommitList
-            commits={commits}
-            labels={labels}
-            rowHeight={COMMIT_ROW_HEIGHT}
-            rowGridTemplateColumns={rowGridTemplateColumns}
-            selectedSha={selectedSha}
-            onSelect={onSelect}
-            onContextMenu={onContextMenu}
-          />
         </div>
-      </div>
+      )}
     </div>
   )
 }

@@ -385,6 +385,58 @@ func TestSetPushAfterCommit(t *testing.T) {
 	}
 }
 
+func TestSetMergeAllowFastForward(t *testing.T) {
+	dir := t.TempDir()
+	repoA := filepath.Join(dir, "repo-a")
+	repoB := filepath.Join(dir, "repo-b")
+	if err := os.Mkdir(repoA, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(repoB, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	settings, err := AddRepository(Settings{}, repoA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings, err = AddRepository(settings, repoB)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	absA, _ := filepath.Abs(filepath.Clean(repoA))
+	absB, _ := filepath.Abs(filepath.Clean(repoB))
+
+	settings, err = SetMergeAllowFastForward(settings, repoA, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings.MergeAllowFastForward[absA] {
+		t.Fatalf("expected FF disabled for %q", absA)
+	}
+
+	settings, err = SetMergeAllowFastForward(settings, repoA, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !settings.MergeAllowFastForward[absA] {
+		t.Fatalf("expected FF enabled for %q", absA)
+	}
+
+	settings, err = SetMergeAllowFastForward(settings, repoB, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings, err = RemoveRepository(settings, repoB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := settings.MergeAllowFastForward[absB]; exists {
+		t.Fatalf("removed repo should not keep FF preference: %v", settings.MergeAllowFastForward)
+	}
+}
+
 func TestNormalizeOpenApps(t *testing.T) {
 	got := normalizeOpenApps([]OpenApp{
 		{Name: "  ", Path: "  "},

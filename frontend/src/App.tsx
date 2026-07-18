@@ -113,6 +113,7 @@ function AppShell() {
     addRepo,
     updateSettings,
     updatePushAfterCommit,
+    updateMergeAllowFastForward,
   } = useRepoTabs()
 
   useEffect(() => {
@@ -238,6 +239,9 @@ function AppShell() {
   const pushAfterCommit = activeRepository
     ? (settings.pushAfterCommit?.[activeRepository] ?? false)
     : false
+  const mergeAllowFastForward = activeRepository
+    ? (settings.mergeAllowFastForward?.[activeRepository] ?? true)
+    : true
 
   const handlePushAfterCommitChange = useCallback(
     (enabled: boolean) => {
@@ -247,6 +251,16 @@ function AppShell() {
       void updatePushAfterCommit(activeRepository, enabled)
     },
     [activeRepository, updatePushAfterCommit],
+  )
+
+  const handleMergeAllowFastForwardChange = useCallback(
+    (enabled: boolean) => {
+      if (!activeRepository) {
+        return
+      }
+      void updateMergeAllowFastForward(activeRepository, enabled)
+    },
+    [activeRepository, updateMergeAllowFastForward],
   )
 
   const handleActionComplete = useCallback(
@@ -357,6 +371,8 @@ function AppShell() {
             selectedWorktree={selectedWorktree}
             onSelectWorktree={setSelectedWorktree}
             openApps={settings.openApps}
+            mergeAllowFastForward={mergeAllowFastForward}
+            onMergeAllowFastForwardChange={handleMergeAllowFastForwardChange}
             onReload={reloadSidebar}
             onLightRefresh={handleLightRefresh}
             onWorkspaceContentChanged={bumpWorkspaceContent}

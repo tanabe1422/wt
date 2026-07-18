@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import { useMemo } from 'react'
 
 import type { BranchEntry, StashEntry, WorktreeEntry } from '../../types'
@@ -65,6 +65,8 @@ export interface RepoSidebarContentProps {
   onRemoteContextMenu?: (fullName: string, event: MouseEvent) => void
   onWorktreeContextMenu?: (worktree: WorktreeEntry, event: MouseEvent) => void
   onStashContextMenu?: (stash: StashEntry, event: MouseEvent) => void
+  /** ローカル「ブランチ」見出し右のアクション */
+  localBranchHeaderAction?: ReactNode
 }
 
 export function RepoSidebarContent({
@@ -84,6 +86,7 @@ export function RepoSidebarContent({
   onRemoteContextMenu,
   onWorktreeContextMenu,
   onStashContextMenu,
+  localBranchHeaderAction = null,
 }: RepoSidebarContentProps) {
   const { localUnfiltered, remoteUnfiltered } = useMemo(() => {
     const trees = splitBranchTrees(branches)
@@ -154,6 +157,7 @@ export function RepoSidebarContent({
               showWorktreeMarks={showWorktreeMarks}
               expansionThreshold={expansionThreshold}
               expansionScope={expansionScope}
+              headerAction={localBranchHeaderAction}
               leading={
                 showDetachedHead ? (
                   <DetachedHeadRow head={selectedWorktreeEntry?.head} />

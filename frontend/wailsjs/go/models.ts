@@ -44,6 +44,7 @@ export namespace config {
 	    openApps: OpenApp[];
 	    remoteCleanupExcluded: string[];
 	    pushAfterCommit?: Record<string, boolean>;
+	    mergeAllowFastForward?: Record<string, boolean>;
 	    enableGitLogging: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -59,6 +60,7 @@ export namespace config {
 	        this.openApps = this.convertValues(source["openApps"], OpenApp);
 	        this.remoteCleanupExcluded = source["remoteCleanupExcluded"];
 	        this.pushAfterCommit = source["pushAfterCommit"];
+	        this.mergeAllowFastForward = source["mergeAllowFastForward"];
 	        this.enableGitLogging = source["enableGitLogging"];
 	    }
 	
@@ -454,6 +456,10 @@ export namespace git {
 	    inflight: InflightGitCommand[];
 	    recent: RecentGitCommand[];
 	    lastMinuteCount: number;
+	    lastMinuteLocalCount: number;
+	    lastMinuteNetworkCount: number;
+	    lastMinuteGoGitCount: number;
+	    inflightNetworkCount: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new GitDebugSnapshot(source);
@@ -464,6 +470,10 @@ export namespace git {
 	        this.inflight = this.convertValues(source["inflight"], InflightGitCommand);
 	        this.recent = this.convertValues(source["recent"], RecentGitCommand);
 	        this.lastMinuteCount = source["lastMinuteCount"];
+	        this.lastMinuteLocalCount = source["lastMinuteLocalCount"];
+	        this.lastMinuteNetworkCount = source["lastMinuteNetworkCount"];
+	        this.lastMinuteGoGitCount = source["lastMinuteGoGitCount"];
+	        this.inflightNetworkCount = source["inflightNetworkCount"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

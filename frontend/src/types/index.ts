@@ -27,6 +27,8 @@ export interface Settings {
   remoteCleanupExcluded: string[]
   /** Commit 後に自動プッシュするリポジトリ（キーはリポジトリルートパス）。 */
   pushAfterCommit?: Record<string, boolean>
+  /** マージ時にファストフォワードを許可するか（キーはリポジトリルート。欠落時は true）。 */
+  mergeAllowFastForward?: Record<string, boolean>
   /** Git 実行ログ（コマンド要約 + GIT_TRACE）を %AppData%/wt-manager/logs に書く。 */
   enableGitLogging?: boolean
 }
@@ -65,6 +67,14 @@ export interface GitDebugSnapshot {
   recent: RecentGitCommand[]
   /** Commands that started within the last 60 seconds (not capped by recent buffer). */
   lastMinuteCount: number
+  /** CLI git with no network (status, rev-parse, …). */
+  lastMinuteLocalCount: number
+  /** CLI git that may use the network (fetch/pull/push/…). */
+  lastMinuteNetworkCount: number
+  /** go-git hotpath opens (separate from CLI local). */
+  lastMinuteGoGitCount: number
+  /** Currently running network CLI git (fetch/pull/push/…). */
+  inflightNetworkCount: number
 }
 
 export type RepoOperationKind = 'none' | 'merge' | 'rebase'

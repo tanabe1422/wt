@@ -187,6 +187,7 @@ func nativeHasHEAD(dir string) bool {
 }
 
 func openNativeRepo(path string) (*gogit.Repository, error) {
+	recordGoGitStart()
 	abs, err := filepath.Abs(filepath.Clean(path))
 	if err != nil {
 		return nil, err
