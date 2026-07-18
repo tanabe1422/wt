@@ -384,3 +384,31 @@ func TestSetPushAfterCommit(t *testing.T) {
 		t.Fatalf("removed repo should not keep push preference: %v", settings.PushAfterCommit)
 	}
 }
+
+func TestNormalizeOpenApps(t *testing.T) {
+	got := normalizeOpenApps([]OpenApp{
+		{Name: "  ", Path: "  "},
+		{Name: "Cursor", Path: "cursor", Args: "", Icon: "CURSOR"},
+		{ID: "dup", Name: "A", Path: "a"},
+		{ID: "dup", Name: "B", Path: "b", Icon: "unknown"},
+		{Name: "", Path: "zed", Icon: "zed"},
+	})
+	if len(got) != 4 {
+		t.Fatalf("len=%d want 4: %+v", len(got), got)
+	}
+	if got[0].Args != "{path}" || got[0].Icon != "cursor" || got[0].ID == "" {
+		t.Fatalf("first: %+v", got[0])
+	}
+	if got[1].ID != "dup" {
+		t.Fatalf("keep first id: %+v", got[1])
+	}
+	if got[2].ID == "dup" || got[2].ID == "" {
+		t.Fatalf("duplicate id regenerated: %+v", got[2])
+	}
+	if got[2].Icon != "generic" {
+		t.Fatalf("unknown icon → generic: %+v", got[2])
+	}
+	if got[3].Name != "zed" || got[3].Icon != "zed" {
+		t.Fatalf("name from path: %+v", got[3])
+	}
+}

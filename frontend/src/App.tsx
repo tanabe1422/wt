@@ -356,6 +356,7 @@ function AppShell() {
             onSelectBranch={setSelectedBranch}
             selectedWorktree={selectedWorktree}
             onSelectWorktree={setSelectedWorktree}
+            openApps={settings.openApps}
             onReload={reloadSidebar}
             onLightRefresh={handleLightRefresh}
             onWorkspaceContentChanged={bumpWorkspaceContent}

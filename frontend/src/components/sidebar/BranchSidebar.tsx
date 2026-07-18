@@ -4,11 +4,12 @@ import type { BusyChangeHandler } from '../../hooks/useBusy'
 import { useErrorDialog } from '../../hooks/useErrorDialog'
 import { useBranchActions } from '../../hooks/useBranchActions'
 import { useBranchContextMenu } from '../../hooks/useBranchContextMenu'
+import { useExecutableIcons } from '../../hooks/useExecutableIcons'
 import { useStashActions } from '../../hooks/useStashActions'
 import { useToast } from '../../hooks/useToast'
 import { useWorktreeDialogs } from '../../hooks/useWorktreeDialogs'
 import { getRepoOperationState } from '../../lib/wails'
-import type { BranchEntry, WorktreeEntry } from '../../types'
+import type { BranchEntry, OpenApp, WorktreeEntry } from '../../types'
 import {
   collectWorktreeBranches,
   findWorktreePathByBranch,
@@ -29,6 +30,7 @@ interface BranchSidebarProps {
   onSelectBranch: (fullName: string) => void
   selectedWorktree: string | null
   onSelectWorktree: (path: string) => void
+  openApps?: OpenApp[]
   /** フルサイドバー更新（WF: branches + 全 WT status） */
   onReload: () => void | Promise<void>
   /** 軽量更新: branches + 現行 WT バッジ + workspace content */
@@ -50,6 +52,7 @@ export function BranchSidebar({
   onSelectBranch,
   selectedWorktree,
   onSelectWorktree,
+  openApps = [],
   onReload,
   onLightRefresh,
   onWorkspaceContentChanged,
@@ -105,11 +108,13 @@ export function BranchSidebar({
     activeRepository,
     worktrees,
     selectedWorktree,
+    openApps,
     onSelectWorktree,
     onSelectBranch,
     onReload,
     onBranchChanged: onWorkspaceContentChanged,
   })
+  const openAppIconUrls = useExecutableIcons(openApps.map((app) => app.path))
   const worktreeErrorDialog = useErrorDialog(worktreeDialogs.worktreeError)
 
   const stashActions = useStashActions({
@@ -368,6 +373,9 @@ export function BranchSidebar({
         onCancelWorktree={() => worktreeDialogs.setWorktreeTarget(null)}
         worktreeMenu={worktreeDialogs.worktreeMenu}
         onCloseWorktreeMenu={() => worktreeDialogs.setWorktreeMenu(null)}
+        openApps={worktreeDialogs.openApps}
+        openAppIconUrls={openAppIconUrls}
+        onOpenInApp={worktreeDialogs.openWorktreeInApp}
         onOpenExplorer={worktreeDialogs.openExplorer}
         onOpenTerminal={worktreeDialogs.openWorktreeTerminal}
         onRequestRemoveWorktree={worktreeDialogs.requestRemoveWorktree}

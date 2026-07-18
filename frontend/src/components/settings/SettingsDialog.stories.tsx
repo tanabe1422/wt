@@ -18,6 +18,22 @@ const sampleSettings: Settings = {
     path: 'code',
     args: '--wait --merge $REMOTE $LOCAL $BASE $MERGED',
   },
+  openApps: [
+    {
+      id: 'cursor-1',
+      name: 'Cursor',
+      path: 'cursor',
+      args: '{path}',
+      icon: 'cursor',
+    },
+    {
+      id: 'zed-1',
+      name: 'Zed',
+      path: 'zed',
+      args: '{path}',
+      icon: 'zed',
+    },
+  ],
   remoteCleanupExcluded: ['main', 'master', 'develop'],
   enableGitLogging: false,
 }
@@ -50,8 +66,12 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const DiffSection: Story = {
-  name: 'Diff セクション',
+export const Default: Story = {
+  name: 'デフォルト',
+}
+
+export const WithOpenApps: Story = {
+  name: 'フォルダを開くアプリ',
 }
 
 export const EmptyTools: Story = {
@@ -61,6 +81,7 @@ export const EmptyTools: Story = {
       ...sampleSettings,
       diffTool: emptyExternalTool(),
       mergeTool: emptyExternalTool(),
+      openApps: [],
     },
   },
 }

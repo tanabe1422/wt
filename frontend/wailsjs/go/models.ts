@@ -16,11 +16,32 @@ export namespace config {
 	        this.args = source["args"];
 	    }
 	}
+	export class OpenApp {
+	    id: string;
+	    name: string;
+	    path: string;
+	    args: string;
+	    icon: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new OpenApp(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.path = source["path"];
+	        this.args = source["args"];
+	        this.icon = source["icon"];
+	    }
+	}
 	export class Settings {
 	    repositories: string[];
 	    activeRepository: string;
 	    diffTool: ExternalTool;
 	    mergeTool: ExternalTool;
+	    openApps: OpenApp[];
 	    remoteCleanupExcluded: string[];
 	    pushAfterCommit?: Record<string, boolean>;
 	    enableGitLogging: boolean;
@@ -35,6 +56,7 @@ export namespace config {
 	        this.activeRepository = source["activeRepository"];
 	        this.diffTool = this.convertValues(source["diffTool"], ExternalTool);
 	        this.mergeTool = this.convertValues(source["mergeTool"], ExternalTool);
+	        this.openApps = this.convertValues(source["openApps"], OpenApp);
 	        this.remoteCleanupExcluded = source["remoteCleanupExcluded"];
 	        this.pushAfterCommit = source["pushAfterCommit"];
 	        this.enableGitLogging = source["enableGitLogging"];

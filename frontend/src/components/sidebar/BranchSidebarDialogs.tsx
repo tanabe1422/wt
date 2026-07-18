@@ -3,7 +3,8 @@ import { ContextMenu, type ContextMenuEntry } from '../ui/ContextMenu'
 import { ErrorDialog } from '../ui/ErrorDialog'
 import { PromptDialog } from '../ui/PromptDialog'
 import { WorktreeCheckoutDialog } from '../ui/WorktreeCheckoutDialog'
-import type { StashEntry, WorktreeEntry } from '../../types'
+import { openAppIcon } from '../icons/openAppIcons'
+import type { OpenApp, StashEntry, WorktreeEntry } from '../../types'
 
 interface ErrorDialogState {
   open: boolean
@@ -66,6 +67,9 @@ interface BranchSidebarDialogsProps {
   onCancelWorktree: () => void
   worktreeMenu: WorktreeMenuState | null
   onCloseWorktreeMenu: () => void
+  openApps?: OpenApp[]
+  openAppIconUrls?: Record<string, string>
+  onOpenInApp: (appID: string, path: string) => void
   onOpenExplorer: (path: string) => void
   onOpenTerminal: (path: string) => void
   onRequestRemoveWorktree: (worktree: WorktreeEntry) => void
@@ -82,6 +86,72 @@ interface BranchSidebarDialogsProps {
   onConfirmStashAction: () => void
   onCancelStashConfirm: () => void
 }
+
+function buildWorktreeMenuItems({
+  worktree,
+  openApps,
+  iconDataUrls,
+  onOpenInApp,
+  onOpenExplorer,
+  onOpenTerminal,
+  onRequestRemoveWorktree,
+}: {
+  worktree: WorktreeEntry
+  openApps: OpenApp[]
+  iconDataUrls: Record<string, string>
+  onOpenInApp: (appID: string, path: string) => void
+  onOpenExplorer: (path: string) => void
+  onOpenTerminal: (path: string) => void
+  onRequestRemoveWorktree: (worktree: WorktreeEntry) => void
+}): ContextMenuEntry[] {
+  const items: ContextMenuEntry[] = []
+
+  const launchableApps = openApps.filter((app) => app.path.trim() !== '')
+  for (const app of launchableApps) {
+    const name = app.name.trim() || app.path.trim() || 'アプリ'
+    items.push({
+      icon: openAppIcon(app.icon, iconDataUrls[app.path.trim()] ?? null),
+      label: `${name}で開く`,
+      onClick: () => {
+        onOpenInApp(app.id, worktree.path)
+      },
+    })
+  }
+
+  if (launchableApps.length > 0) {
+    items.push({ type: 'separator' })
+  }
+
+  items.push(
+    {
+      label: 'エクスプローラで開く',
+      onClick: () => {
+        onOpenExplorer(worktree.path)
+      },
+    },
+    {
+      label: 'ターミナルで開く',
+      onClick: () => {
+        onOpenTerminal(worktree.path)
+      },
+    },
+  )
+
+  if (!worktree.isMain) {
+    items.push(
+      { type: 'separator' },
+      {
+        label: 'ワークツリーを削除',
+        onClick: () => {
+          onRequestRemoveWorktree(worktree)
+        },
+      },
+    )
+  }
+
+  return items
+}
+
 
 export function BranchSidebarDialogs({
   loadError,
@@ -115,6 +185,9 @@ export function BranchSidebarDialogs({
   onCancelWorktree,
   worktreeMenu,
   onCloseWorktreeMenu,
+  openApps = [],
+  openAppIconUrls = {},
+  onOpenInApp,
   onOpenExplorer,
   onOpenTerminal,
   onRequestRemoveWorktree,
@@ -236,26 +309,15 @@ export function BranchSidebarDialogs({
         <ContextMenu
           x={worktreeMenu.x}
           y={worktreeMenu.y}
-          items={[
-            {
-              label: 'エクスプローラで開く',
-              onClick: () => {
-                onOpenExplorer(worktreeMenu.worktree.path)
-              },
-            },
-            {
-              label: 'ターミナルで開く',
-              onClick: () => {
-                onOpenTerminal(worktreeMenu.worktree.path)
-              },
-            },
-            {
-              label: 'ワークツリーを削除',
-              onClick: () => {
-                onRequestRemoveWorktree(worktreeMenu.worktree)
-              },
-            },
-          ]}
+          items={buildWorktreeMenuItems({
+            worktree: worktreeMenu.worktree,
+            openApps,
+            iconDataUrls: openAppIconUrls,
+            onOpenInApp,
+            onOpenExplorer,
+            onOpenTerminal,
+            onRequestRemoveWorktree,
+          })}
           onClose={onCloseWorktreeMenu}
         />
       )}

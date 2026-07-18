@@ -33,6 +33,8 @@ export interface WailsApp {
   PickFile(): Promise<string>
   ShowInExplorer(path: string): Promise<void>
   OpenTerminal(path: string): Promise<void>
+  OpenInApp(appID: string, dirPath: string): Promise<void>
+  GetExecutableIconDataURL(commandOrPath: string): Promise<string>
   ListBranches(repoPath: string): Promise<BranchEntry[]>
   GetBranchAheadBehind(repoPath: string, branch: string): Promise<AheadBehind>
   ListWorktrees(repoPath: string): Promise<WorktreeEntry[]>

@@ -5,11 +5,12 @@ import { errorMessage } from '../lib/errorMessage'
 import {
   addWorktree,
   defaultWorktreePath,
+  openInApp,
   openTerminal,
   removeWorktree,
   showInExplorer,
 } from '../lib/wails'
-import type { WorktreeEntry } from '../types'
+import type { OpenApp, WorktreeEntry } from '../types'
 import { localBranchFromRemote } from '../utils/branchTree'
 import { worktreePathHint } from '../utils/worktreePathHint'
 
@@ -22,6 +23,7 @@ interface UseWorktreeDialogsOptions {
   activeRepository: string
   worktrees: WorktreeEntry[]
   selectedWorktree: string | null
+  openApps?: OpenApp[]
   onSelectWorktree: (path: string) => void
   onSelectBranch: (fullName: string) => void
   onReload: () => void | Promise<void>
@@ -32,6 +34,7 @@ export function useWorktreeDialogs({
   activeRepository,
   worktrees,
   selectedWorktree,
+  openApps = [],
   onSelectWorktree,
   onSelectBranch,
   onReload,
@@ -73,9 +76,6 @@ export function useWorktreeDialogs({
     (worktree: WorktreeEntry, event: MouseEvent) => {
       event.preventDefault()
       event.stopPropagation()
-      if (worktree.isMain) {
-        return
-      }
       setWorktreeMenu({ x: event.clientX, y: event.clientY, worktree })
     },
     [],
@@ -185,6 +185,16 @@ export function useWorktreeDialogs({
     })()
   }, [])
 
+  const openWorktreeInApp = useCallback((appID: string, path: string) => {
+    void (async () => {
+      try {
+        await openInApp(appID, path)
+      } catch (err) {
+        setWorktreeError(errorMessage(err, 'アプリを起動できませんでした'))
+      }
+    })()
+  }, [])
+
   const requestRemoveWorktree = useCallback((worktree: WorktreeEntry) => {
     setRemoveWorktreeTarget(worktree)
     setForceRemoveWorktree(false)
@@ -204,12 +214,14 @@ export function useWorktreeDialogs({
     setForceRemoveWorktree,
     setRemoveWorktreeTarget,
     setWorktreeTarget,
+    openApps,
     openWorktreeCheckout,
     handleWorktreeContextMenu,
     handleConfirmRemoveWorktree,
     handleConfirmWorktree,
     openExplorer,
     openWorktreeTerminal,
+    openWorktreeInApp,
     requestRemoveWorktree,
   }
 }

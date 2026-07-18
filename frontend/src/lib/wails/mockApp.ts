@@ -20,6 +20,7 @@ let mockSettings: Settings = {
   activeRepository: '',
   diffTool: { preset: 'custom', path: '', args: '' },
   mergeTool: { preset: 'custom', path: '', args: '' },
+  openApps: [],
   remoteCleanupExcluded: ['main', 'master', 'develop'],
   pushAfterCommit: {},
   enableGitLogging: false,
@@ -289,6 +290,7 @@ export const mockApp: WailsApp = {
       repositories: [...mockSettings.repositories],
       diffTool: { ...mockSettings.diffTool },
       mergeTool: { ...mockSettings.mergeTool },
+      openApps: (mockSettings.openApps ?? []).map((app) => ({ ...app })),
       remoteCleanupExcluded: [...(mockSettings.remoteCleanupExcluded ?? [])],
       pushAfterCommit: { ...(mockSettings.pushAfterCommit ?? {}) },
       enableGitLogging: mockSettings.enableGitLogging ?? false,
@@ -300,6 +302,7 @@ export const mockApp: WailsApp = {
       ...mockSettings,
       diffTool: { ...settings.diffTool },
       mergeTool: { ...settings.mergeTool },
+      openApps: (settings.openApps ?? []).map((app) => ({ ...app })),
       remoteCleanupExcluded: [...(settings.remoteCleanupExcluded ?? [])],
       pushAfterCommit: { ...(mockSettings.pushAfterCommit ?? {}) },
       enableGitLogging: settings.enableGitLogging ?? false,
@@ -432,6 +435,20 @@ export const mockApp: WailsApp = {
 
   async OpenTerminal(path: string) {
     console.info('[mock] OpenTerminal', path)
+  },
+
+  async OpenInApp(appID: string, dirPath: string) {
+    const app = (mockSettings.openApps ?? []).find((entry) => entry.id === appID)
+    if (!app) {
+      throw new Error(`登録アプリが見つかりません: ${appID}`)
+    }
+    console.info('[mock] OpenInApp', app.name, dirPath)
+  },
+
+  async GetExecutableIconDataURL(commandOrPath: string) {
+    console.info('[mock] GetExecutableIconDataURL', commandOrPath)
+    // 1x1 transparent PNG
+    return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
   },
 
   async ListBranches(_repoPath: string) {

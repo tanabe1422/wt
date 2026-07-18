@@ -14,3 +14,24 @@
   margin: 0.25rem 0;
   background: var(--color-slate-200);
 }
+
+.itemContent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.itemIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-slate-600);
+}
+
+.itemLabel {
+  min-width: 0;
+}

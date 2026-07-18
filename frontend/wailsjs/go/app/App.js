@@ -106,6 +106,10 @@ export function GetCommitFileDiff(arg1, arg2, arg3) {
   return window['go']['app']['App']['GetCommitFileDiff'](arg1, arg2, arg3);
 }
 
+export function GetExecutableIconDataURL(arg1) {
+  return window['go']['app']['App']['GetExecutableIconDataURL'](arg1);
+}
+
 export function GetFileDiff(arg1, arg2, arg3) {
   return window['go']['app']['App']['GetFileDiff'](arg1, arg2, arg3);
 }
@@ -200,6 +204,10 @@ export function OpenDifftool(arg1, arg2, arg3) {
 
 export function OpenGitLogsDir() {
   return window['go']['app']['App']['OpenGitLogsDir']();
+}
+
+export function OpenInApp(arg1, arg2) {
+  return window['go']['app']['App']['OpenInApp'](arg1, arg2);
 }
 
 export function OpenMergetool(arg1, arg2) {

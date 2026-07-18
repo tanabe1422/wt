@@ -135,6 +135,14 @@ export async function openTerminal(path: string): Promise<void> {
   return callApp('OpenTerminal', path)
 }
 
+export async function openInApp(appID: string, dirPath: string): Promise<void> {
+  return callApp('OpenInApp', appID, dirPath)
+}
+
+export async function getExecutableIconDataURL(commandOrPath: string): Promise<string> {
+  return callApp('GetExecutableIconDataURL', commandOrPath)
+}
+
 export async function listBranches(repoPath = ''): Promise<BranchEntry[]> {
   return callApp('ListBranches', repoPath)
 }

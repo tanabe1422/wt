@@ -47,6 +47,7 @@
 - [ ] **P3** worktree ロック表示・操作（`isLocked` はパース済み・UI なし）
 - [ ] **P3** bare worktree の UI 表示（`isBare` はパース済み・UI なし）
 - [x] **P1** worktree パスをエクスプローラ / ターミナルで開く
+- [x] **P1** worktree を設定済み外部アプリで開く（複数登録・右クリック・アイコン付き）
 - [x] **P1** detached HEAD 明示表示（WT 行・ブランチ上の行・変更バナー。実配線済み）
 - [ ] **P2** worktree 間のファイル比較
 

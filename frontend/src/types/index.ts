@@ -6,11 +6,23 @@ export interface ExternalTool {
   args: string
 }
 
+export type OpenAppIcon = 'cursor' | 'zed' | 'vscode' | 'generic'
+
+export interface OpenApp {
+  id: string
+  name: string
+  path: string
+  args: string
+  icon: OpenAppIcon | string
+}
+
 export interface Settings {
   repositories: string[]
   activeRepository: string
   diffTool: ExternalTool
   mergeTool: ExternalTool
+  /** Apps that can open a worktree folder from the context menu. */
+  openApps?: OpenApp[]
   /** Local branch names excluded from remote cleanup (e.g. main, develop). */
   remoteCleanupExcluded: string[]
   /** Commit 後に自動プッシュするリポジトリ（キーはリポジトリルートパス）。 */

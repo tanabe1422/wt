@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
@@ -15,11 +17,21 @@ type ExternalTool struct {
 	Args   string `json:"args"`
 }
 
+// OpenApp describes an external app that can open a worktree folder.
+type OpenApp struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Path string `json:"path"`
+	Args string `json:"args"` // default "{path}"
+	Icon string `json:"icon"` // cursor | zed | vscode | generic
+}
+
 type Settings struct {
 	Repositories          []string        `json:"repositories"`
 	ActiveRepository      string          `json:"activeRepository"`
 	DiffTool              ExternalTool    `json:"diffTool"`
 	MergeTool             ExternalTool    `json:"mergeTool"`
+	OpenApps              []OpenApp       `json:"openApps"`
 	RemoteCleanupExcluded []string        `json:"remoteCleanupExcluded"`
 	PushAfterCommit       map[string]bool `json:"pushAfterCommit,omitempty"`
 	// EnableGitLogging writes each git invocation (and GIT_TRACE) under logs/.
@@ -122,6 +134,61 @@ func hasSlashFlag(args string) bool {
 	return false
 }
 
+func newOpenAppID() string {
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		return hex.EncodeToString([]byte("fallback"))
+	}
+	return hex.EncodeToString(b)
+}
+
+func normalizeOpenAppIcon(icon string) string {
+	switch strings.ToLower(strings.TrimSpace(icon)) {
+	case "cursor", "zed", "vscode":
+		return strings.ToLower(strings.TrimSpace(icon))
+	default:
+		return "generic"
+	}
+}
+
+func normalizeOpenApps(apps []OpenApp) []OpenApp {
+	if len(apps) == 0 {
+		return []OpenApp{}
+	}
+	seen := make(map[string]struct{}, len(apps))
+	out := make([]OpenApp, 0, len(apps))
+	for _, app := range apps {
+		name := strings.TrimSpace(app.Name)
+		path := strings.TrimSpace(app.Path)
+		if name == "" && path == "" {
+			continue
+		}
+		if name == "" {
+			name = path
+		}
+		id := strings.TrimSpace(app.ID)
+		if id == "" {
+			id = newOpenAppID()
+		}
+		if _, exists := seen[id]; exists {
+			id = newOpenAppID()
+		}
+		seen[id] = struct{}{}
+		args := strings.TrimSpace(app.Args)
+		if args == "" {
+			args = "{path}"
+		}
+		out = append(out, OpenApp{
+			ID:   id,
+			Name: name,
+			Path: path,
+			Args: args,
+			Icon: normalizeOpenAppIcon(app.Icon),
+		})
+	}
+	return out
+}
+
 func Load() (Settings, error) {
 	path, err := configPath()
 	if err != nil {
@@ -212,6 +279,7 @@ func normalizeSettings(settings Settings) (Settings, error) {
 		ActiveRepository:      active,
 		DiffTool:              normalizeExternalTool(settings.DiffTool),
 		MergeTool:             normalizeExternalTool(settings.MergeTool),
+		OpenApps:              normalizeOpenApps(settings.OpenApps),
 		RemoteCleanupExcluded: normalizeRemoteCleanupExcluded(settings.RemoteCleanupExcluded),
 		PushAfterCommit:       normalizePushAfterCommit(settings.PushAfterCommit, repositories),
 		EnableGitLogging:      settings.EnableGitLogging,

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 import {
@@ -11,6 +11,7 @@ import styles from './ContextMenu.module.css'
 export interface ContextMenuItem {
   type?: 'item'
   label: string
+  icon?: ReactNode
   onClick: () => void
   disabled?: boolean
 }
@@ -83,7 +84,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
 
         return (
           <Button
-            key={entry.label}
+            key={`${entry.label}-${index}`}
             variant="menuItem"
             role="menuitem"
             disabled={entry.disabled}
@@ -92,7 +93,10 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
               onClose()
             }}
           >
-            {entry.label}
+            <span className={styles.itemContent}>
+              {entry.icon ? <span className={styles.itemIcon}>{entry.icon}</span> : null}
+              <span className={styles.itemLabel}>{entry.label}</span>
+            </span>
           </Button>
         )
       })}
