@@ -11,6 +11,7 @@
 1. Refresh ポリシー一本化 — 完了（`useGitRefresh` + `refreshActionsFor` / Toolbar は `GitOp`、`SyncRefreshScope` 削除）
 2. `useRepoSidebar` 分割 — 完了（`lib/sidebarLoad.ts` + `useSidebarSelection` / `useSidebarData`、ファサードは `useRepoSidebar`）
 3. `useGitWorkspaceActions` 分割 — 完了（`useHunkLineActions` / `useCommitRebaseActions` / `useFileContextMenu`、親は薄いファサード）
+4. `GitSyncToolbar` / `RemoteCleanupDialog` — 完了（`useGitSyncActions` + `GitSyncToolbarDialogs` / Icons 集約、`useRemoteCleanup` + `ExcludedListDialog`）
 
 ---
 
@@ -21,7 +22,7 @@
 | **1** | Refresh ポリシー一本化 | `gitRefreshPolicy` が未配線。Toolbar の `SyncRefreshScope` と手書きコールバックが並存 |
 | **2** | `useRepoSidebar` 分割 | ~526 行。load / selection / badge 埋めが同居 |
 | **3** | `useGitWorkspaceActions` 分割 | ~507 行 / options ~20。操作カタログ |
-| **4** | `GitSyncToolbar` / `RemoteCleanupDialog` | UI + ロジック肥大 |
+| **4** | `GitSyncToolbar` / `RemoteCleanupDialog` | UI + ロジック肥大 — **完了** |
 | **5** | `BranchSidebarDialogs` props | ~46 props の drilling |
 | **6** | Go `workspace.go` / `diff.go` / `native_repo.go` | 責務混在・重複ヘルパ |
 | **後回し** | `mockApp` / Storybook / Wails 薄いラッパ列 | 意図的 or 本番外 |
@@ -133,8 +134,8 @@ flowchart LR
 
 | ファイル | 行数 | 問題 | 切り出し |
 |----------|------|------|----------|
-| [`RemoteCleanupDialog.tsx`](../frontend/src/components/toolbar/RemoteCleanupDialog.tsx) | ~587 | 取得・フィルタ・削除・除外リスト・ネスト Dialog が同居 | `ExcludedListDialog` 分離、`useRemoteCleanup` へロジック移動 |
-| [`GitSyncToolbar.tsx`](../frontend/src/components/toolbar/GitSyncToolbar.tsx) | ~564 | インライン Icon 多数 + sync 実行 + RemoteCleanup ホスト。`useBusy` と非対称な自前 acting | Icon → [`GitSyncIcons.tsx`](../frontend/src/components/toolbar/GitSyncIcons.tsx)、`useGitSyncActions`、dialogs 分離 |
+| [`RemoteCleanupDialog.tsx`](../frontend/src/components/toolbar/RemoteCleanupDialog.tsx) | UI のみ | ~~取得・フィルタ・削除・除外リスト同居~~ → [`useRemoteCleanup`](../frontend/src/hooks/useRemoteCleanup.ts) + [`ExcludedListDialog`](../frontend/src/components/toolbar/ExcludedListDialog.tsx) | **完了** |
+| [`GitSyncToolbar.tsx`](../frontend/src/components/toolbar/GitSyncToolbar.tsx) | 薄い UI | ~~インライン Icon + sync 実行~~ → [`GitSyncIcons`](../frontend/src/components/toolbar/GitSyncIcons.tsx) + [`useGitSyncActions`](../frontend/src/hooks/useGitSyncActions.ts) + [`GitSyncToolbarDialogs`](../frontend/src/components/toolbar/GitSyncToolbarDialogs.tsx) | **完了** |
 | [`HistoryView.tsx`](../frontend/src/components/git/HistoryView.tsx) | ~416 | `HistoryScopeBar` が同ファイル | ScopeBar コンポーネント分離 |
 | [`BranchSidebar.tsx`](../frontend/src/components/sidebar/BranchSidebar.tsx) | ~375 | 多数 hook のオーケストレーション | filter / compare 配線の整理 |
 | [`DiffView.tsx`](../frontend/src/components/git/DiffView.tsx) | ~324 | hunk アクション JSX の重複 | `DiffHunk` / `DiffHunkActions` / `DiffLine` |
@@ -275,9 +276,10 @@ internal/
 2. **`useRepoSidebar` の純関数切り出し** — リスク低・テストしやすい
 3. **`useGitWorkspaceActions` 分割**
 4. **`BranchSidebarDialogs` props グループ化**
-5. **RemoteCleanup / GitSyncToolbar の UI・ロジック分離**
+5. ~~RemoteCleanup / GitSyncToolbar の UI・ロジック分離~~ **完了**
 6. **Go `workspace.go` / `diff.go` 責務分割**
 7. **mockApp / git_api のドメイン分割**
 8. **Abs / progress / remote-ref 共通化**（低リスク・高 ROI）
 
-フロント短期の別案（リスク更に低め）: hunk/line factory と toolbar sync actions から切る、という順も可。
+フロント短期の別案（リスク更に低め）: hunk/line factory から切る、という順も可。
+（toolbar sync actions は完了）

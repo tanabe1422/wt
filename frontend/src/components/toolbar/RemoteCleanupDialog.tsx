@@ -1,25 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-
-import {
-  defaultRemoteCleanupMode,
-  defaultRemoteCleanupStatusFilter,
-  getRemoteCleanupPrefs,
-  setRemoteCleanupPrefs,
-  type RemoteCleanupStatusFilter,
-} from '../../lib/remoteCleanupPrefsStorage'
-import {
-  defaultRemoteBaseRef,
-  deleteRemoteBranches,
-  getSettings,
-  listRemoteMergeStatus,
-  saveSettings,
-} from '../../lib/wails'
-import type { MergeCheckMode, RemoteMergeEntry } from '../../types'
-import { localBranchFromRemote } from '../../utils/branchTree'
-import { isRemoteCleanupExcluded } from '../../utils/remoteCleanupExcluded'
+import { useRemoteCleanup } from '../../hooks/useRemoteCleanup'
+import type { RemoteCleanupStatusFilter } from '../../lib/remoteCleanupPrefsStorage'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { IconButton } from '../ui/IconButton'
+import { ExcludedListDialog } from './ExcludedListDialog'
 import styles from './RemoteCleanupDialog.module.css'
 
 interface RemoteCleanupDialogProps {
@@ -60,71 +44,6 @@ function formatCommitAt(iso: string): string {
   }).format(date)
 }
 
-function ExcludedListDialog({
-  open,
-  excluded,
-  busy,
-  onRemove,
-  onClose,
-}: {
-  open: boolean
-  excluded: string[]
-  busy: boolean
-  onRemove: (name: string) => void
-  onClose: () => void
-}) {
-  if (!open) {
-    return null
-  }
-
-  return (
-    <div className={styles.backdrop} onClick={onClose}>
-      <div
-        className={styles.excludedDialog}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="excluded-list-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className={styles.header}>
-          <h2 id="excluded-list-title">除外リスト</h2>
-          <IconButton type="button" aria-label="閉じる" onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
-        </div>
-        <div className={styles.excludedBody}>
-          <p className={styles.excludedHint}>
-            これらのローカルブランチ名に一致するリモートは整理一覧に表示されません。
-          </p>
-          {excluded.length === 0 ? (
-            <p className={styles.empty}>除外中のブランチはありません</p>
-          ) : (
-            <ul className={styles.excludedList}>
-              {excluded.map((name) => (
-                <li key={name} className={styles.excludedRow}>
-                  <span className={styles.excludedName}>{name}</span>
-                  <Button
-                    variant="ghost"
-                    disabled={busy}
-                    onClick={() => onRemove(name)}
-                  >
-                    削除
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div className={styles.footer}>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>
-            閉じる
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export function RemoteCleanupDialog({
   open,
   repositoryPath,
@@ -132,260 +51,40 @@ export function RemoteCleanupDialog({
   onClose,
   onDeleted,
 }: RemoteCleanupDialogProps) {
-  const prefsKey = repositoryPath || worktreePath
-  const [baseRef, setBaseRef] = useState('')
-  const [baseOptions, setBaseOptions] = useState<string[]>([])
-  const [mode, setMode] = useState<MergeCheckMode>(defaultRemoteCleanupMode())
-  const [statusFilter, setStatusFilter] = useState<RemoteCleanupStatusFilter>(
-    defaultRemoteCleanupStatusFilter(),
-  )
-  const [nameFilter, setNameFilter] = useState('')
-  const [entries, setEntries] = useState<RemoteMergeEntry[]>([])
-  const [excluded, setExcluded] = useState<string[]>([])
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [baseLoading, setBaseLoading] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [savingExcluded, setSavingExcluded] = useState(false)
-  const [error, setError] = useState('')
-  const [confirmOpen, setConfirmOpen] = useState(false)
-  const [excludedOpen, setExcludedOpen] = useState(false)
-
-  const persistPrefs = useCallback(
-    (patch: Parameters<typeof setRemoteCleanupPrefs>[1]) => {
-      if (!prefsKey) {
-        return
-      }
-      setRemoteCleanupPrefs(prefsKey, patch)
-    },
-    [prefsKey],
-  )
-
-  useEffect(() => {
-    if (!open || !worktreePath) {
-      return
-    }
-
-    let cancelled = false
-    const saved = getRemoteCleanupPrefs(prefsKey)
-    setError('')
-    setSelected(new Set())
-    setBaseRef('')
-    setBaseOptions([])
-    setEntries([])
-    setBaseLoading(true)
-    setNameFilter(saved.nameFilter ?? '')
-    setStatusFilter(saved.statusFilter ?? defaultRemoteCleanupStatusFilter())
-    setMode(saved.mode ?? defaultRemoteCleanupMode())
-    setExcludedOpen(false)
-
-    void (async () => {
-      try {
-        const [defaultBase, settings] = await Promise.all([
-          defaultRemoteBaseRef(worktreePath),
-          getSettings(),
-        ])
-        if (cancelled) {
-          return
-        }
-        setBaseRef(saved.baseRef ?? defaultBase)
-        setExcluded([...(settings.remoteCleanupExcluded ?? [])])
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : '基準ブランチの取得に失敗しました')
-        }
-      } finally {
-        if (!cancelled) {
-          setBaseLoading(false)
-        }
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [open, prefsKey, worktreePath])
-
-  useEffect(() => {
-    if (!open || !worktreePath || !baseRef) {
-      return
-    }
-
-    let cancelled = false
-    setLoading(true)
-    setError('')
-
-    void (async () => {
-      try {
-        const result = await listRemoteMergeStatus(worktreePath, baseRef, mode)
-        if (cancelled) {
-          return
-        }
-        setEntries(result)
-        setBaseOptions(
-          [baseRef, ...result.map((entry) => entry.name)].sort((a, b) => a.localeCompare(b)),
-        )
-        setSelected(new Set())
-      } catch (err) {
-        if (!cancelled) {
-          setEntries([])
-          setError(err instanceof Error ? err.message : 'マージ状態の取得に失敗しました')
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [open, worktreePath, baseRef, mode])
-
-  const visible = useMemo(() => {
-    const q = nameFilter.trim().toLowerCase()
-    return entries.filter((entry) => {
-      if (isRemoteCleanupExcluded(entry.name, excluded)) {
-        return false
-      }
-      if (statusFilter === 'merged' && !entry.merged) {
-        return false
-      }
-      if (statusFilter === 'unmerged' && entry.merged) {
-        return false
-      }
-      if (q && !entry.name.toLowerCase().includes(q)) {
-        return false
-      }
-      return true
-    })
-  }, [entries, excluded, nameFilter, statusFilter])
-
-  const allVisibleSelected =
-    visible.length > 0 && visible.every((entry) => selected.has(entry.name))
-
-  function toggleOne(name: string) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(name)) {
-        next.delete(name)
-      } else {
-        next.add(name)
-      }
-      return next
-    })
-  }
-
-  function toggleAllVisible() {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (allVisibleSelected) {
-        for (const entry of visible) {
-          next.delete(entry.name)
-        }
-      } else {
-        for (const entry of visible) {
-          next.add(entry.name)
-        }
-      }
-      return next
-    })
-  }
-
-  const selectedNames = useMemo(
-    () => [...selected].sort((a, b) => a.localeCompare(b)),
-    [selected],
-  )
-
-  async function persistExcluded(nextExcluded: string[]) {
-    setSavingExcluded(true)
-    setError('')
-    try {
-      const settings = await getSettings()
-      const saved = await saveSettings({
-        ...settings,
-        remoteCleanupExcluded: nextExcluded,
-      })
-      setExcluded([...(saved.remoteCleanupExcluded ?? nextExcluded)])
-      setSelected((prev) => {
-        const next = new Set<string>()
-        for (const name of prev) {
-          if (!isRemoteCleanupExcluded(name, nextExcluded)) {
-            next.add(name)
-          }
-        }
-        return next
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '除外リストの保存に失敗しました')
-    } finally {
-      setSavingExcluded(false)
-    }
-  }
-
-  async function handleAddExcluded() {
-    if (selectedNames.length === 0) {
-      return
-    }
-    const next = [...excluded]
-    const seen = new Set(next)
-    for (const remoteRef of selectedNames) {
-      let localName: string
-      try {
-        localName = localBranchFromRemote(remoteRef)
-      } catch {
-        localName = remoteRef
-      }
-      if (!seen.has(localName)) {
-        seen.add(localName)
-        next.push(localName)
-      }
-    }
-    next.sort((a, b) => a.localeCompare(b))
-    await persistExcluded(next)
-  }
-
-  async function handleRemoveExcluded(name: string) {
-    await persistExcluded(excluded.filter((entry) => entry !== name))
-  }
-
-  async function handleDelete() {
-    if (selectedNames.length === 0 || !worktreePath) {
-      return
-    }
-    const blocked = selectedNames.filter((name) => isRemoteCleanupExcluded(name, excluded))
-    if (blocked.length > 0) {
-      setConfirmOpen(false)
-      setError(`除外リストのブランチは削除できません: ${blocked.join(', ')}`)
-      return
-    }
-    setDeleting(true)
-    setError('')
-    try {
-      await deleteRemoteBranches(worktreePath, selectedNames)
-      setConfirmOpen(false)
-      setSelected(new Set())
-      const result = await listRemoteMergeStatus(worktreePath, baseRef, mode)
-      setEntries(result)
-      setBaseOptions(
-        [baseRef, ...result.map((entry) => entry.name)].sort((a, b) => a.localeCompare(b)),
-      )
-      await onDeleted?.()
-    } catch (err) {
-      setConfirmOpen(false)
-      setError(err instanceof Error ? err.message : 'リモートブランチの削除に失敗しました')
-    } finally {
-      setDeleting(false)
-    }
-  }
+  const {
+    baseRef,
+    baseOptions,
+    mode,
+    statusFilter,
+    nameFilter,
+    visible,
+    selected,
+    selectedNames,
+    allVisibleSelected,
+    excluded,
+    error,
+    confirmOpen,
+    excludedOpen,
+    baseLoading,
+    busy,
+    isLoading,
+    savingExcluded,
+    setConfirmOpen,
+    setExcludedOpen,
+    updateBaseRef,
+    updateStatusFilter,
+    updateMode,
+    updateNameFilter,
+    toggleOne,
+    toggleAllVisible,
+    handleAddExcluded,
+    handleRemoveExcluded,
+    handleDelete,
+  } = useRemoteCleanup({ open, repositoryPath, worktreePath, onDeleted })
 
   if (!open) {
     return null
   }
-
-  const busy = deleting || savingExcluded
-  const isLoading = baseLoading || loading
 
   return (
     <>
@@ -412,11 +111,7 @@ export function RemoteCleanupDialog({
                   className={styles.select}
                   value={baseRef}
                   disabled={isLoading || (!baseLoading && baseOptions.length === 0)}
-                  onChange={(event) => {
-                    const next = event.target.value
-                    setBaseRef(next)
-                    persistPrefs({ baseRef: next })
-                  }}
+                  onChange={(event) => updateBaseRef(event.target.value)}
                 >
                   {baseLoading ? (
                     <option value="">読み込み中…</option>
@@ -438,9 +133,7 @@ export function RemoteCleanupDialog({
                   className={styles.select}
                   value={statusFilter}
                   onChange={(event) => {
-                    const next = event.target.value as RemoteCleanupStatusFilter
-                    setStatusFilter(next)
-                    persistPrefs({ statusFilter: next })
+                    updateStatusFilter(event.target.value as RemoteCleanupStatusFilter)
                   }}
                 >
                   <option value="merged">マージ済み</option>
@@ -457,10 +150,7 @@ export function RemoteCleanupDialog({
                       type="radio"
                       name="merge-check-mode"
                       checked={mode === 'ancestry'}
-                      onChange={() => {
-                        setMode('ancestry')
-                        persistPrefs({ mode: 'ancestry' })
-                      }}
+                      onChange={() => updateMode('ancestry')}
                     />
                     祖先
                   </label>
@@ -469,10 +159,7 @@ export function RemoteCleanupDialog({
                       type="radio"
                       name="merge-check-mode"
                       checked={mode === 'content'}
-                      onChange={() => {
-                        setMode('content')
-                        persistPrefs({ mode: 'content' })
-                      }}
+                      onChange={() => updateMode('content')}
                     />
                     内容（スカッシュ含む）
                   </label>
@@ -486,11 +173,7 @@ export function RemoteCleanupDialog({
                   type="search"
                   value={nameFilter}
                   placeholder="origin/feature/…"
-                  onChange={(event) => {
-                    const next = event.target.value
-                    setNameFilter(next)
-                    persistPrefs({ nameFilter: next })
-                  }}
+                  onChange={(event) => updateNameFilter(event.target.value)}
                 />
               </label>
             </div>
@@ -510,11 +193,7 @@ export function RemoteCleanupDialog({
                 >
                   除外に追加
                 </Button>
-                <Button
-                  variant="ghost"
-                  disabled={busy}
-                  onClick={() => setExcludedOpen(true)}
-                >
+                <Button variant="ghost" disabled={busy} onClick={() => setExcludedOpen(true)}>
                   除外リスト
                 </Button>
               </div>
