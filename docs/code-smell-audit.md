@@ -10,6 +10,7 @@
 **進捗:**
 1. Refresh ポリシー一本化 — 完了（`useGitRefresh` + `refreshActionsFor` / Toolbar は `GitOp`、`SyncRefreshScope` 削除）
 2. `useRepoSidebar` 分割 — 完了（`lib/sidebarLoad.ts` + `useSidebarSelection` / `useSidebarData`、ファサードは `useRepoSidebar`）
+3. `useGitWorkspaceActions` 分割 — 完了（`useHunkLineActions` / `useCommitRebaseActions` / `useFileContextMenu`、親は薄いファサード）
 
 ---
 
@@ -85,18 +86,21 @@ flowchart LR
 
 ---
 
-### 3. `useGitWorkspaceActions`（約 507 行 / オプション約 20 個）— God hook
+### 3. `useGitWorkspaceActions`（約 507 行 / オプション約 20 個）— God hook — **完了**
 
-[`frontend/src/hooks/useGitWorkspaceActions.ts`](../frontend/src/hooks/useGitWorkspaceActions.ts)
+[`frontend/src/hooks/useGitWorkspaceActions.ts`](../frontend/src/hooks/useGitWorkspaceActions.ts) は薄いファサード。実装は:
 
-1 フックに stage/unstage、commit/amend/rebase、hunk/line、外部ツール、コンテキストメニューが同居。戻り値も 20 超。hunk/line 6 系がほぼ同一テンプレ。
+- [`useHunkLineActions`](../frontend/src/hooks/useHunkLineActions.ts) — Stage/Unstage/Discard × hunk/lines
+- [`useCommitRebaseActions`](../frontend/src/hooks/useCommitRebaseActions.ts) — commit / continueRebase / amendInfo / repoOperation
+- [`useFileContextMenu`](../frontend/src/hooks/useFileContextMenu.ts) — ファイル右クリック + 外部ツール
+- 親に残す: stage/unstage（単体・選択・全件）と `externalToolError` 集約
 
-**切り出し候補:**
+~~**切り出し候補:**~~
 
-- `useFileContextMenu`（`handleFileContextMenu` 〜70 行）
-- `useHunkLineActions`（Stage/Unstage/Discard × hunk/lines）
-- `useCommitRebaseActions`（commit / continueRebase / amendInfo / repoOperation）
-- 親は薄いファサードに
+- ~~`useFileContextMenu`（`handleFileContextMenu` 〜70 行）~~
+- ~~`useHunkLineActions`（Stage/Unstage/Discard × hunk/lines）~~
+- ~~`useCommitRebaseActions`（commit / continueRebase / amendInfo / repoOperation）~~
+- ~~親は薄いファサードに~~
 
 ---
 
