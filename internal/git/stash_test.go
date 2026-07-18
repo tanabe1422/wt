@@ -1,6 +1,8 @@
 package git
 
 import (
+	"errors"
+	"strings"
 	"testing"
 )
 
@@ -106,4 +108,63 @@ func TestSaveStashWithoutMessage(t *testing.T) {
 		t.Fatalf("SaveStash: %v", err)
 	}
 	fake.AssertCalled(t, "stash", "push")
+}
+
+func TestApplyStashConflictMessage(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("stash", "apply", "stash@{0}").ReturnFull(
+		"Auto-merging a.txt\nCONFLICT (content): Merge conflict in a.txt",
+		"The stash entry is kept in case you need it again.",
+		errors.New("exit status 1"),
+	)
+	withFakeRunner(t, fake)
+
+	err := ApplyStash(dir, 0)
+	if err == nil {
+		t.Fatal("expected conflict error")
+	}
+	if !strings.Contains(err.Error(), "競合") {
+		t.Fatalf("expected conflict message, got %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "一覧に残っています") {
+		t.Fatalf("expected stash-kept note, got %q", err.Error())
+	}
+}
+
+func TestPopStashConflictKeepsMessage(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("stash", "pop", "stash@{0}").ReturnFull(
+		"CONFLICT (content): Merge conflict in b.txt",
+		"",
+		errors.New("exit status 1"),
+	)
+	withFakeRunner(t, fake)
+
+	err := PopStash(dir, 0)
+	if err == nil {
+		t.Fatal("expected conflict error")
+	}
+	if !strings.Contains(err.Error(), "競合") {
+		t.Fatalf("expected conflict message, got %q", err.Error())
+	}
+}
+
+func TestIsStashConflictOutput(t *testing.T) {
+	cases := []struct {
+		in   string
+		want bool
+	}{
+		{"CONFLICT (content): Merge conflict in a.txt", true},
+		{"Unmerged paths:\n  both modified: a.txt", true},
+		{"error: could not apply abc123", true},
+		{"fatal: stash@{9} is not a valid reference", false},
+		{"", false},
+	}
+	for _, tc := range cases {
+		if got := isStashConflictOutput(tc.in); got != tc.want {
+			t.Fatalf("isStashConflictOutput(%q)=%v, want %v", tc.in, got, tc.want)
+		}
+	}
 }

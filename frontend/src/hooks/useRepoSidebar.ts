@@ -489,16 +489,16 @@ export function useRepoSidebar(activeRepository: string) {
     }
   }, [activeRepository, applyBranchTrack])
 
-  /** WT 一覧メタ（path/branch）だけ。status スキャンなし。 */
-  const reloadWorktreesMeta = useCallback(async () => {
+  /** WT 一覧メタ（path/branch）だけ。status スキャンなし。更新後の meta を返す。 */
+  const reloadWorktreesMeta = useCallback(async (): Promise<WorktreeEntry[] | undefined> => {
     if (!activeRepository) {
-      return
+      return undefined
     }
     setError(null)
     try {
       const meta = await listWorktreesMeta(activeRepository)
       if (activeRepoRef.current !== activeRepository) {
-        return
+        return undefined
       }
       setWorktrees((current) => {
         const prevByPath = new Map(current.map((entry) => [entry.path, entry]))
@@ -510,8 +510,10 @@ export function useRepoSidebar(activeRepository: string) {
         })
       })
       patchSidebarWorktreesMeta(activeRepository, meta)
+      return meta
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ワークツリー情報の取得に失敗しました')
+      return undefined
     }
   }, [activeRepository])
 

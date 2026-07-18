@@ -60,13 +60,18 @@ export function useStashActions({
       setError(null)
       try {
         await fn()
-        await reload()
-        if (notifyWorkspace) {
-          await onSuccess?.()
-        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'stash 操作に失敗しました')
       } finally {
+        // apply/pop は衝突でも作業ツリーが変わるため、失敗時も一覧と status を取り直す
+        try {
+          await reload()
+          if (notifyWorkspace) {
+            await onSuccess?.()
+          }
+        } catch {
+          // reload / onSuccess の失敗で元エラーを上書きしない
+        }
         setBusy(false)
       }
     },

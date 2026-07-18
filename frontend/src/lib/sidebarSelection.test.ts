@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import type { BranchEntry, WorktreeEntry } from '../types'
-import { pickDefaultSelection, pickDefaultWorktreePath } from './sidebarSelection'
+import {
+  pickDefaultSelection,
+  pickDefaultWorktreePath,
+  reconcileSelectionAfterMeta,
+} from './sidebarSelection'
 
 const wt = (path: string, branch: string, isMain = false): WorktreeEntry => ({
   path,
@@ -52,6 +56,35 @@ describe('pickDefaultSelection', () => {
     const branches = [br('main')]
     expect(
       pickDefaultSelection(worktrees, branches, {
+        selectedWorktree: '/gone',
+        selectedBranch: 'gone',
+      }),
+    ).toEqual({ selectedWorktree: '/main', selectedBranch: 'main' })
+  })
+})
+
+describe('reconcileSelectionAfterMeta', () => {
+  it('returns null when worktree and branch still match', () => {
+    expect(
+      reconcileSelectionAfterMeta(
+        [wt('/main', 'main', true), wt('/feat', 'feat')],
+        { selectedWorktree: '/feat', selectedBranch: 'feat' },
+      ),
+    ).toBeNull()
+  })
+
+  it('updates branch when the selected worktree checked out a different branch', () => {
+    expect(
+      reconcileSelectionAfterMeta(
+        [wt('/main', 'main', true), wt('/feat', 'other')],
+        { selectedWorktree: '/feat', selectedBranch: 'feat' },
+      ),
+    ).toEqual({ selectedWorktree: '/feat', selectedBranch: 'other' })
+  })
+
+  it('falls back when the selected worktree is gone', () => {
+    expect(
+      reconcileSelectionAfterMeta([wt('/main', 'main', true)], {
         selectedWorktree: '/gone',
         selectedBranch: 'gone',
       }),

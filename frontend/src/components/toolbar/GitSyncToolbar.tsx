@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useErrorDialog } from '../../hooks/useErrorDialog'
 import type { BusyChangeHandler } from '../../hooks/useBusy'
 import { createBranch, fetchRemote, fetchRemotePrune, fetchRemotePriority, getRepoOperationState, pull, pullRebase, push, pushSetUpstream, saveStash, showInExplorer } from '../../lib/wails'
+import type { GitOp, ToolbarGitOp } from '../../utils/gitRefreshPolicy'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ErrorDialog } from '../ui/ErrorDialog'
 import { PromptDialog } from '../ui/PromptDialog'
@@ -14,13 +15,6 @@ import { RemoteCleanupDialog } from './RemoteCleanupDialog'
 import { SidebarToggleButton } from './SidebarToggleButton'
 import { ToolbarActionButton } from './ToolbarActionButton'
 import styles from './GitSyncToolbar.module.css'
-
-/** 同期操作後の再読込範囲。
- * - sidebar: ブランチ情報のみ（ahead/behind）。全 WT の status は走らせない
- * - light: ブランチ + 現行 WT バッジ + workspace content（全 WT status なし）
- * - workspace: サイドバー全体 + ワークスペース再同期
- */
-export type SyncRefreshScope = 'sidebar' | 'light' | 'workspace'
 
 /** フェッチの 2 段階: 優先（現行 upstream）→ 裏（全 ref）。 */
 export type FetchPhase = 'priority' | 'background'
@@ -37,7 +31,8 @@ interface GitSyncToolbarProps {
   onMainViewChange: (view: MainView) => void
   /** 現行 WT の未コミット変更ファイル数（ファイルタブの丸バッジ用） */
   changedFileCount?: number
-  onActionComplete?: (scope?: SyncRefreshScope) => void | Promise<void>
+  /** 操作完了後のリフレッシュ（gitRefreshPolicy の GitOp） */
+  onActionComplete?: (op?: GitOp) => void | Promise<void>
   onReload?: () => void | Promise<void>
   onOpenSettings?: () => void
   /** MainLayout busy overlay（fetch / pull / push など同期操作中） */
@@ -240,10 +235,10 @@ export function GitSyncToolbar({
   }
 
   /** 全画面スピナーは git 操作中だけ。完了後の ahead/behind 再読込は acting を掴まない。 */
-  const finishAction = async (scope: SyncRefreshScope) => {
+  const finishAction = async (op: ToolbarGitOp) => {
     setOverlay(false)
     setActing(false)
-    await onActionComplete?.(scope)
+    await onActionComplete?.(op)
   }
 
   const runFetch = async (prune: boolean) => {
@@ -260,14 +255,14 @@ export function GitSyncToolbar({
         } else {
           await fetchRemote(worktreePath)
         }
-        await finishAction('sidebar')
+        await finishAction('fetch')
         return
       }
 
       onFetchPhaseChange?.('priority')
       await fetchRemotePriority(worktreePath)
       setActing(false)
-      await onActionComplete?.('sidebar')
+      await onActionComplete?.('fetch')
 
       onFetchPhaseChange?.('background')
       try {
@@ -276,7 +271,7 @@ export function GitSyncToolbar({
         } else {
           await fetchRemote(worktreePath)
         }
-        await onActionComplete?.('sidebar')
+        await onActionComplete?.('fetch')
       } catch (bgErr) {
         setActionTitle(failTitle)
         setActionError(bgErr instanceof Error ? bgErr.message : failTitle)
@@ -302,7 +297,7 @@ export function GitSyncToolbar({
       setActionTitle(actionTitles.push)
       setActionError(err instanceof Error ? err.message : 'プッシュに失敗しました')
     } finally {
-      await finishAction('sidebar')
+      await finishAction('push')
     }
   }
 
@@ -328,8 +323,8 @@ export function GitSyncToolbar({
       setActionTitle(actionTitles[action])
       setActionError(err instanceof Error ? err.message : '操作に失敗しました')
     } finally {
-      // pull は作業ツリーが変わるが、全 WT status は不要（light = B + W1 + content）。
-      await finishAction(action === 'pull' ? 'light' : 'sidebar')
+      // pull は作業ツリーが変わるが、全 WT status は不要（statusBadgeAndBranches）。
+      await finishAction(action === 'pull' ? 'pull' : 'fetch')
     }
   }
 
@@ -349,7 +344,7 @@ export function GitSyncToolbar({
       setActionTitle(actionTitles.push)
       setActionError(err instanceof Error ? err.message : 'プッシュに失敗しました')
     } finally {
-      await finishAction('sidebar')
+      await finishAction('push')
     }
   }
 
@@ -375,7 +370,7 @@ export function GitSyncToolbar({
         setActionError(err instanceof Error ? err.message : 'プル（rebase）に失敗しました')
       }
     } finally {
-      await finishAction('light')
+      await finishAction('pull')
     }
   }
 
@@ -394,7 +389,7 @@ export function GitSyncToolbar({
       setActionTitle('ブランチの作成に失敗しました')
       setActionError(err instanceof Error ? err.message : 'ブランチの作成に失敗しました')
     } finally {
-      await finishAction('workspace')
+      await finishAction('createBranch')
     }
   }
 
@@ -409,7 +404,7 @@ export function GitSyncToolbar({
       setActionTitle('スタッシュに失敗しました')
       setActionError(err instanceof Error ? err.message : 'スタッシュに失敗しました')
     } finally {
-      await finishAction('light')
+      await finishAction('saveStash')
     }
   }
 
@@ -553,7 +548,7 @@ export function GitSyncToolbar({
         worktreePath={worktreePath}
         onClose={() => setCleanupOpen(false)}
         onDeleted={async () => {
-          await onActionComplete?.('sidebar')
+          await onActionComplete?.('fetch')
         }}
       />
       <ConfirmDialog

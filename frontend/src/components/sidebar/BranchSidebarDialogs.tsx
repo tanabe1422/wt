@@ -161,7 +161,11 @@ export function BranchSidebarDialogs({
       />
       <ErrorDialog
         open={stashError.open}
-        title="スタッシュ操作に失敗しました"
+        title={
+          stashError.message.includes('競合')
+            ? 'スタッシュで競合が発生しました'
+            : 'スタッシュ操作に失敗しました'
+        }
         message={stashError.message}
         onClose={onDismissStashError}
       />

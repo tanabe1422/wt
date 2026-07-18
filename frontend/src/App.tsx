@@ -9,6 +9,7 @@ import { GitSyncToolbar, type FetchPhase } from './components/toolbar/GitSyncToo
 import type { MainView } from './components/toolbar/MainViewToolbarTabs'
 import { ErrorDialog } from './components/ui/ErrorDialog'
 import { useErrorDialog } from './hooks/useErrorDialog'
+import { useGitRefresh } from './hooks/useGitRefresh'
 import { ToastProvider } from './hooks/useToast'
 import { useRepoSidebar } from './hooks/useRepoSidebar'
 import { useRepoTabs } from './hooks/useRepoTabs'
@@ -16,7 +17,9 @@ import type { BusyChangeHandler } from './hooks/useBusy'
 import { useWindowActivateRefresh } from './hooks/useWindowActivateRefresh'
 import { invalidateRepoCaches, setStatusCache } from './lib/repoDataCache'
 import { prefetchRepo } from './lib/repoPrefetch'
+import { reconcileSelectionAfterMeta } from './lib/sidebarSelection'
 import { getStatus, isWailsRuntime } from './lib/wails'
+import type { GitOp } from './utils/gitRefreshPolicy'
 import { EventsOn } from '../wailsjs/runtime/runtime'
 import styles from './App.module.css'
 
@@ -171,6 +174,15 @@ function AppShell() {
     setWorkspaceContentRevision((value) => value + 1)
   }, [])
 
+  const { applyRefreshScope, refreshAfterOp } = useGitRefresh({
+    worktreePath,
+    reloadSidebar,
+    reloadBranches,
+    reloadWorktreesMeta,
+    refreshWorktreeBadge,
+    bumpWorkspaceContent,
+  })
+
   const handleRefreshBadge = useCallback(async () => {
     if (!worktreePath) {
       return
@@ -203,12 +215,11 @@ function AppShell() {
 
   useWindowActivateRefresh(handleWindowActivate, Boolean(activeRepository))
 
-  /** ブランチ切替・stash 等: まず workspace を再同期し、バッジ status は裏で更新 */
-  const handleLightRefresh = useCallback(async () => {
-    bumpWorkspaceContent()
-    await Promise.all([reloadBranches(), reloadWorktreesMeta()])
-    void handleRefreshBadge()
-  }, [bumpWorkspaceContent, handleRefreshBadge, reloadBranches, reloadWorktreesMeta])
+  /** ブランチ切替・stash 等: 旧 light / statusBadgeAndBranches */
+  const handleLightRefresh = useCallback(
+    () => applyRefreshScope('statusBadgeAndBranches'),
+    [applyRefreshScope],
+  )
 
   const currentBranchEntry = branches.find(
     (branch) => !branch.isRemote && branch.name === currentBranch,
@@ -230,23 +241,56 @@ function AppShell() {
     [activeRepository, updatePushAfterCommit],
   )
 
-  const handleSyncComplete = async (
-    scope: 'sidebar' | 'light' | 'workspace' = 'workspace',
-  ) => {
-    if (scope === 'sidebar') {
-      // Push/Fetch: ahead/behind だけ。全 WT の status はスキップ。
-      await reloadBranches()
+  const handleActionComplete = useCallback(
+    async (op?: GitOp) => {
+      if (!op) {
+        await applyRefreshScope('sidebarFull')
+        return
+      }
+      await refreshAfterOp(op)
+    },
+    [applyRefreshScope, refreshAfterOp],
+  )
+
+  const handleResetComplete = useCallback(
+    () => applyRefreshScope('sidebarFull'),
+    [applyRefreshScope],
+  )
+
+  /** 手動再読込: カレント status + バッジ。サイドバーは WT/branch ズレ時のみ選択修正。 */
+  const handleManualReload = useCallback(async () => {
+    if (!activeRepository) {
       return
     }
-    if (scope === 'light') {
-      // stash 等: B + W1 + workspace content
-      await handleLightRefresh()
+    setStatusRefreshRevision((value) => value + 1)
+    void handleRefreshBadge()
+
+    const meta = await reloadWorktreesMeta()
+    if (!meta) {
       return
     }
-    // Pull / createBranch / 手動再読込: フル sidebar + workspace 再同期（remount なし）
-    await reloadSidebar()
-    bumpWorkspaceContent()
-  }
+    const next = reconcileSelectionAfterMeta(meta, {
+      selectedWorktree,
+      selectedBranch,
+    })
+    if (!next) {
+      return
+    }
+    if (next.selectedWorktree !== selectedWorktree) {
+      setSelectedWorktree(next.selectedWorktree)
+    }
+    if (next.selectedBranch !== selectedBranch) {
+      setSelectedBranch(next.selectedBranch)
+    }
+  }, [
+    activeRepository,
+    handleRefreshBadge,
+    reloadWorktreesMeta,
+    selectedBranch,
+    selectedWorktree,
+    setSelectedBranch,
+    setSelectedWorktree,
+  ])
 
   return (
     <>
@@ -275,8 +319,8 @@ function AppShell() {
               changedFileCount={changedFileCount}
               mainView={mainView}
               onMainViewChange={setMainView}
-              onActionComplete={handleSyncComplete}
-              onReload={handleSyncComplete}
+              onActionComplete={handleActionComplete}
+              onReload={handleManualReload}
               onBusyChange={handleToolbarBusyChange}
               fetchPhase={fetchPhase}
               onFetchPhaseChange={handleFetchPhaseChange}
@@ -346,7 +390,7 @@ function AppShell() {
                 contentRevision={workspaceContentRevision}
                 compareRequest={compareRequest}
                 onCompareRequestConsumed={handleCompareRequestConsumed}
-                onResetComplete={handleSyncComplete}
+                onResetComplete={handleResetComplete}
               />
             </Suspense>
           )

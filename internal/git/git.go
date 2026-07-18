@@ -51,7 +51,12 @@ func (realRunner) Run(dir, stdin string, extraOKExit int, args ...string) (strin
 				return stdout, stderr, nil
 			}
 		}
-		msg := strings.TrimSpace(errBuf.String())
+		stdout := strings.TrimSuffix(outBuf.String(), "\n")
+		stderr := strings.TrimSuffix(errBuf.String(), "\n")
+		msg := strings.TrimSpace(stderr)
+		if msg == "" {
+			msg = strings.TrimSpace(stdout)
+		}
 		if msg == "" {
 			msg = err.Error()
 		}
@@ -59,8 +64,8 @@ func (realRunner) Run(dir, stdin string, extraOKExit int, args ...string) (strin
 			msg = contextErrorMessage(ctx, msg)
 		}
 		runErr = errors.New(msg)
-		logGitCommand(dir, args, time.Since(start), runErr, outBuf.String(), errBuf.String())
-		return "", "", runErr
+		logGitCommand(dir, args, time.Since(start), runErr, stdout, stderr)
+		return stdout, stderr, runErr
 	}
 	stdout := strings.TrimSuffix(outBuf.String(), "\n")
 	stderr := strings.TrimSuffix(errBuf.String(), "\n")
@@ -102,7 +107,12 @@ func (realRunner) RunProgress(dir string, onLine ProgressFunc, args ...string) (
 		waitErr = scanErr
 	}
 	if waitErr != nil {
-		msg := strings.TrimSpace(errBuf.String())
+		stdout := strings.TrimSuffix(outBuf.String(), "\n")
+		stderr := strings.TrimSuffix(errBuf.String(), "\n")
+		msg := strings.TrimSpace(stderr)
+		if msg == "" {
+			msg = strings.TrimSpace(stdout)
+		}
 		if msg == "" {
 			msg = waitErr.Error()
 		}
@@ -110,8 +120,8 @@ func (realRunner) RunProgress(dir string, onLine ProgressFunc, args ...string) (
 			msg = contextErrorMessage(ctx, msg)
 		}
 		runErr = errors.New(msg)
-		logGitCommand(dir, args, time.Since(start), runErr, outBuf.String(), errBuf.String())
-		return "", "", runErr
+		logGitCommand(dir, args, time.Since(start), runErr, stdout, stderr)
+		return stdout, stderr, runErr
 	}
 	stdout := strings.TrimSuffix(outBuf.String(), "\n")
 	stderr := strings.TrimSuffix(errBuf.String(), "\n")

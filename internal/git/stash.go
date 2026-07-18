@@ -1,6 +1,7 @@
 package git
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -57,11 +58,12 @@ func ApplyStash(worktreePath string, index int) error {
 	if err != nil {
 		return err
 	}
-	_, err = runGit(dir, "stash", "apply", ref)
-	return err
+	stdout, stderr, err := runGitCapture(dir, "stash", "apply", ref)
+	return mapStashApplyError(err, stdout, stderr)
 }
 
 // PopStash applies stash@{index} and removes it.
+// On conflict, git keeps the stash entry (same as CLI).
 func PopStash(worktreePath string, index int) error {
 	dir, err := filepath.Abs(filepath.Clean(worktreePath))
 	if err != nil {
@@ -71,8 +73,33 @@ func PopStash(worktreePath string, index int) error {
 	if err != nil {
 		return err
 	}
-	_, err = runGit(dir, "stash", "pop", ref)
+	stdout, stderr, err := runGitCapture(dir, "stash", "pop", ref)
+	return mapStashApplyError(err, stdout, stderr)
+}
+
+func mapStashApplyError(err error, stdout, stderr string) error {
+	if err == nil {
+		return nil
+	}
+	combined := stdout + "\n" + stderr + "\n" + err.Error()
+	if isStashConflictOutput(combined) {
+		return errors.New("スタッシュの適用で競合が発生しました。変更パネルで競合を解決してください。スタッシュは一覧に残っています。")
+	}
+	if msg := strings.TrimSpace(stderr); msg != "" {
+		return errors.New(msg)
+	}
+	if msg := strings.TrimSpace(stdout); msg != "" {
+		return errors.New(msg)
+	}
 	return err
+}
+
+func isStashConflictOutput(output string) bool {
+	lower := strings.ToLower(output)
+	return strings.Contains(lower, "conflict") ||
+		strings.Contains(lower, "unmerged paths") ||
+		strings.Contains(lower, "could not apply") ||
+		strings.Contains(lower, "needs merge")
 }
 
 // DropStash removes stash@{index} without applying it.

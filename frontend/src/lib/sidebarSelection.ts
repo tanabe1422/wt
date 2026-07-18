@@ -26,3 +26,37 @@ export function pickDefaultSelection(
 
   return { selectedWorktree, selectedBranch }
 }
+
+/**
+ * 手動リロード用: WT メタと UI 選択のズレがあれば次の選択を返す。
+ * ズレなし（選択 WT が残り、その branch が selectedBranch と一致）なら null。
+ */
+export function reconcileSelectionAfterMeta(
+  worktrees: Pick<WorktreeEntry, 'path' | 'branch' | 'isMain'>[],
+  previous: { selectedBranch: string | null; selectedWorktree: string | null },
+): { selectedBranch: string | null; selectedWorktree: string | null } | null {
+  const currentPath = previous.selectedWorktree
+  const currentEntry =
+    currentPath && currentPath !== ''
+      ? worktrees.find((entry) => entry.path === currentPath)
+      : undefined
+
+  if (currentEntry) {
+    const wtBranch = currentEntry.branch || null
+    if (wtBranch === previous.selectedBranch) {
+      return null
+    }
+    return { selectedWorktree: currentPath, selectedBranch: wtBranch }
+  }
+
+  const selectedWorktree = pickDefaultWorktreePath(worktrees, null)
+  const selectedBranch =
+    worktrees.find((entry) => entry.path === selectedWorktree)?.branch ?? null
+  if (
+    selectedWorktree === previous.selectedWorktree &&
+    selectedBranch === previous.selectedBranch
+  ) {
+    return null
+  }
+  return { selectedWorktree, selectedBranch }
+}

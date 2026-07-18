@@ -5,6 +5,8 @@ import {
   needsBranches,
   needsSidebarFull,
   needsStatus,
+  refreshActionsFor,
+  refreshActionsForOp,
   refreshScopeFor,
   toolbarUsesBranchesOnly,
 } from './gitRefreshPolicy'
@@ -31,7 +33,8 @@ describe('gitRefreshPolicy', () => {
     expect(needsSidebarFull(refreshScopeFor('renameOrDeleteBranch'))).toBe(true)
     expect(needsSidebarFull(refreshScopeFor('worktreeAddOrRemove'))).toBe(true)
     expect(needsSidebarFull(refreshScopeFor('createBranch'))).toBe(true)
-    expect(needsSidebarFull(refreshScopeFor('manualReload'))).toBe(true)
+    expect(needsSidebarFull(refreshScopeFor('manualReload'))).toBe(false)
+    expect(refreshScopeFor('manualReload')).toBe('statusAndBadge')
     expect(needsSidebarFull(refreshScopeFor('stashApplyOrPop'))).toBe(false)
   })
 
@@ -40,5 +43,50 @@ describe('gitRefreshPolicy', () => {
     expect(toolbarUsesBranchesOnly('push')).toBe(true)
     expect(toolbarUsesBranchesOnly('pull')).toBe(false)
     expect(toolbarUsesBranchesOnly('saveStash')).toBe(false)
+  })
+
+  it('expands fetch/push to branches-only actions (former SyncRefreshScope sidebar)', () => {
+    expect(refreshActionsForOp('fetch')).toEqual({
+      reloadSidebar: false,
+      reloadBranches: true,
+      reloadWorktreesMeta: false,
+      refreshBadge: false,
+      bumpWorkspaceContent: false,
+    })
+    expect(refreshActionsForOp('push')).toEqual(refreshActionsForOp('fetch'))
+  })
+
+  it('expands pull/saveStash to former light actions', () => {
+    const light = {
+      reloadSidebar: false,
+      reloadBranches: true,
+      reloadWorktreesMeta: true,
+      refreshBadge: true,
+      bumpWorkspaceContent: true,
+    }
+    expect(refreshActionsForOp('pull')).toEqual(light)
+    expect(refreshActionsForOp('saveStash')).toEqual(light)
+    expect(refreshActionsFor('statusBadgeAndBranches')).toEqual(light)
+  })
+
+  it('expands createBranch to former workspace actions', () => {
+    expect(refreshActionsForOp('createBranch')).toEqual({
+      reloadSidebar: true,
+      reloadBranches: false,
+      reloadWorktreesMeta: false,
+      refreshBadge: false,
+      bumpWorkspaceContent: true,
+    })
+    expect(refreshActionsFor('sidebarFull')).toEqual(refreshActionsForOp('createBranch'))
+  })
+
+  it('expands statusAndBadge without branches', () => {
+    expect(refreshActionsFor('statusAndBadge')).toEqual({
+      reloadSidebar: false,
+      reloadBranches: false,
+      reloadWorktreesMeta: false,
+      refreshBadge: true,
+      bumpWorkspaceContent: true,
+    })
   })
 })
