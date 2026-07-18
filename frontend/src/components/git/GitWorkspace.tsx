@@ -289,9 +289,11 @@ export function GitWorkspace({
     const operation =
       actions.repoOperation === 'rebase'
         ? 'rebase'
-        : actions.repoOperation === 'merge' || conflictCount > 0
-          ? 'merge'
-          : null
+        : actions.repoOperation === 'cherry-pick'
+          ? 'cherry-pick'
+          : actions.repoOperation === 'merge' || conflictCount > 0
+            ? 'merge'
+            : null
     if (operation) {
       destructive.requestAbortOperation(operation)
     }

@@ -298,6 +298,10 @@ export async function abortRebase(worktreePath: string): Promise<void> {
   return callApp('AbortRebase', worktreePath)
 }
 
+export async function abortCherryPick(worktreePath: string): Promise<void> {
+  return callApp('AbortCherryPick', worktreePath)
+}
+
 export async function isMerging(worktreePath: string): Promise<boolean> {
   return callApp('IsMerging', worktreePath)
 }
@@ -314,6 +318,14 @@ export async function getRepoOperationState(
 
 export async function continueRebase(worktreePath: string): Promise<void> {
   return callApp('ContinueRebase', worktreePath)
+}
+
+export async function continueCherryPick(worktreePath: string): Promise<void> {
+  return callApp('ContinueCherryPick', worktreePath)
+}
+
+export async function cherryPick(worktreePath: string, sha: string): Promise<void> {
+  return callApp('CherryPick', worktreePath, sha)
 }
 
 export async function rebaseBranch(worktreePath: string, upstream: string): Promise<void> {

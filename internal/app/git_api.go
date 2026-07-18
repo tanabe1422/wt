@@ -202,6 +202,20 @@ func (a *App) AbortRebase(worktreePath string) error {
 	return mutateWorktree(worktreePath, git.AbortRebase)
 }
 
+func (a *App) CherryPick(worktreePath, sha string) error {
+	return mutateWorktree(worktreePath, func(dir string) error {
+		return git.CherryPick(dir, sha)
+	})
+}
+
+func (a *App) ContinueCherryPick(worktreePath string) error {
+	return mutateWorktree(worktreePath, git.ContinueCherryPick)
+}
+
+func (a *App) AbortCherryPick(worktreePath string) error {
+	return mutateWorktree(worktreePath, git.AbortCherryPick)
+}
+
 func (a *App) Commit(worktreePath, message string) error {
 	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.Commit(dir, message)

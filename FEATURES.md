@@ -67,7 +67,7 @@
 
 - [ ] **P1** コミットからの checkout（detached / 新規ブランチ）
 - [ ] **P1** コミットからの revert
-- [ ] **P1** cherry-pick（単発 / 範囲）
+- [ ] **P1** cherry-pick 範囲（単発は DONE）
 - [ ] **P1** reflog 閲覧・そこからの checkout / reset
 - [ ] **P2** 連続コミットの squash（対話的に近い UI）
 - [ ] **P3** ファイル履歴（特定パスの log）（履歴検索のファイル種別で基本対応）

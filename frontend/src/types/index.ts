@@ -77,7 +77,7 @@ export interface GitDebugSnapshot {
   inflightNetworkCount: number
 }
 
-export type RepoOperationKind = 'none' | 'merge' | 'rebase'
+export type RepoOperationKind = 'none' | 'merge' | 'rebase' | 'cherry-pick'
 
 export interface RepoOperationState {
   kind: RepoOperationKind

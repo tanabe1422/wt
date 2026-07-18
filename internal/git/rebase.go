@@ -10,12 +10,13 @@ import (
 type RepoOperationKind string
 
 const (
-	RepoOperationNone   RepoOperationKind = "none"
-	RepoOperationMerge  RepoOperationKind = "merge"
-	RepoOperationRebase RepoOperationKind = "rebase"
+	RepoOperationNone       RepoOperationKind = "none"
+	RepoOperationMerge      RepoOperationKind = "merge"
+	RepoOperationRebase     RepoOperationKind = "rebase"
+	RepoOperationCherryPick RepoOperationKind = "cherry-pick"
 )
 
-// RepoOperationState is the current merge/rebase state of a worktree.
+// RepoOperationState is the current merge/rebase/cherry-pick state of a worktree.
 type RepoOperationState struct {
 	Kind RepoOperationKind `json:"kind"`
 }
@@ -23,7 +24,8 @@ type RepoOperationState struct {
 // ErrWorkingTreeDirty is returned when rebase cannot start due to uncommitted changes.
 var ErrWorkingTreeDirty = errors.New("未コミットの変更があります。コミットするかスタッシュしてからリベースしてください。")
 
-// GetRepoOperationState reports whether a merge or rebase is in progress.
+// GetRepoOperationState reports whether a merge, rebase, or cherry-pick is in progress.
+// Priority: rebase → cherry-pick → merge → none.
 func GetRepoOperationState(worktreePath string) (RepoOperationState, error) {
 	rebasing, err := IsRebasing(worktreePath)
 	if err != nil {
@@ -31,6 +33,13 @@ func GetRepoOperationState(worktreePath string) (RepoOperationState, error) {
 	}
 	if rebasing {
 		return RepoOperationState{Kind: RepoOperationRebase}, nil
+	}
+	picking, err := IsCherryPicking(worktreePath)
+	if err != nil {
+		return RepoOperationState{}, err
+	}
+	if picking {
+		return RepoOperationState{Kind: RepoOperationCherryPick}, nil
 	}
 	merging, err := IsMerging(worktreePath)
 	if err != nil {
@@ -70,6 +79,13 @@ func rebasePrecheck(dir string) error {
 	}
 	if merging {
 		return errors.New("マージ中はリベースできません")
+	}
+	picking, err := IsCherryPicking(dir)
+	if err != nil {
+		return err
+	}
+	if picking {
+		return errors.New("cherry-pick 中はリベースできません")
 	}
 	rebasing, err := IsRebasing(dir)
 	if err != nil {

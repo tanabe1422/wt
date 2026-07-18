@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 
 import {
+  abortCherryPick,
   abortMerge,
   abortRebase,
   deleteUntracked,
@@ -58,9 +59,12 @@ export function useGitDestructiveConfirm({
     setConfirmAction({ kind: 'discardAll' })
   }, [stagedCount, unstagedCount])
 
-  const requestAbortOperation = useCallback((operation: 'merge' | 'rebase') => {
-    setConfirmAction({ kind: 'abort', operation })
-  }, [])
+  const requestAbortOperation = useCallback(
+    (operation: 'merge' | 'rebase' | 'cherry-pick') => {
+      setConfirmAction({ kind: 'abort', operation })
+    },
+    [],
+  )
 
   const requestAbortMerge = useCallback(() => {
     requestAbortOperation('merge')
@@ -88,6 +92,8 @@ export function useGitDestructiveConfirm({
       if (action.kind === 'abort') {
         if (action.operation === 'rebase') {
           await abortRebase(worktreePath)
+        } else if (action.operation === 'cherry-pick') {
+          await abortCherryPick(worktreePath)
         } else {
           await abortMerge(worktreePath)
         }

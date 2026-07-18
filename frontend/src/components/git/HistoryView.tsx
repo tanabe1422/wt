@@ -7,8 +7,8 @@ import { useErrorDialog } from '../../hooks/useErrorDialog'
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll'
 import { useResizableSplit } from '../../hooks/useResizableSplit'
 import { errorMessage } from '../../lib/errorMessage'
-import { getRepoOperationState, resetToCommit } from '../../lib/wails'
-import type { CommitSearchType, HistoryScope } from '../../types'
+import { cherryPick, getRepoOperationState, resetToCommit } from '../../lib/wails'
+import type { CommitSearchType, HistoryScope, RepoOperationKind } from '../../types'
 import { shortSha } from '../../utils/commitGraph'
 import { cx } from '../../utils/cx'
 import { ChoiceDialog, type ChoiceOption } from '../ui/ChoiceDialog'
@@ -171,7 +171,7 @@ export function HistoryView({
   const [selectedSha, setSelectedSha] = useState<string | null>(null)
   const [detailMode, setDetailMode] = useState<DetailMode | null>(null)
   const [resetTarget, setResetTarget] = useState<string | null>(null)
-  const [rebasing, setRebasing] = useState(false)
+  const [repoOperation, setRepoOperation] = useState<RepoOperationKind>('none')
   const [actionError, setActionError] = useState<string | null>(null)
   const [acting, setActing] = useState(false)
   const { ratio: treeRatio, resizing, splitRef, handleResizeStart } = useResizableSplit({
@@ -215,13 +215,15 @@ export function HistoryView({
 
   useEffect(() => {
     if (!worktreePath) {
-      setRebasing(false)
+      setRepoOperation('none')
       return
     }
     void getRepoOperationState(worktreePath)
-      .then((state) => setRebasing(state.kind === 'rebase'))
-      .catch(() => setRebasing(false))
+      .then((state) => setRepoOperation(state.kind))
+      .catch(() => setRepoOperation('none'))
   }, [worktreePath, commits, loading])
+
+  const operationBusy = repoOperation !== 'none'
 
   useEffect(() => {
     setSelectedSha(null)
@@ -265,6 +267,37 @@ export function HistoryView({
     onLoadMore: handleLoadMore,
   })
 
+  const handleCherryPick = useCallback(
+    async (sha: string) => {
+      if (acting || operationBusy) {
+        return
+      }
+      setActing(true)
+      setActionError(null)
+      try {
+        await cherryPick(worktreePath, sha)
+        await reload()
+        await onResetComplete?.()
+      } catch (err) {
+        try {
+          const state = await getRepoOperationState(worktreePath)
+          if (state.kind === 'cherry-pick') {
+            setRepoOperation('cherry-pick')
+            await reload()
+            await onResetComplete?.()
+            return
+          }
+        } catch {
+          // fall through to error dialog
+        }
+        setActionError(errorMessage(err, 'cherry-pick に失敗しました'))
+      } finally {
+        setActing(false)
+      }
+    },
+    [acting, onResetComplete, operationBusy, reload, worktreePath],
+  )
+
   const handleContextMenu = useCallback(
     (sha: string, event: MouseEvent) => {
       event.preventDefault()
@@ -297,14 +330,29 @@ export function HistoryView({
       items.push(
         { type: 'separator' },
         {
+          label: 'このコミットを cherry-pick',
+          disabled: operationBusy || acting,
+          onClick: () => {
+            void handleCherryPick(sha)
+          },
+        },
+        {
           label: 'このコミットまでリセット',
-          disabled: rebasing,
+          disabled: operationBusy,
           onClick: () => setResetTarget(sha),
         },
       )
       openMenu(event.clientX, event.clientY, items)
     },
-    [currentBranch, onCompareRequestConsumed, openMenu, rebasing, selectedSha],
+    [
+      acting,
+      currentBranch,
+      handleCherryPick,
+      onCompareRequestConsumed,
+      openMenu,
+      operationBusy,
+      selectedSha,
+    ],
   )
 
   const handleResetConfirm = async (mode: ResetMode) => {

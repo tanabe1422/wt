@@ -315,6 +315,13 @@ func amendBlockReason(dir string) string {
 	if rebasing {
 		return "リベース中は修正できません"
 	}
+	picking, err := IsCherryPicking(dir)
+	if err != nil {
+		return "状態の確認に失敗しました"
+	}
+	if picking {
+		return "cherry-pick 中は修正できません"
+	}
 	ahead, hasUpstream, err := nativeAheadOfUpstream(dir)
 	if err != nil {
 		return "状態の確認に失敗しました"

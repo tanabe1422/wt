@@ -36,6 +36,7 @@ let mockStatus: FileStatus[] = [
 ]
 
 let mockRebasing = false
+let mockCherryPicking = false
 
 let mockStashList: StashEntry[] = [
   { index: 0, ref: 'stash@{0}', message: 'On feature/hoge: WIP before merge' },
@@ -774,8 +775,19 @@ export const mockApp: WailsApp = {
     console.info('[mock] AbortRebase')
   },
 
+  async AbortCherryPick(_worktreePath: string) {
+    mockCherryPicking = false
+    mockStatus = mockStatus.filter((entry) => !(
+      entry.index === 'U' ||
+      entry.workTree === 'U' ||
+      (entry.index === 'A' && entry.workTree === 'A') ||
+      (entry.index === 'D' && entry.workTree === 'D')
+    ))
+    console.info('[mock] AbortCherryPick')
+  },
+
   async IsMerging(_worktreePath: string) {
-    if (mockRebasing) {
+    if (mockRebasing || mockCherryPicking) {
       return false
     }
     return mockStatus.some(
@@ -795,6 +807,9 @@ export const mockApp: WailsApp = {
     if (mockRebasing) {
       return { kind: 'rebase' }
     }
+    if (mockCherryPicking) {
+      return { kind: 'cherry-pick' }
+    }
     if (await this.IsMerging(_worktreePath)) {
       return { kind: 'merge' }
     }
@@ -804,6 +819,23 @@ export const mockApp: WailsApp = {
   async ContinueRebase(_worktreePath: string) {
     mockRebasing = false
     console.info('[mock] ContinueRebase')
+  },
+
+  async ContinueCherryPick(_worktreePath: string) {
+    mockCherryPicking = false
+    console.info('[mock] ContinueCherryPick')
+  },
+
+  async CherryPick(_worktreePath: string, sha: string) {
+    if (!sha.trim()) {
+      throw new Error('コミットが空です')
+    }
+    if (mockStatus.length > 0) {
+      throw new Error(
+        '未コミットの変更があります。コミットするかスタッシュしてから cherry-pick してください。',
+      )
+    }
+    console.info('[mock] CherryPick', sha)
   },
 
   async RebaseBranch(_worktreePath: string, upstream: string) {

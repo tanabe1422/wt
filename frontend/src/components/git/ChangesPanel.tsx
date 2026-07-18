@@ -59,10 +59,25 @@ function operationBannerText(
       ? `リベース競合: ${conflictCount} ファイル`
       : 'リベース進行中'
   }
+  if (repoOperation === 'cherry-pick') {
+    return conflictCount > 0
+      ? `cherry-pick 競合: ${conflictCount} ファイル`
+      : 'cherry-pick 進行中'
+  }
   if (conflictCount > 0) {
     return `マージ競合: ${conflictCount} ファイル`
   }
   return 'マージ進行中'
+}
+
+function abortButtonLabel(repoOperation: RepoOperationKind): string {
+  if (repoOperation === 'rebase') {
+    return 'リベースを中止'
+  }
+  if (repoOperation === 'cherry-pick') {
+    return 'cherry-pick を中止'
+  }
+  return 'マージを中止'
 }
 
 export function ChangesPanel({
@@ -107,7 +122,8 @@ export function ChangesPanel({
             {operationBannerText(bannerOperation, conflictCount)}
           </span>
           <div className={styles.bannerActions}>
-            {bannerOperation === 'rebase' && onContinueRebase && (
+            {(bannerOperation === 'rebase' || bannerOperation === 'cherry-pick') &&
+              onContinueRebase && (
               <button
                 type="button"
                 className={styles.bannerContinue}
@@ -119,7 +135,7 @@ export function ChangesPanel({
             )}
             {onAbortOperation && (
               <button type="button" className={styles.mergeAbort} onClick={onAbortOperation}>
-                {bannerOperation === 'rebase' ? 'リベースを中止' : 'マージを中止'}
+                {abortButtonLabel(bannerOperation)}
               </button>
             )}
           </div>

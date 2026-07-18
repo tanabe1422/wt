@@ -72,10 +72,13 @@ export interface WailsApp {
   DiscardAllChanges(worktreePath: string): Promise<void>
   AbortMerge(worktreePath: string): Promise<void>
   AbortRebase(worktreePath: string): Promise<void>
+  AbortCherryPick(worktreePath: string): Promise<void>
   IsMerging(worktreePath: string): Promise<boolean>
   IsRebasing(worktreePath: string): Promise<boolean>
   GetRepoOperationState(worktreePath: string): Promise<RepoOperationState>
   ContinueRebase(worktreePath: string): Promise<void>
+  ContinueCherryPick(worktreePath: string): Promise<void>
+  CherryPick(worktreePath: string, sha: string): Promise<void>
   RebaseBranch(worktreePath: string, upstream: string): Promise<void>
   Commit(worktreePath: string, message: string): Promise<void>
   GetAmendInfo(worktreePath: string): Promise<AmendInfo>

@@ -74,6 +74,13 @@ describe('confirm dialog copy', () => {
       'リベース開始前',
     )
 
+    expect(confirmDialogTitle({ kind: 'abort', operation: 'cherry-pick' })).toBe(
+      'cherry-pick を中止',
+    )
+    expect(confirmDialogMessage({ kind: 'abort', operation: 'cherry-pick' })).toContain(
+      'cherry-pick を中止',
+    )
+
     expect(confirmDialogTitle({ kind: 'discardAll' })).toBe('すべて破棄')
     expect(confirmDialogLabel({ kind: 'discardAll' })).toBe('すべて破棄')
     expect(confirmDialogMessage({ kind: 'discardAll' })).toContain('すべて破棄')

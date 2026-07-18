@@ -36,7 +36,7 @@ function ChangesPanelDemo({
   unstaged: typeof conflictUnstagedNormal
   hint?: string
   detachedHeadSha?: string | null
-  repoOperation?: 'none' | 'merge' | 'rebase'
+  repoOperation?: 'none' | 'merge' | 'rebase' | 'cherry-pick'
   conflictCount?: number
   canContinueRebase?: boolean
 }) {
@@ -218,6 +218,18 @@ export const RebaseConflict: Story = {
     unstaged: conflictFiles,
     hint: '静止画。操作フロー全体は Git/RebaseFlow →「リベース → 競合解決 → Push」を参照。',
     repoOperation: 'rebase',
+    conflictCount: conflictFiles.length,
+    canContinueRebase: false,
+  },
+}
+
+export const CherryPickConflict: Story = {
+  name: 'cherry-pick 競合',
+  args: {
+    staged: [],
+    unstaged: conflictFiles,
+    hint: '履歴から cherry-pick したときの競合バナー。',
+    repoOperation: 'cherry-pick',
     conflictCount: conflictFiles.length,
     canContinueRebase: false,
   },

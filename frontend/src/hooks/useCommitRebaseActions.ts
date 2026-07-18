@@ -5,6 +5,7 @@ import { invalidateWorktreeDiffs } from '../lib/diffCache'
 import {
   amendCommit,
   commit,
+  continueCherryPick,
   continueRebase,
   getAmendInfo,
   getRepoOperationState,
@@ -86,12 +87,16 @@ export function useCommitRebaseActions({
   }, [refreshAmendInfo, unstaged, staged])
 
   const conflictCount = unstaged.filter(isConflict).length
-  const canContinueRebase =
-    repoOperation === 'rebase' && conflictCount === 0 && staged.length > 0
+  const canContinueOperation =
+    (repoOperation === 'rebase' || repoOperation === 'cherry-pick') &&
+    conflictCount === 0 &&
+    staged.length > 0
   const commitBlockReason =
     repoOperation === 'rebase'
       ? 'リベース中はバナーの「続行」を使ってください'
-      : null
+      : repoOperation === 'cherry-pick'
+        ? 'cherry-pick 中はバナーの「続行」を使ってください'
+        : null
 
   const handleCommit = useCallback(
     async (message: string, options: { amend: boolean; pushAfterCommit: boolean }) => {
@@ -136,24 +141,36 @@ export function useCommitRebaseActions({
     ],
   )
 
-  const handleContinueRebase = useCallback(async () => {
-    if (!canContinueRebase) {
+  const handleContinueOperation = useCallback(async () => {
+    if (!canContinueOperation) {
       return
     }
+    const continuingCherryPick = repoOperation === 'cherry-pick'
     setExternalToolError(null)
     let keepRefreshing = true
     await runBusy(async () => {
       try {
-        await continueRebase(worktreePath)
+        if (continuingCherryPick) {
+          await continueCherryPick(worktreePath)
+        } else {
+          await continueRebase(worktreePath)
+        }
         invalidateWorktreeDiffs(worktreePath)
       } catch (err) {
         const state = await getRepoOperationState(worktreePath)
-        if (state.kind === 'rebase') {
+        if (
+          state.kind === 'rebase' ||
+          state.kind === 'cherry-pick'
+        ) {
           return
         }
         keepRefreshing = false
         setExternalToolError(
-          err instanceof Error ? err.message : 'リベースの続行に失敗しました',
+          err instanceof Error
+            ? err.message
+            : continuingCherryPick
+              ? 'cherry-pick の続行に失敗しました'
+              : 'リベースの続行に失敗しました',
         )
       }
     })
@@ -169,13 +186,14 @@ export function useCommitRebaseActions({
       refreshAmendInfo(),
     ])
   }, [
-    canContinueRebase,
+    canContinueOperation,
     refreshAmendInfo,
     refreshBadge,
     refreshBranches,
     refreshOperationState,
     reload,
     reloadDiff,
+    repoOperation,
     runBusy,
     setExternalToolError,
     worktreePath,
@@ -185,12 +203,14 @@ export function useCommitRebaseActions({
     repoOperation,
     merging: repoOperation === 'merge',
     rebasing: repoOperation === 'rebase',
-    canContinueRebase,
+    canContinueRebase: canContinueOperation,
+    canContinueOperation,
     commitBlockReason,
     amendInfo,
     refreshOperationState,
     refreshMergeState: refreshOperationState,
-    handleContinueRebase,
+    handleContinueRebase: handleContinueOperation,
+    handleContinueOperation,
     handleCommit,
   }
 }

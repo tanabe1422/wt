@@ -44,7 +44,7 @@ go build ./...
 
 ## FEATURES 実装サイクル
 
-`FEATURES.md` の 1 項目を実装したサイクルでは、上記ゲート通過後に該当行を `[x]`（または部分実装の注記）へ更新してから完了とする。工程の詳細は `.cursor/skills/features-impl-cycle/SKILL.md`。
+`FEATURES.md` の 1 項目を実装したサイクルでは、上記ゲート通過後に該当行を `FEATURES.md` から削除し `FEATURES_DONE.md` へ移す（または部分実装の注記）してから完了とする。工程の詳細は `.cursor/skills/features-impl-cycle/SKILL.md`。
 
 ## 完了条件
 

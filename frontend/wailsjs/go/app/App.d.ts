@@ -3,6 +3,8 @@
 import {config} from '../models';
 import {git} from '../models';
 
+export function AbortCherryPick(arg1:string):Promise<void>;
+
 export function AbortMerge(arg1:string):Promise<void>;
 
 export function AbortRebase(arg1:string):Promise<void>;
@@ -17,7 +19,11 @@ export function ApplyStash(arg1:string,arg2:number):Promise<void>;
 
 export function CheckoutRemoteBranch(arg1:string,arg2:string):Promise<void>;
 
+export function CherryPick(arg1:string,arg2:string):Promise<void>;
+
 export function Commit(arg1:string,arg2:string):Promise<void>;
+
+export function ContinueCherryPick(arg1:string):Promise<void>;
 
 export function ContinueRebase(arg1:string):Promise<void>;
 
