@@ -229,65 +229,12 @@ func ListBranchHeads(worktreePath string) ([]BranchHead, error) {
 	if worktreePath == "" {
 		return nil, errors.New("ワークツリーが指定されていません")
 	}
-
-	// %(*objectname) peels annotated tags to the underlying commit in one pass.
-	out, err := runGit(
-		worktreePath,
-		"for-each-ref",
-		"--format=%(refname:short)|%(objectname)|%(*objectname)",
-		"refs/heads/",
-		"refs/remotes/",
-		"refs/tags/",
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	heads := make([]BranchHead, 0)
-	if out == "" {
-		return heads, nil
-	}
-
-	for _, line := range strings.Split(out, "\n") {
-		parts := strings.SplitN(line, "|", 3)
-		name := strings.TrimSpace(parts[0])
-		if name == "" || strings.HasSuffix(name, "/HEAD") {
-			continue
-		}
-		objectName := ""
-		if len(parts) > 1 {
-			objectName = strings.TrimSpace(parts[1])
-		}
-		peeled := ""
-		if len(parts) > 2 {
-			peeled = strings.TrimSpace(parts[2])
-		}
-		sha := objectName
-		if peeled != "" {
-			sha = peeled
-		}
-		if sha == "" {
-			continue
-		}
-
-		heads = append(heads, BranchHead{
-			Name: name,
-			Commit: BranchHeadCommit{
-				SHA: sha,
-			},
-		})
-	}
-
-	return heads, nil
+	return nativeListBranchHeads(worktreePath)
 }
 
 // CurrentBranch returns the short name of the checked-out branch, or HEAD when detached.
 func CurrentBranch(dir string) (string, error) {
-	name, err := runGit(dir, "rev-parse", "--abbrev-ref", "HEAD")
-	if err != nil {
-		return "", err
-	}
-	return name, nil
+	return nativeCurrentBranch(dir)
 }
 
 func parseCommitLog(out string) []CommitLogEntry {

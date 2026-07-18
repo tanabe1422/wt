@@ -39,9 +39,9 @@ func parseUpstreamRef(ref string) (remote, branch string, ok bool) {
 }
 
 func currentUpstream(dir string) (remote, branch string, err error) {
-	out, err := runGit(dir, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}")
+	out, err := nativeUpstreamShortName(dir)
 	if err != nil {
-		return "", "", errors.New("upstream が設定されていません")
+		return "", "", err
 	}
 	remote, branch, ok := parseUpstreamRef(out)
 	if !ok {

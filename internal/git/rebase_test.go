@@ -2,15 +2,25 @@ package git
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
+func writeGitStateFile(t *testing.T, repoDir, name, content string) {
+	t.Helper()
+	gitDir, err := nativeGitDir(repoDir)
+	if err != nil {
+		t.Fatalf("nativeGitDir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(gitDir, name), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestIsRebasing(t *testing.T) {
-	dir := t.TempDir()
-	fake := newFakeRunner()
-	fake.On("rev-parse", "-q", "--verify", "REBASE_HEAD").Return("", errors.New("missing"))
-	withFakeRunner(t, fake)
+	dir := initHotpathRepo(t)
 
 	ok, err := IsRebasing(dir)
 	if err != nil {
@@ -19,13 +29,20 @@ func TestIsRebasing(t *testing.T) {
 	if ok {
 		t.Fatal("expected false when REBASE_HEAD missing")
 	}
+
+	writeGitStateFile(t, dir, "REBASE_HEAD", "abc\n")
+	ok, err = IsRebasing(dir)
+	if err != nil {
+		t.Fatalf("IsRebasing with file: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected true when REBASE_HEAD present")
+	}
 }
 
 func TestGetRepoOperationStateRebase(t *testing.T) {
-	dir := t.TempDir()
-	fake := newFakeRunner()
-	fake.On("rev-parse", "-q", "--verify", "REBASE_HEAD").Return("abc", nil)
-	withFakeRunner(t, fake)
+	dir := initHotpathRepo(t)
+	writeGitStateFile(t, dir, "REBASE_HEAD", "abc\n")
 
 	state, err := GetRepoOperationState(dir)
 	if err != nil {
@@ -37,11 +54,8 @@ func TestGetRepoOperationStateRebase(t *testing.T) {
 }
 
 func TestGetRepoOperationStateMerge(t *testing.T) {
-	dir := t.TempDir()
-	fake := newFakeRunner()
-	fake.On("rev-parse", "-q", "--verify", "REBASE_HEAD").Return("", errors.New("missing"))
-	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("abc", nil)
-	withFakeRunner(t, fake)
+	dir := initHotpathRepo(t)
+	writeGitStateFile(t, dir, "MERGE_HEAD", "abc\n")
 
 	state, err := GetRepoOperationState(dir)
 	if err != nil {
@@ -53,11 +67,8 @@ func TestGetRepoOperationStateMerge(t *testing.T) {
 }
 
 func TestRebaseBranch(t *testing.T) {
-	dir := t.TempDir()
+	dir := initHotpathRepo(t)
 	fake := newFakeRunner()
-	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("", errors.New("missing"))
-	fake.On("rev-parse", "-q", "--verify", "REBASE_HEAD").Return("", errors.New("missing"))
-	fake.On("symbolic-ref", "-q", "HEAD").Return("refs/heads/feature", nil)
 	fake.On("status", "--porcelain=v1", "-u").Return("", nil)
 	fake.On("rebase", "main").Return("", nil)
 	withFakeRunner(t, fake)
@@ -69,12 +80,10 @@ func TestRebaseBranch(t *testing.T) {
 }
 
 func TestRebaseBranchDirtyWorkingTree(t *testing.T) {
-	dir := t.TempDir()
+	dir := initHotpathRepo(t)
 	fake := newFakeRunner()
-	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("", errors.New("missing"))
-	fake.On("rev-parse", "-q", "--verify", "REBASE_HEAD").Return("", errors.New("missing"))
-	fake.On("symbolic-ref", "-q", "HEAD").Return("refs/heads/feature", nil)
 	fake.On("status", "--porcelain=v1", "-u").Return(" M dirty.go", nil)
+	fake.On("ls-files", "-s", "--", "dirty.go").Return("", nil)
 	withFakeRunner(t, fake)
 
 	err := RebaseBranch(dir, "main")
@@ -127,12 +136,8 @@ func TestPullRebase(t *testing.T) {
 }
 
 func TestAmendBlockReasonWhileRebasing(t *testing.T) {
-	dir := t.TempDir()
-	fake := newFakeRunner()
-	fake.On("rev-parse", "-q", "--verify", "HEAD").Return("abc", nil)
-	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("", errors.New("missing"))
-	fake.On("rev-parse", "-q", "--verify", "REBASE_HEAD").Return("def", nil)
-	withFakeRunner(t, fake)
+	dir := initHotpathRepo(t)
+	writeGitStateFile(t, dir, "REBASE_HEAD", "def\n")
 
 	if got := amendBlockReason(dir); got != "リベース中は修正できません" {
 		t.Fatalf("unexpected reason: %q", got)

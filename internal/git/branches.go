@@ -58,63 +58,9 @@ func ListBranches(repoPath string) ([]BranchEntry, error) {
 }
 
 // listBranchesMeta lists branches without computing upstream ahead/behind.
-// %(upstream:track) walks the commit graph per local branch and can dominate
-// fetch/reload latency when any branch is heavily diverged.
+// Implemented via go-git to avoid git.exe spawn on the sidebar hot path.
 func listBranchesMeta(repoPath string) ([]BranchEntry, error) {
-	out, err := runGit(
-		repoPath,
-		"for-each-ref",
-		"--format=%(refname)|%(HEAD)|%(upstream:short)",
-		"refs/heads/",
-		"refs/remotes/",
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	entries := make([]BranchEntry, 0)
-	if out == "" {
-		return entries, nil
-	}
-
-	for _, line := range strings.Split(out, "\n") {
-		parts := strings.SplitN(line, "|", 3)
-		ref := strings.TrimSpace(parts[0])
-		if ref == "" {
-			continue
-		}
-
-		switch {
-		case strings.HasPrefix(ref, "refs/heads/"):
-			name := strings.TrimPrefix(ref, "refs/heads/")
-			if name == "" {
-				continue
-			}
-			isCurrent := len(parts) > 1 && parts[1] == "*"
-			upstream := ""
-			if len(parts) > 2 {
-				upstream = strings.TrimSpace(parts[2])
-			}
-			entries = append(entries, BranchEntry{
-				Name:        name,
-				IsCurrent:   isCurrent,
-				IsRemote:    false,
-				HasUpstream: upstream != "",
-			})
-		case strings.HasPrefix(ref, "refs/remotes/"):
-			name := strings.TrimPrefix(ref, "refs/remotes/")
-			if name == "" || strings.HasSuffix(name, "/HEAD") {
-				continue
-			}
-			entries = append(entries, BranchEntry{
-				Name:      name,
-				IsCurrent: false,
-				IsRemote:  true,
-			})
-		}
-	}
-
-	return entries, nil
+	return nativeListBranchesMeta(repoPath)
 }
 
 func fillCurrentBranchTrack(repoPath string, entries []BranchEntry) {
@@ -145,24 +91,10 @@ func GetBranchAheadBehind(repoPath, branch string) (AheadBehind, error) {
 	return AheadBehind{Ahead: ahead, Behind: behind}, nil
 }
 
-// countAheadBehind runs `git rev-list --left-right --count branch@{upstream}...branch`.
-// Output is "<behind> <ahead>" (left = upstream-only, right = branch-only).
+// countAheadBehind returns ahead/behind vs upstream (same as
+// `git rev-list --left-right --count branch@{upstream}...branch`).
 func countAheadBehind(repoPath, branch string) (ahead, behind int, err error) {
-	out, err := runGit(repoPath, "rev-list", "--left-right", "--count", branch+"@{upstream}..."+branch)
-	if err != nil {
-		return 0, 0, err
-	}
-	fields := strings.Fields(strings.TrimSpace(out))
-	if len(fields) != 2 {
-		return 0, 0, nil
-	}
-	if _, err := fmt.Sscanf(fields[0], "%d", &behind); err != nil {
-		return 0, 0, nil
-	}
-	if _, err := fmt.Sscanf(fields[1], "%d", &ahead); err != nil {
-		return 0, 0, nil
-	}
-	return ahead, behind, nil
+	return nativeCountAheadBehind(repoPath, branch)
 }
 
 // localBranchFromRemote strips the remote name prefix from a remote ref.

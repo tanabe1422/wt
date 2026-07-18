@@ -48,8 +48,8 @@ func IsRebasing(worktreePath string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	_, err = runGit(dir, "rev-parse", "-q", "--verify", "REBASE_HEAD")
-	if err != nil {
+	ok, err := nativeHasGitFile(dir, "REBASE_HEAD")
+	if err != nil || !ok {
 		return false, nil
 	}
 	return true, nil
@@ -78,7 +78,8 @@ func rebasePrecheck(dir string) error {
 	if rebasing {
 		return errors.New("リベース中は新しいリベースを開始できません")
 	}
-	if _, err := runGit(dir, "symbolic-ref", "-q", "HEAD"); err != nil {
+	onBranch, err := nativeIsOnBranch(dir)
+	if err != nil || !onBranch {
 		return errors.New("ブランチにチェックアウトしてからリベースしてください")
 	}
 	dirty, err := hasWorkingTreeChanges(dir)

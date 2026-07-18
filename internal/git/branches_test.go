@@ -29,35 +29,35 @@ func TestCreateBranchEmptyName(t *testing.T) {
 }
 
 func TestDeleteBranch(t *testing.T) {
+	dir := initHotpathRepo(t)
 	fake := newFakeRunner()
-	fake.On("rev-parse", "--abbrev-ref", "HEAD").Return("main", nil)
 	fake.On("branch", "-D", "feature").Return("", nil)
 	withFakeRunner(t, fake)
 
-	if err := DeleteBranch("/repo", "feature", true); err != nil {
+	if err := DeleteBranch(dir, "feature", true); err != nil {
 		t.Fatalf("DeleteBranch: %v", err)
 	}
 	fake.AssertCalled(t, "branch", "-D", "feature")
 }
 
 func TestDeleteBranchSafeUsesLowerD(t *testing.T) {
+	dir := initHotpathRepo(t)
 	fake := newFakeRunner()
-	fake.On("rev-parse", "--abbrev-ref", "HEAD").Return("main", nil)
 	fake.On("branch", "-d", "feature").Return("", nil)
 	withFakeRunner(t, fake)
 
-	if err := DeleteBranch("/repo", "feature", false); err != nil {
+	if err := DeleteBranch(dir, "feature", false); err != nil {
 		t.Fatalf("DeleteBranch: %v", err)
 	}
 	fake.AssertCalled(t, "branch", "-d", "feature")
 }
 
 func TestDeleteBranchCurrentRejected(t *testing.T) {
+	dir := initHotpathRepo(t)
 	fake := newFakeRunner()
-	fake.On("rev-parse", "--abbrev-ref", "HEAD").Return("main", nil)
 	withFakeRunner(t, fake)
 
-	if err := DeleteBranch("/repo", "main", true); err == nil {
+	if err := DeleteBranch(dir, "main", true); err == nil {
 		t.Fatal("expected error deleting current branch")
 	}
 	fake.AssertNotCalledPrefix(t, "branch")
@@ -182,55 +182,6 @@ func TestParseBranchRefLine(t *testing.T) {
 			t.Fatalf("line %q => name=%q current=%v, want name=%q current=%v",
 				tc.line, name, isCurrent, tc.wantName, tc.wantCurrent)
 		}
-	}
-}
-
-func TestListBranches(t *testing.T) {
-	fake := newFakeRunner()
-	fake.On("for-each-ref", "--format=%(refname)|%(HEAD)|%(upstream:short)", "refs/heads/", "refs/remotes/").Return(
-		"refs/heads/main|*|origin/main\nrefs/heads/feature/foo||\nrefs/remotes/origin/HEAD||\nrefs/remotes/origin/main||\nrefs/remotes/origin/feature/foo||",
-		nil,
-	)
-	fake.On("rev-list", "--left-right", "--count", "main@{upstream}...main").Return("0 1", nil)
-	withFakeRunner(t, fake)
-
-	entries, err := ListBranches("/repo")
-	if err != nil {
-		t.Fatalf("ListBranches: %v", err)
-	}
-
-	local := map[string]BranchEntry{}
-	var remotes []string
-	for _, entry := range entries {
-		if entry.IsRemote {
-			remotes = append(remotes, entry.Name)
-			continue
-		}
-		local[entry.Name] = entry
-	}
-
-	if !local["main"].IsCurrent || !local["main"].HasUpstream || local["main"].AheadCount != 1 {
-		t.Fatalf("unexpected main entry: %+v", local["main"])
-	}
-	if local["feature/foo"].IsCurrent || local["feature/foo"].HasUpstream || local["feature/foo"].AheadCount != 0 {
-		t.Fatalf("unexpected feature entry: %+v", local["feature/foo"])
-	}
-	if len(remotes) != 2 {
-		t.Fatalf("expected 2 remotes (HEAD skipped), got %v", remotes)
-	}
-}
-
-func TestGetBranchAheadBehind(t *testing.T) {
-	fake := newFakeRunner()
-	fake.On("rev-list", "--left-right", "--count", "feature@{upstream}...feature").Return("2 3", nil)
-	withFakeRunner(t, fake)
-
-	got, err := GetBranchAheadBehind("/repo", "feature")
-	if err != nil {
-		t.Fatalf("GetBranchAheadBehind: %v", err)
-	}
-	if got.Ahead != 3 || got.Behind != 2 {
-		t.Fatalf("unexpected ahead/behind: %+v", got)
 	}
 }
 

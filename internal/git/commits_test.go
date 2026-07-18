@@ -119,53 +119,6 @@ func TestListCommitsScopeBranch(t *testing.T) {
 	fake.AssertCalledPrefix(t, "log", "--topo-order")
 }
 
-func TestListBranchHeads(t *testing.T) {
-	dir := t.TempDir()
-	mergeSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	fake := newFakeRunner()
-	fake.On("for-each-ref", "--format=%(refname:short)|%(objectname)|%(*objectname)", "refs/heads/", "refs/remotes/", "refs/tags/").Return(
-		"feature|"+mergeSHA+"|\nv-light|"+mergeSHA+"|\nv-annotated|bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb|"+mergeSHA+"\norigin/HEAD|"+mergeSHA+"|",
-		nil,
-	)
-	withFakeRunner(t, fake)
-
-	heads, err := ListBranchHeads(dir)
-	if err != nil {
-		t.Fatalf("ListBranchHeads: %v", err)
-	}
-	names := make(map[string]string)
-	for _, head := range heads {
-		names[head.Name] = head.Commit.SHA
-	}
-	if _, ok := names["feature"]; !ok {
-		t.Fatalf("expected feature branch head, got %#v", names)
-	}
-	if names["v-light"] != mergeSHA {
-		t.Fatalf("expected lightweight tag on merge commit, got %q", names["v-light"])
-	}
-	if names["v-annotated"] != mergeSHA {
-		t.Fatalf("expected annotated tag on merge commit, got %q", names["v-annotated"])
-	}
-	if _, ok := names["origin/HEAD"]; ok {
-		t.Fatal("HEAD remote ref should be skipped")
-	}
-}
-
-func TestCurrentBranch(t *testing.T) {
-	dir := t.TempDir()
-	fake := newFakeRunner()
-	fake.On("rev-parse", "--abbrev-ref", "HEAD").Return("main", nil)
-	withFakeRunner(t, fake)
-
-	branch, err := CurrentBranch(dir)
-	if err != nil {
-		t.Fatalf("CurrentBranch: %v", err)
-	}
-	if branch != "main" {
-		t.Fatalf("unexpected current branch: %s", branch)
-	}
-}
-
 func TestPathspecForSearchQuery(t *testing.T) {
 	tests := []struct {
 		query string

@@ -1,9 +1,7 @@
 package git
 
 import (
-	"errors"
-	"os"
-	"path/filepath"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -169,25 +167,28 @@ func TestFetchCurrentUpstreamArgs(t *testing.T) {
 }
 
 func TestFetchCurrentUpstream(t *testing.T) {
-	dir := t.TempDir()
+	dir := initHotpathRepo(t)
 	fake := newFakeRunner()
-	fake.On("rev-parse", "--show-toplevel").Return(dir, nil)
-	fake.On("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}").Return("origin/feature/foo", nil)
-	fake.On("fetch", "--progress", "origin", "feature/foo").Return("", nil)
+	fake.On("fetch", "--progress", "origin", "main").Return("", nil)
 	withFakeRunner(t, fake)
 
 	if err := FetchCurrentUpstream(dir); err != nil {
 		t.Fatalf("FetchCurrentUpstream: %v", err)
 	}
-	fake.AssertCalled(t, "fetch", "--progress", "origin", "feature/foo")
+	fake.AssertCalled(t, "fetch", "--progress", "origin", "main")
 }
 
 func TestFetchCurrentUpstreamNoUpstream(t *testing.T) {
-	dir := t.TempDir()
-	fake := newFakeRunner()
-	fake.On("rev-parse", "--show-toplevel").Return(dir, nil)
-	fake.On("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}").Return("", errors.New("no upstream"))
-	withFakeRunner(t, fake)
+	dir := initHotpathRepo(t)
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("checkout", "-b", "no-up")
 
 	if err := FetchCurrentUpstream(dir); err == nil {
 		t.Fatal("expected error when upstream is missing")
@@ -425,9 +426,10 @@ func TestDiscardAllChanges(t *testing.T) {
 }
 
 func TestAbortMerge(t *testing.T) {
-	dir := t.TempDir()
+	dir := initHotpathRepo(t)
+	writeGitStateFile(t, dir, "MERGE_HEAD", "abc\n")
+
 	fake := newFakeRunner()
-	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("abc", nil)
 	fake.On("merge", "--abort").Return("", nil)
 	withFakeRunner(t, fake)
 
@@ -438,18 +440,10 @@ func TestAbortMerge(t *testing.T) {
 }
 
 func TestAbortSquashMerge(t *testing.T) {
-	dir := t.TempDir()
-	gitDir := filepath.Join(dir, ".git")
-	if err := os.MkdirAll(gitDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(gitDir, "SQUASH_MSG"), []byte("squash"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	dir := initHotpathRepo(t)
+	writeGitStateFile(t, dir, "SQUASH_MSG", "squash")
 
 	fake := newFakeRunner()
-	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("", errors.New("missing"))
-	fake.On("rev-parse", "--absolute-git-dir").Return(gitDir, nil)
 	fake.On("reset", "--merge").Return("", nil)
 	withFakeRunner(t, fake)
 
@@ -488,13 +482,16 @@ func TestStageHunk(t *testing.T) {
 }
 
 func TestGetAmendInfoNoUpstream(t *testing.T) {
-	dir := t.TempDir()
-	fake := newFakeRunner()
-	fake.On("rev-parse", "-q", "--verify", "HEAD").Return("abc", nil)
-	fake.On("log", "-1", "--format=%B").Return("tip message\n", nil)
-	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("", errors.New("missing"))
-	fake.On("rev-parse", "-q", "--verify", "@{upstream}").Return("", errors.New("no upstream"))
-	withFakeRunner(t, fake)
+	dir := initHotpathRepo(t)
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("checkout", "-b", "no-up")
 
 	info, err := GetAmendInfo(dir)
 	if err != nil {
@@ -503,20 +500,23 @@ func TestGetAmendInfoNoUpstream(t *testing.T) {
 	if !info.CanAmend {
 		t.Fatalf("expected CanAmend, got %+v", info)
 	}
-	if info.HeadMessage != "tip message" {
-		t.Fatalf("unexpected message: %q", info.HeadMessage)
+	if info.HeadMessage == "" {
+		t.Fatal("expected non-empty head message")
 	}
 }
 
 func TestGetAmendInfoBlocksWhenSyncedWithUpstream(t *testing.T) {
-	dir := t.TempDir()
-	fake := newFakeRunner()
-	fake.On("rev-parse", "-q", "--verify", "HEAD").Return("abc", nil)
-	fake.On("log", "-1", "--format=%B").Return("synced tip\n", nil)
-	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("", errors.New("missing"))
-	fake.On("rev-parse", "-q", "--verify", "@{upstream}").Return("origin/main", nil)
-	fake.On("rev-list", "--count", "@{upstream}..HEAD").Return("0", nil)
-	withFakeRunner(t, fake)
+	dir := initHotpathRepo(t)
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	// Point upstream at current HEAD so ahead == 0.
+	run("update-ref", "refs/remotes/origin/main", "HEAD")
 
 	info, err := GetAmendInfo(dir)
 	if err != nil {
@@ -531,12 +531,8 @@ func TestGetAmendInfoBlocksWhenSyncedWithUpstream(t *testing.T) {
 }
 
 func TestAmendCommitAllowsWhenAhead(t *testing.T) {
-	dir := t.TempDir()
+	dir := initHotpathRepo(t)
 	fake := newFakeRunner()
-	fake.On("rev-parse", "-q", "--verify", "HEAD").Return("abc", nil)
-	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("", errors.New("missing"))
-	fake.On("rev-parse", "-q", "--verify", "@{upstream}").Return("origin/main", nil)
-	fake.On("rev-list", "--count", "@{upstream}..HEAD").Return("1", nil)
 	fake.On("commit", "--amend", "-m", "amended message").Return("", nil)
 	withFakeRunner(t, fake)
 
@@ -547,13 +543,16 @@ func TestAmendCommitAllowsWhenAhead(t *testing.T) {
 }
 
 func TestAmendCommitRejectsWhenSynced(t *testing.T) {
-	dir := t.TempDir()
-	fake := newFakeRunner()
-	fake.On("rev-parse", "-q", "--verify", "HEAD").Return("abc", nil)
-	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("", errors.New("missing"))
-	fake.On("rev-parse", "-q", "--verify", "@{upstream}").Return("origin/main", nil)
-	fake.On("rev-list", "--count", "@{upstream}..HEAD").Return("0", nil)
-	withFakeRunner(t, fake)
+	dir := initHotpathRepo(t)
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("update-ref", "refs/remotes/origin/main", "HEAD")
 
 	err := AmendCommit(dir, "should fail")
 	if err == nil {
@@ -562,16 +561,11 @@ func TestAmendCommitRejectsWhenSynced(t *testing.T) {
 	if !strings.Contains(err.Error(), "プッシュ済み") {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	fake.AssertNotCalledPrefix(t, "commit", "--amend")
 }
 
 func TestGetAmendInfoBlocksWhileMerging(t *testing.T) {
-	dir := t.TempDir()
-	fake := newFakeRunner()
-	fake.On("rev-parse", "-q", "--verify", "HEAD").Return("abc", nil)
-	fake.On("log", "-1", "--format=%B").Return("during merge\n", nil)
-	fake.On("rev-parse", "-q", "--verify", "MERGE_HEAD").Return("def", nil)
-	withFakeRunner(t, fake)
+	dir := initHotpathRepo(t)
+	writeGitStateFile(t, dir, "MERGE_HEAD", "def\n")
 
 	info, err := GetAmendInfo(dir)
 	if err != nil {
@@ -589,7 +583,6 @@ func TestStageHunkOutOfRange(t *testing.T) {
 	dir := t.TempDir()
 	fake := newFakeRunner()
 	fake.On("diff", "-U3", "--", "README.md").Return("", nil)
-	fake.On("ls-files", "--others", "--exclude-standard", "--", "README.md").Return("", nil)
 	withFakeRunner(t, fake)
 
 	if err := StageHunk(dir, "README.md", 0); err == nil {

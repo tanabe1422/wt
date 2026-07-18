@@ -149,12 +149,11 @@ func IsSquashPending(worktreePath string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	gitDir, err := runGit(dir, "rev-parse", "--absolute-git-dir")
+	gitDir, err := nativeGitDir(dir)
 	if err != nil {
 		return false, err
 	}
-	squashMsg := filepath.Join(gitDir, "SQUASH_MSG")
-	_, err = os.Stat(squashMsg)
+	_, err = os.Stat(filepath.Join(gitDir, "SQUASH_MSG"))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
@@ -170,8 +169,8 @@ func IsMerging(worktreePath string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	_, err = runGit(dir, "rev-parse", "-q", "--verify", "MERGE_HEAD")
-	if err != nil {
+	ok, err := nativeHasGitFile(dir, "MERGE_HEAD")
+	if err != nil || !ok {
 		return false, nil
 	}
 	return true, nil
@@ -295,18 +294,11 @@ func AmendCommit(worktreePath, message string) error {
 }
 
 func headCommitMessage(dir string) (string, error) {
-	if _, err := runGit(dir, "rev-parse", "-q", "--verify", "HEAD"); err != nil {
-		return "", err
-	}
-	msg, err := runGit(dir, "log", "-1", "--format=%B")
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimRight(msg, "\r\n"), nil
+	return nativeHeadCommitMessage(dir)
 }
 
 func amendBlockReason(dir string) string {
-	if _, err := runGit(dir, "rev-parse", "-q", "--verify", "HEAD"); err != nil {
+	if !nativeHasHEAD(dir) {
 		return "コミットがありません"
 	}
 	merging, err := IsMerging(dir)
@@ -323,15 +315,11 @@ func amendBlockReason(dir string) string {
 	if rebasing {
 		return "リベース中は修正できません"
 	}
-	if _, err := runGit(dir, "rev-parse", "-q", "--verify", "@{upstream}"); err != nil {
-		return ""
-	}
-	aheadOut, err := runGit(dir, "rev-list", "--count", "@{upstream}..HEAD")
+	ahead, hasUpstream, err := nativeAheadOfUpstream(dir)
 	if err != nil {
 		return "状態の確認に失敗しました"
 	}
-	ahead := strings.TrimSpace(aheadOut)
-	if ahead == "0" {
+	if hasUpstream && ahead == 0 {
 		return "すでにプッシュ済みです"
 	}
 	return ""

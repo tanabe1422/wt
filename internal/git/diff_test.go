@@ -76,6 +76,25 @@ func TestParseHunkRange(t *testing.T) {
 	}
 }
 
+func TestSplitFileLines(t *testing.T) {
+	cases := []struct {
+		in   string
+		want []string
+	}{
+		{"", nil},
+		{"a", []string{"a"}},
+		{"a\n", []string{"a"}},
+		{"a\nb\n", []string{"a", "b"}},
+		{"a\nb", []string{"a", "b"}},
+	}
+	for _, tc := range cases {
+		got := splitFileLines(tc.in)
+		if !equalStrings(got, tc.want) {
+			t.Fatalf("splitFileLines(%q)=%v want %v", tc.in, got, tc.want)
+		}
+	}
+}
+
 func TestHunkToPatch(t *testing.T) {
 	raw := `diff --git a/README.md b/README.md
 index abc..def 100644

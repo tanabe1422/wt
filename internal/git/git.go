@@ -175,7 +175,7 @@ func ResolveRepo(directory string) (RepoInfo, error) {
 		return RepoInfo{IsRepo: false}, nil
 	}
 
-	root, err := runGit(abs, "rev-parse", "--show-toplevel")
+	root, err := nativeWorktreeRoot(abs)
 	if err != nil {
 		return RepoInfo{IsRepo: false}, nil
 	}

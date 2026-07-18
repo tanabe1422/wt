@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -40,6 +41,14 @@ func GetFileDiff(worktreePath, file string, staged bool) (FileDiff, error) {
 		return FileDiff{}, errors.New("ファイルパスが空です")
 	}
 
+	// Untracked: index に無くディスク上にあるファイルは CLI なしで全文追加 diff を組み立てる。
+	// （旧実装は git diff → ls-files → diff --no-index の 3 spawn）
+	if !staged {
+		if ut, err := nativeIsUntracked(dir, file); err == nil && ut {
+			return untrackedFileDiff(dir, file)
+		}
+	}
+
 	args := []string{"diff", "-U" + strconv.Itoa(diffContextLines)}
 	if staged {
 		args = append(args, "--cached")
@@ -55,21 +64,58 @@ func GetFileDiff(worktreePath, file string, staged bool) (FileDiff, error) {
 		return FileDiff{}, errors.New("バイナリファイルの diff は表示できません")
 	}
 
-	if strings.TrimSpace(out) == "" && !staged && isUntracked(dir, file) {
-		noIndexArgs := []string{
-			"diff", "--no-index", "-U" + strconv.Itoa(diffContextLines),
-			"--", os.DevNull, file,
-		}
-		out, err = runGitAllowDiffExit(dir, noIndexArgs...)
-		if err != nil {
-			return FileDiff{}, err
-		}
-		if strings.Contains(out, "Binary files") {
-			return FileDiff{}, errors.New("バイナリファイルの diff は表示できません")
-		}
+	return parseUnifiedDiff(file, out), nil
+}
+
+// untrackedFileDiff builds an all-additions FileDiff from the working tree file
+// (same idea as `git diff --no-index -- /dev/null <file>`).
+func untrackedFileDiff(dir, file string) (FileDiff, error) {
+	rel := filepath.ToSlash(filepath.Clean(file))
+	rel = strings.TrimPrefix(rel, "./")
+	abs := filepath.Join(dir, filepath.FromSlash(rel))
+	data, err := os.ReadFile(abs)
+	if err != nil {
+		return FileDiff{}, err
+	}
+	if isBinaryContent(data) {
+		return FileDiff{}, errors.New("バイナリファイルの diff は表示できません")
 	}
 
-	return parseUnifiedDiff(file, out), nil
+	lines := splitFileLines(string(data))
+	if len(lines) == 0 {
+		return FileDiff{Path: file, Hunks: []DiffHunk{}}, nil
+	}
+
+	hunkLines := make([]DiffLine, 0, len(lines))
+	for i, line := range lines {
+		hunkLines = append(hunkLines, DiffLine{
+			Kind:    "add",
+			Content: line,
+			NewNo:   i + 1,
+		})
+	}
+	return FileDiff{
+		Path: file,
+		Hunks: []DiffHunk{{
+			Header: formatHunkHeader(0, 0, 1, len(hunkLines), ""),
+			Lines:  hunkLines,
+		}},
+	}, nil
+}
+
+func splitFileLines(content string) []string {
+	if content == "" {
+		return nil
+	}
+	lines := strings.Split(content, "\n")
+	if lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return lines
+}
+
+func isBinaryContent(data []byte) bool {
+	return bytes.IndexByte(data, 0) >= 0
 }
 
 // GetCommitFileDiff returns a parsed unified diff for a file in a commit.
@@ -158,14 +204,6 @@ func GetRangeFileDiff(worktreePath, fromRef, toRef, file string) (FileDiff, erro
 	}
 
 	return parseUnifiedDiff(file, out), nil
-}
-
-func isUntracked(dir, file string) bool {
-	out, err := runGit(dir, "ls-files", "--others", "--exclude-standard", "--", file)
-	if err != nil {
-		return false
-	}
-	return strings.TrimSpace(out) != ""
 }
 
 func parseUnifiedDiff(path, out string) FileDiff {
