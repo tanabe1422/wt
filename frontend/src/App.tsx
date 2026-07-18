@@ -19,6 +19,7 @@ import { invalidateRepoCaches, setStatusCache } from './lib/repoDataCache'
 import { prefetchRepo } from './lib/repoPrefetch'
 import { reconcileSelectionAfterMeta } from './lib/sidebarSelection'
 import { getStatus, isWailsRuntime } from './lib/wails'
+import { isDetachedWorktree, resolveCurrentBranch } from './utils/detachedHead'
 import type { GitOp } from './utils/gitRefreshPolicy'
 import { EventsOn } from '../wailsjs/runtime/runtime'
 import styles from './App.module.css'
@@ -53,6 +54,7 @@ function AppShell() {
   const [gitDebugOpen, setGitDebugOpen] = useState(false)
   const [fetchPhase, setFetchPhase] = useState<FetchPhase | null>(null)
   const [compareRequest, setCompareRequest] = useState<CompareRange | null>(null)
+  const [createBranchRequestKey, setCreateBranchRequestKey] = useState(0)
   const handleWorkspaceBusyChange = useCallback<BusyChangeHandler>((busy, message) => {
     setWorkspaceBusy(busy)
     if (busy && message) {
@@ -154,10 +156,16 @@ function AppShell() {
     ''
 
   const currentWorktree = worktrees.find((worktree) => worktree.path === worktreePath)
-  const currentBranch = currentWorktree?.branch ?? selectedBranch ?? ''
+  const isDetached = Boolean(currentWorktree && isDetachedWorktree(currentWorktree))
+  const currentBranch = resolveCurrentBranch(currentWorktree, selectedBranch)
   const changedFileCount = currentWorktree?.changedFileCount ?? 0
+  const detachedHeadSha = isDetached ? (currentWorktree?.head ?? null) : undefined
 
   const compareFromRef = currentBranch !== '' ? currentBranch : null
+
+  const handleRequestCreateBranch = useCallback(() => {
+    setCreateBranchRequestKey((value) => value + 1)
+  }, [])
 
   const handleCompareWithCurrent = useCallback(
     (branch: string) => {
@@ -325,6 +333,7 @@ function AppShell() {
               fetchPhase={fetchPhase}
               onFetchPhaseChange={handleFetchPhaseChange}
               onOpenSettings={() => setSettingsOpen(true)}
+              createBranchRequestKey={createBranchRequestKey}
             />
           ) : (
             <GitSyncToolbar
@@ -374,6 +383,8 @@ function AppShell() {
               statusRevision={statusRefreshRevision}
               onBusyChange={handleWorkspaceBusyChange}
               fetchPhase={fetchPhase}
+              detachedHeadSha={detachedHeadSha}
+              onCreateBranchFromDetached={handleRequestCreateBranch}
             />
           ) : (
             <Suspense

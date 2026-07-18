@@ -50,6 +50,14 @@ interface GitWorkspaceProps {
    * フェッチ優先 / 裏フェッチ中。差分パネル右下に表示し、操作はブロックしない。
    */
   fetchPhase?: FetchPhase | null
+  /**
+   * detached HEAD 表示。
+   * `undefined` = ブランチ上（バナーなし）
+   * `null` = detached だが SHA 未取得
+   * string = フル SHA
+   */
+  detachedHeadSha?: string | null
+  onCreateBranchFromDetached?: () => void
 }
 
 const FILES_SPLIT_STORAGE_KEY = 'wt-manager.filesSplitRatio'
@@ -68,6 +76,8 @@ export function GitWorkspace({
   statusRevision = 0,
   onBusyChange,
   fetchPhase = null,
+  detachedHeadSha,
+  onCreateBranchFromDetached,
 }: GitWorkspaceProps) {
   const { busy, runBusy } = useBusy(onBusyChange)
   const {
@@ -328,6 +338,8 @@ export function GitWorkspace({
             onDiscardAll={destructive.requestDiscardAll}
             onContinueRebase={() => void actions.handleContinueRebase()}
             onAbortOperation={handleAbortOperation}
+            detachedHeadSha={detachedHeadSha}
+            onCreateBranchFromDetached={onCreateBranchFromDetached}
           />
         </div>
         <ResizeHandle

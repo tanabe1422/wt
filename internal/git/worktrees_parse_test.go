@@ -28,6 +28,9 @@ func TestParseWorktreePorcelain(t *testing.T) {
 	if main.Branch != "main" {
 		t.Fatalf("main branch = %q, want main", main.Branch)
 	}
+	if main.Head != "abc123" {
+		t.Fatalf("main head = %q, want abc123", main.Head)
+	}
 	if main.IsLocked {
 		t.Fatal("main should not be locked")
 	}
@@ -35,6 +38,9 @@ func TestParseWorktreePorcelain(t *testing.T) {
 	feature := entries[1]
 	if feature.Branch != "feature/foo" {
 		t.Fatalf("feature branch = %q", feature.Branch)
+	}
+	if feature.Head != "def456" {
+		t.Fatalf("feature head = %q, want def456", feature.Head)
 	}
 	if !feature.IsLocked {
 		t.Fatal("feature worktree should be locked")
@@ -46,6 +52,9 @@ func TestParseWorktreePorcelain(t *testing.T) {
 	detached := entries[2]
 	if detached.Branch != "" {
 		t.Fatalf("detached worktree branch = %q, want empty", detached.Branch)
+	}
+	if detached.Head != "999999" {
+		t.Fatalf("detached head = %q, want 999999", detached.Head)
 	}
 }
 

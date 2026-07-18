@@ -1,7 +1,8 @@
 import type { MouseEvent } from 'react'
 
-import { cx } from '../../utils/cx'
 import type { WorktreeEntry } from '../../types'
+import { cx } from '../../utils/cx'
+import { formatDetachedLabel, isDetachedWorktree } from '../../utils/detachedHead'
 import { Button } from '../ui/Button'
 import { CountBadge } from '../ui/CountBadge'
 import { ActiveMark } from './ActiveMark'
@@ -32,7 +33,9 @@ export function WorktreeList({
     <>
       {worktrees.map((worktree) => {
         const isSelected = selectedWorktree === worktree.path
-        const branchLabel = worktree.branch || '（detached）'
+        const branchLabel = isDetachedWorktree(worktree)
+          ? formatDetachedLabel(worktree.head)
+          : worktree.branch
 
         return (
           <Button

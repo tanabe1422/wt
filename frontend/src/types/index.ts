@@ -93,6 +93,8 @@ export interface WorktreeEntry {
   isBare: boolean
   isLocked: boolean
   changedFileCount: number
+  /** HEAD のフル SHA。detached 表示用。未取得時は空 */
+  head?: string
 }
 
 export interface StashEntry {

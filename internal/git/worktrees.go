@@ -13,6 +13,7 @@ import (
 type WorktreeEntry struct {
 	Path             string `json:"path"`
 	Branch           string `json:"branch"`
+	Head             string `json:"head"`
 	IsMain           bool   `json:"isMain"`
 	IsBare           bool   `json:"isBare"`
 	IsLocked         bool   `json:"isLocked"`

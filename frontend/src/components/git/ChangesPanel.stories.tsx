@@ -27,10 +27,18 @@ function ChangesPanelDemo({
   staged,
   unstaged,
   hint,
+  detachedHeadSha,
+  repoOperation,
+  conflictCount,
+  canContinueRebase,
 }: {
   staged: typeof conflictStagedFiles
   unstaged: typeof conflictUnstagedNormal
   hint?: string
+  detachedHeadSha?: string | null
+  repoOperation?: 'none' | 'merge' | 'rebase'
+  conflictCount?: number
+  canContinueRebase?: boolean
 }) {
   const [focusPath, setFocusPath] = useState<string | null>(
     unstaged.find((entry) => isConflict(entry))?.path ?? unstaged[0]?.path ?? null,
@@ -42,6 +50,12 @@ function ChangesPanelDemo({
     conflict: boolean
     untracked: boolean
   } | null>(null)
+
+  const resolvedConflictCount =
+    conflictCount ?? unstaged.filter((entry) => isConflict(entry)).length
+  const resolvedOperation =
+    repoOperation ??
+    (unstaged.some((entry) => isConflict(entry)) ? 'merge' : 'none')
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: 360 }}>
@@ -87,10 +101,20 @@ function ChangesPanelDemo({
           onDiscardSelected={noop}
           onDiscardAll={noop}
           onAbortOperation={
-            unstaged.some((entry) => isConflict(entry)) ? noop : undefined
+            resolvedOperation !== 'none' || resolvedConflictCount > 0 ? noop : undefined
           }
-          conflictCount={unstaged.filter((entry) => isConflict(entry)).length}
-          repoOperation={unstaged.some((entry) => isConflict(entry)) ? 'merge' : 'none'}
+          conflictCount={resolvedConflictCount}
+          repoOperation={resolvedOperation}
+          canContinueRebase={canContinueRebase}
+          onContinueRebase={resolvedOperation === 'rebase' ? noop : undefined}
+          detachedHeadSha={detachedHeadSha}
+          onCreateBranchFromDetached={
+            detachedHeadSha !== undefined
+              ? () => {
+                  console.info('[story] create branch from detached', detachedHeadSha)
+                }
+              : undefined
+          }
         />
       </div>
       {menu && (
@@ -193,41 +217,33 @@ export const RebaseConflict: Story = {
     staged: [],
     unstaged: conflictFiles,
     hint: '静止画。操作フロー全体は Git/RebaseFlow →「リベース → 競合解決 → Push」を参照。',
+    repoOperation: 'rebase',
+    conflictCount: conflictFiles.length,
+    canContinueRebase: false,
   },
-  render: (args) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: 360 }}>
-      {args.hint ? (
-        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-slate-600)' }}>{args.hint}</p>
-      ) : null}
-      <div
-        style={{
-          height: 420,
-          border: '1px solid var(--color-slate-200)',
-          borderRadius: '0.375rem',
-          overflow: 'hidden',
-          background: 'var(--color-surface-main)',
-        }}
-      >
-        <ChangesPanel
-          staged={args.staged}
-          unstaged={args.unstaged}
-          loading={false}
-          stagedSelection={emptySelection}
-          unstagedSelection={selectionFor(args.unstaged[0]?.path ?? null)}
-          repoOperation="rebase"
-          conflictCount={args.unstaged.length}
-          canContinueRebase={false}
-          onFileClick={noop}
-          onStage={noop}
-          onUnstage={noop}
-          onStageSelected={noop}
-          onUnstageSelected={noop}
-          onStageAll={noop}
-          onUnstageAll={noop}
-          onContinueRebase={noop}
-          onAbortOperation={noop}
-        />
-      </div>
-    </div>
-  ),
+}
+
+export const DetachedHead: Story = {
+  name: 'detached HEAD',
+  args: {
+    staged: conflictStagedFiles,
+    unstaged: conflictUnstagedNormal,
+    hint: '情報バナー + 「ブランチを作成」。rebase/merge 中は出ない。',
+    detachedHeadSha: 'a1b2c3d4e5f6789012345678abcdef01',
+    repoOperation: 'none',
+    conflictCount: 0,
+  },
+}
+
+export const DetachedWhileRebase: Story = {
+  name: 'detached 中のリベース（操作バナー優先）',
+  args: {
+    staged: [],
+    unstaged: conflictFiles,
+    hint: 'detachedHeadSha があっても rebase バナーだけ表示される。',
+    detachedHeadSha: 'a1b2c3d4e5f6789012345678abcdef01',
+    repoOperation: 'rebase',
+    conflictCount: conflictFiles.length,
+    canContinueRebase: false,
+  },
 }

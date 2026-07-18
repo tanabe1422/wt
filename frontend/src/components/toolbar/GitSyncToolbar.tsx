@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 import type { BusyChangeHandler } from '../../hooks/useBusy'
 import { useGitSyncActions, type FetchPhase } from '../../hooks/useGitSyncActions'
 import type { GitOp } from '../../utils/gitRefreshPolicy'
@@ -41,6 +43,8 @@ interface GitSyncToolbarProps {
   onFetchPhaseChange?: (phase: FetchPhase | null) => void
   /** When true, only show the trailing settings control (no repo selected). */
   settingsOnly?: boolean
+  /** 変化するたびに新規ブランチダイアログを開く（detached バナーなどから） */
+  createBranchRequestKey?: number
 }
 
 const syncActions: GitSyncAction[] = ['pull', 'push', 'fetch']
@@ -63,6 +67,7 @@ export function GitSyncToolbar({
   fetchPhase = null,
   onFetchPhaseChange,
   settingsOnly = false,
+  createBranchRequestKey = 0,
 }: GitSyncToolbarProps) {
   const {
     acting,
@@ -96,6 +101,17 @@ export function GitSyncToolbar({
     onBusyChange,
     onFetchPhaseChange,
   })
+
+  const lastCreateBranchRequestKey = useRef(createBranchRequestKey)
+  useEffect(() => {
+    if (createBranchRequestKey === lastCreateBranchRequestKey.current) {
+      return
+    }
+    lastCreateBranchRequestKey.current = createBranchRequestKey
+    if (createBranchRequestKey > 0) {
+      setCreateOpen(true)
+    }
+  }, [createBranchRequestKey, setCreateOpen])
 
   const isDisabled = disabled || acting || fetchPhase !== null || !worktreePath
 

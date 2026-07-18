@@ -34,6 +34,8 @@ func parseWorktreePorcelain(output string, repoRoot string) ([]WorktreeEntry, er
 			switch key {
 			case "worktree":
 				entry.Path = value
+			case "HEAD":
+				entry.Head = value
 			case "bare":
 				entry.IsBare = true
 			case "branch":

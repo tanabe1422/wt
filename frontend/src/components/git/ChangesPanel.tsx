@@ -3,6 +3,7 @@ import { useMemo, type MouseEvent } from 'react'
 import type { FileStatus, RepoOperationKind } from '../../types'
 import type { SectionMode, SectionSelection } from '../../hooks/useSectionSelection'
 import { cx } from '../../utils/cx'
+import { formatDetachedBannerText } from '../../utils/detachedHead'
 import { sortFileStatuses } from '../../utils/gitStatus'
 import { FileList } from './FileList'
 import styles from './ChangesPanel.module.css'
@@ -16,6 +17,14 @@ interface ChangesPanelProps {
   repoOperation?: RepoOperationKind
   conflictCount?: number
   canContinueRebase?: boolean
+  /**
+   * detached HEAD 表示。
+   * `undefined` = ブランチ上（バナーなし）
+   * `null` = detached だが SHA 未取得
+   * string = フル SHA
+   */
+  detachedHeadSha?: string | null
+  onCreateBranchFromDetached?: () => void
   onFileClick: (
     path: string,
     index: number,
@@ -65,6 +74,8 @@ export function ChangesPanel({
   repoOperation = 'none',
   conflictCount = 0,
   canContinueRebase = false,
+  detachedHeadSha,
+  onCreateBranchFromDetached,
   onFileClick,
   onStage,
   onUnstage,
@@ -82,6 +93,7 @@ export function ChangesPanel({
   const showOperationBanner = repoOperation !== 'none' || conflictCount > 0
   const bannerOperation: RepoOperationKind =
     repoOperation !== 'none' ? repoOperation : conflictCount > 0 ? 'merge' : 'none'
+  const showDetachedBanner = !showOperationBanner && detachedHeadSha !== undefined
   const hasAnyChanges = staged.length > 0 || unstaged.length > 0
   const showDiscardActions = Boolean(onDiscardAll || onDiscardSelected)
   const sortedStaged = useMemo(() => sortFileStatuses(staged, 'staged'), [staged])
@@ -111,6 +123,24 @@ export function ChangesPanel({
               </button>
             )}
           </div>
+        </div>
+      )}
+      {showDetachedBanner && (
+        <div className={styles.detachedBanner} role="status">
+          <span className={styles.detachedBannerText}>
+            {formatDetachedBannerText(detachedHeadSha)}
+          </span>
+          {onCreateBranchFromDetached && (
+            <div className={styles.bannerActions}>
+              <button
+                type="button"
+                className={styles.detachedBannerAction}
+                onClick={onCreateBranchFromDetached}
+              >
+                ブランチを作成
+              </button>
+            </div>
+          )}
         </div>
       )}
       <section className={styles.section}>

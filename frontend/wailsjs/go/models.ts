@@ -547,6 +547,7 @@ export namespace git {
 	export class WorktreeEntry {
 	    path: string;
 	    branch: string;
+	    head: string;
 	    isMain: boolean;
 	    isBare: boolean;
 	    isLocked: boolean;
@@ -560,6 +561,7 @@ export namespace git {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.path = source["path"];
 	        this.branch = source["branch"];
+	        this.head = source["head"];
 	        this.isMain = source["isMain"];
 	        this.isBare = source["isBare"];
 	        this.isLocked = source["isLocked"];

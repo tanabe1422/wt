@@ -66,9 +66,24 @@ export const worktreesMainDirty: WorktreeEntry[] = [
 ]
 
 /** detached HEAD */
+export const DETACHED_HEAD_SHA = 'a1b2c3d4e5f6789012345678abcdef01'
+
 export const worktreesDetached: WorktreeEntry[] = [
   worktree('', 'main', { isMain: true, changedFileCount: 0 }),
-  worktree('wt-detached', '', { changedFileCount: 3 }),
+  worktree('wt-detached', '', {
+    changedFileCount: 3,
+    head: DETACHED_HEAD_SHA,
+  }),
+]
+
+/** detached 時: どのローカルも isCurrent でない */
+export const branchesDetached: BranchEntry[] = [
+  branch('main', { behindCount: 3 }),
+  branch('develop', { aheadCount: 2, behindCount: 1 }),
+  branch('feature/hoge', { aheadCount: 23 }),
+  branch('feature/bar', { behindCount: 5 }),
+  remoteBranch('origin/main'),
+  remoteBranch('origin/feature/hoge'),
 ]
 
 /** ahead / behind バッジの単体パターン（フラット一覧用） */

@@ -26,6 +26,8 @@ interface BranchSectionProps {
   expansionThreshold?: number
   /** 展開状態の永続化スコープ（リポジトリパスなど） */
   expansionScope?: string | null
+  /** ブランチツリー先頭に差し込む情報行（detached HEAD など） */
+  leading?: ReactNode
   onActivate?: (fullName: string) => void
   onContextMenu?: (fullName: string, event: MouseEvent) => void
 }
@@ -45,6 +47,7 @@ export function BranchSection({
   defaultExpanded = true,
   expansionThreshold = 2,
   expansionScope = null,
+  leading = null,
   onActivate,
   onContextMenu,
 }: BranchSectionProps) {
@@ -59,6 +62,7 @@ export function BranchSection({
       defaultExpanded={defaultExpanded}
       storageKey={sectionStorageKey}
     >
+      {leading}
       {nodes.map((node) => (
         <BranchTreeNode
           key={node.name}

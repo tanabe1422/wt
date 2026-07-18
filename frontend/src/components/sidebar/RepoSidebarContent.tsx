@@ -6,9 +6,11 @@ import {
   collectWorktreeBranches,
   getSelectedWorktreeBranch,
 } from '../../utils/branchMarks'
+import { isDetachedWorktree } from '../../utils/detachedHead'
 import { filterBranchTree, splitBranchTrees } from '../../utils/branchTree'
 import { BranchSectionIcon, CloudIcon, StashIcon, WorktreeIcon } from './BranchIcons'
 import { BranchSection } from './BranchSection'
+import { DetachedHeadRow } from './DetachedHeadRow'
 import { SidebarSection } from './SidebarSection'
 import { StashList } from './StashList'
 import { WorktreeList } from './WorktreeList'
@@ -108,6 +110,10 @@ export function RepoSidebarContent({
   )
   const worktreeBranches = collectWorktreeBranches(worktrees)
   const checkedOutBranch = getSelectedWorktreeBranch(worktrees, selectedWorktree)
+  const selectedWorktreeEntry =
+    worktrees.find((entry) => entry.path === selectedWorktree) ?? null
+  const showDetachedHead =
+    selectedWorktreeEntry !== null && isDetachedWorktree(selectedWorktreeEntry)
   const filtering = filterQuery.trim().length > 0
   const expansionThreshold = filtering ? 99 : 2
 
@@ -132,11 +138,11 @@ export function RepoSidebarContent({
         )}
       </SidebarSection>
 
-      {branches.length === 0 ? (
+      {branches.length === 0 && !showDetachedHead ? (
         <p className={styles.emptyInline}>ブランチがありません</p>
       ) : (
         <>
-          {localUnfiltered.length > 0 && (
+          {(localUnfiltered.length > 0 || showDetachedHead) && (
             <BranchSection
               title="ブランチ"
               icon={<BranchSectionIcon />}
@@ -148,6 +154,11 @@ export function RepoSidebarContent({
               showWorktreeMarks={showWorktreeMarks}
               expansionThreshold={expansionThreshold}
               expansionScope={expansionScope}
+              leading={
+                showDetachedHead ? (
+                  <DetachedHeadRow head={selectedWorktreeEntry?.head} />
+                ) : null
+              }
               onActivate={onActivateLocal}
               onContextMenu={onLocalContextMenu}
             />

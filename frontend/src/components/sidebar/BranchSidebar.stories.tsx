@@ -7,9 +7,11 @@ import { BranchSidebar } from './BranchSidebar'
 import { SidebarStoryFrame } from './fixtures/sidebarStoryHelpers'
 import {
   branchesComposite,
+  branchesDetached,
   branchesFullSidebar,
   FIXTURE_REPO_ROOT,
   worktreesComposite,
+  worktreesDetached,
   worktreesFullSidebar,
 } from './fixtures/sidebarFixtures'
 
@@ -18,6 +20,8 @@ interface BranchSidebarStoryProps {
   worktrees: WorktreeEntry[]
   loading?: boolean
   error?: string | null
+  initialWorktree?: string
+  initialBranch?: string | null
 }
 
 function BranchSidebarDemo({
@@ -25,9 +29,11 @@ function BranchSidebarDemo({
   worktrees,
   loading = false,
   error = null,
+  initialWorktree = FIXTURE_REPO_ROOT,
+  initialBranch = 'feature/hoge',
 }: BranchSidebarStoryProps) {
-  const [selectedBranch, setSelectedBranch] = useState('feature/hoge')
-  const [selectedWorktree, setSelectedWorktree] = useState(FIXTURE_REPO_ROOT)
+  const [selectedBranch, setSelectedBranch] = useState(initialBranch)
+  const [selectedWorktree, setSelectedWorktree] = useState(initialWorktree)
 
   return (
     <ToastProvider>
@@ -74,6 +80,16 @@ export const Default: Story = {
 
 export const Compact: Story = {
   name: 'コンパクト',
+}
+
+export const DetachedHead: Story = {
+  name: 'detached HEAD',
+  args: {
+    branches: branchesDetached,
+    worktrees: worktreesDetached,
+    initialWorktree: `${FIXTURE_REPO_ROOT}-wt-detached`,
+    initialBranch: null,
+  },
 }
 
 export const Loading: Story = {
