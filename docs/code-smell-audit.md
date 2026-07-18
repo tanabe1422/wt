@@ -7,7 +7,9 @@
 
 着手は 1 個ずつ。進行状況は Cursor プラン側を参照。
 
-**進捗:** 1. Refresh ポリシー一本化 — 完了（`useGitRefresh` + `refreshActionsFor` / Toolbar は `GitOp`、`SyncRefreshScope` 削除）
+**進捗:**
+1. Refresh ポリシー一本化 — 完了（`useGitRefresh` + `refreshActionsFor` / Toolbar は `GitOp`、`SyncRefreshScope` 削除）
+2. `useRepoSidebar` 分割 — 完了（`lib/sidebarLoad.ts` + `useSidebarSelection` / `useSidebarData`、ファサードは `useRepoSidebar`）
 
 ---
 
@@ -61,11 +63,14 @@ flowchart LR
 
 ---
 
-### 2. `useRepoSidebar`（約 526 行）— God hook
+### 2. `useRepoSidebar`（約 526 行）— God hook — **完了**
 
-[`frontend/src/hooks/useRepoSidebar.ts`](../frontend/src/hooks/useRepoSidebar.ts)
+[`frontend/src/hooks/useRepoSidebar.ts`](../frontend/src/hooks/useRepoSidebar.ts) は薄いファサード。実装は:
 
-混在している責務:
+- 純関数 → [`lib/sidebarLoad.ts`](../frontend/src/lib/sidebarLoad.ts)（equal / merge* / fill*）+ [`resolveSidebarLoadSelection`](../frontend/src/lib/sidebarSelection.ts)
+- hook → [`useSidebarSelection`](../frontend/src/hooks/useSidebarSelection.ts) + [`useSidebarData`](../frontend/src/hooks/useSidebarData.ts)
+
+旧メモ（混在していた責務）:
 
 - キャッシュ読取・スナップショット比較（`sidebarSnapshotEqual`）
 - 選択決定（早期 WT 選択含む）
@@ -73,10 +78,10 @@ flowchart LR
 - 裏埋め: `fillBranchTracks` / `fillWorktreeBadges`
 - 部分更新: `reloadBranches` / `reloadWorktreesMeta` / `refreshWorktreeBadge*`
 
-**切り出し候補:**
+~~**切り出し候補:**~~
 
-- 純関数 → `lib/sidebarLoad.ts`（equal / mergeTracks / fill*）
-- hook 分割 → `useSidebarSelection` + `useSidebarData`（load/reload）+ progressive enrich は data 側に残す
+- ~~純関数 → `lib/sidebarLoad.ts`（equal / mergeTracks / fill*）~~
+- ~~hook 分割 → `useSidebarSelection` + `useSidebarData`（load/reload）+ progressive enrich は data 側に残す~~
 
 ---
 

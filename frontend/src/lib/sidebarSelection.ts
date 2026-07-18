@@ -28,6 +28,39 @@ export function pickDefaultSelection(
 }
 
 /**
+ * loadSidebar 用の選択決定。
+ * preserveSelection 時は現行 WT/ブランチを可能な限り維持し、
+ * そうでなければ main（なければ先頭）へ寄せる。
+ */
+export function resolveSidebarLoadSelection(
+  worktrees: WorktreeEntry[],
+  branches: BranchEntry[],
+  previous: { selectedBranch: string | null; selectedWorktree: string | null },
+  preserveSelection: boolean,
+): { selectedBranch: string | null; selectedWorktree: string | null } {
+  const currentWorktree = previous.selectedWorktree
+  const currentBranch = previous.selectedBranch
+  const keepCurrent =
+    preserveSelection &&
+    currentWorktree !== null &&
+    currentWorktree !== '' &&
+    worktrees.some((entry) => entry.path === currentWorktree)
+
+  const selectedWorktree = keepCurrent
+    ? currentWorktree
+    : pickDefaultWorktreePath(worktrees, null)
+
+  const selectedBranch =
+    preserveSelection &&
+    currentBranch &&
+    branches.some((entry) => !entry.isRemote && entry.name === currentBranch)
+      ? currentBranch
+      : (worktrees.find((entry) => entry.path === selectedWorktree)?.branch ?? null)
+
+  return { selectedWorktree, selectedBranch }
+}
+
+/**
  * 手動リロード用: WT メタと UI 選択のズレがあれば次の選択を返す。
  * ズレなし（選択 WT が残り、その branch が selectedBranch と一致）なら null。
  */

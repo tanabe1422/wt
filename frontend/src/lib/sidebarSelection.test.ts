@@ -5,6 +5,7 @@ import {
   pickDefaultSelection,
   pickDefaultWorktreePath,
   reconcileSelectionAfterMeta,
+  resolveSidebarLoadSelection,
 } from './sidebarSelection'
 
 const wt = (path: string, branch: string, isMain = false): WorktreeEntry => ({
@@ -60,6 +61,47 @@ describe('pickDefaultSelection', () => {
         selectedBranch: 'gone',
       }),
     ).toEqual({ selectedWorktree: '/main', selectedBranch: 'main' })
+  })
+})
+
+describe('resolveSidebarLoadSelection', () => {
+  it('keeps current worktree and branch when preserveSelection', () => {
+    const worktrees = [wt('/main', 'main', true), wt('/feat', 'feat')]
+    const branches = [br('main'), br('feat')]
+    expect(
+      resolveSidebarLoadSelection(
+        worktrees,
+        branches,
+        { selectedWorktree: '/feat', selectedBranch: 'feat' },
+        true,
+      ),
+    ).toEqual({ selectedWorktree: '/feat', selectedBranch: 'feat' })
+  })
+
+  it('resets to main when preserveSelection is false', () => {
+    const worktrees = [wt('/main', 'main', true), wt('/feat', 'feat')]
+    const branches = [br('main'), br('feat')]
+    expect(
+      resolveSidebarLoadSelection(
+        worktrees,
+        branches,
+        { selectedWorktree: '/feat', selectedBranch: 'feat' },
+        false,
+      ),
+    ).toEqual({ selectedWorktree: '/main', selectedBranch: 'main' })
+  })
+
+  it('falls back when preserved worktree is gone but keeps local branch', () => {
+    const worktrees = [wt('/main', 'main', true)]
+    const branches = [br('main'), br('feat')]
+    expect(
+      resolveSidebarLoadSelection(
+        worktrees,
+        branches,
+        { selectedWorktree: '/gone', selectedBranch: 'feat' },
+        true,
+      ),
+    ).toEqual({ selectedWorktree: '/main', selectedBranch: 'feat' })
   })
 })
 
