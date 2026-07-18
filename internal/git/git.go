@@ -29,6 +29,9 @@ func newGitCmd(ctx context.Context, args ...string) *exec.Cmd {
 func (realRunner) Run(dir, stdin string, extraOKExit int, args ...string) (string, string, error) {
 	ctx := cmdContext()
 	start := time.Now()
+	inflightID := beginInflight(dir, args)
+	var runErr error
+	defer func() { endInflight(inflightID, runErr) }()
 
 	cmd := newGitCmd(ctx, args...)
 	cmd.Dir = dir
@@ -55,7 +58,7 @@ func (realRunner) Run(dir, stdin string, extraOKExit int, args ...string) (strin
 		if ctx.Err() != nil {
 			msg = contextErrorMessage(ctx, msg)
 		}
-		runErr := errors.New(msg)
+		runErr = errors.New(msg)
 		logGitCommand(dir, args, time.Since(start), runErr, outBuf.String(), errBuf.String())
 		return "", "", runErr
 	}
@@ -69,6 +72,9 @@ func (realRunner) RunProgress(dir string, onLine ProgressFunc, args ...string) (
 	ctx, cancel := context.WithTimeout(cmdContext(), gitProgressTimeout)
 	defer cancel()
 	start := time.Now()
+	inflightID := beginInflight(dir, args)
+	var runErr error
+	defer func() { endInflight(inflightID, runErr) }()
 
 	cmd := newGitCmd(ctx, args...)
 	cmd.Dir = dir
@@ -79,11 +85,13 @@ func (realRunner) RunProgress(dir string, onLine ProgressFunc, args ...string) (
 
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
+		runErr = err
 		logGitCommand(dir, args, time.Since(start), err, "", "")
 		return "", "", err
 	}
 
 	if err := cmd.Start(); err != nil {
+		runErr = err
 		logGitCommand(dir, args, time.Since(start), err, "", "")
 		return "", "", err
 	}
@@ -101,7 +109,7 @@ func (realRunner) RunProgress(dir string, onLine ProgressFunc, args ...string) (
 		if ctx.Err() != nil {
 			msg = contextErrorMessage(ctx, msg)
 		}
-		runErr := errors.New(msg)
+		runErr = errors.New(msg)
 		logGitCommand(dir, args, time.Since(start), runErr, outBuf.String(), errBuf.String())
 		return "", "", runErr
 	}

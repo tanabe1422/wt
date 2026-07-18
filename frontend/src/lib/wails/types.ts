@@ -6,6 +6,7 @@ import type {
   CommitFileChange,
   FileDiff,
   FileStatus,
+  GitDebugSnapshot,
   ListCommitsResult,
   RemoteMergeEntry,
   RepoOperationState,
@@ -25,6 +26,7 @@ export interface WailsApp {
   SetPushAfterCommit(repoPath: string, enabled: boolean): Promise<Settings>
   GetFsMonitor(repoPath: string): Promise<FsMonitorState>
   SetFsMonitor(repoPath: string, enabled: boolean): Promise<FsMonitorState>
+  GetGitDebugSnapshot(): Promise<GitDebugSnapshot>
   GetGitLogsDir(): Promise<string>
   OpenGitLogsDir(): Promise<void>
   PickDirectory(): Promise<string>

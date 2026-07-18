@@ -380,6 +380,38 @@ export const mockApp: WailsApp = {
     return 'C:/Users/mock/AppData/Roaming/wt-manager/logs'
   },
 
+  async GetGitDebugSnapshot() {
+    return {
+      inflight: [
+        {
+          id: 1,
+          dir: 'C:/dev/sample-repo',
+          args: ['status', '--porcelain=v1', '-u'],
+          startedAt: Date.now() - 1200,
+        },
+      ],
+      recent: [
+        {
+          dir: 'C:/dev/sample-repo',
+          args: ['rev-list', '--left-right', '--count', 'main@{upstream}...main'],
+          startedAt: Date.now() - 5000,
+          endedAt: Date.now() - 4800,
+          durationMs: 200,
+          error: '',
+        },
+        {
+          dir: 'C:/dev/sample-repo',
+          args: ['for-each-ref', '--format=%(refname:short)', 'refs/heads/'],
+          startedAt: Date.now() - 8000,
+          endedAt: Date.now() - 7900,
+          durationMs: 100,
+          error: '',
+        },
+      ],
+      lastMinuteCount: 12,
+    }
+  },
+
   async OpenGitLogsDir() {
     console.info('[mock] OpenGitLogsDir')
   },

@@ -16,6 +16,8 @@ interface SettingsDialogProps {
   settings: Settings
   onClose: () => void
   onSave: (settings: Settings) => void | Promise<void>
+  /** Opens the floating git debug panel (does not require saving). */
+  onOpenGitDebug?: () => void
 }
 
 function CloseIcon() {
@@ -112,7 +114,13 @@ function ToolFields({
   )
 }
 
-export function SettingsDialog({ open, settings, onClose, onSave }: SettingsDialogProps) {
+export function SettingsDialog({
+  open,
+  settings,
+  onClose,
+  onSave,
+  onOpenGitDebug,
+}: SettingsDialogProps) {
   const [diffTool, setDiffTool] = useState<ExternalTool>(emptyExternalTool())
   const [mergeTool, setMergeTool] = useState<ExternalTool>(emptyExternalTool())
   const [enableGitLogging, setEnableGitLogging] = useState(false)
@@ -213,6 +221,10 @@ export function SettingsDialog({ open, settings, onClose, onSave }: SettingsDial
     }
   }
 
+  const handleOpenGitDebug = () => {
+    onOpenGitDebug?.()
+  }
+
   return (
     <div className={styles.backdrop} onClick={onClose} role="presentation">
       <div
@@ -271,7 +283,18 @@ export function SettingsDialog({ open, settings, onClose, onSave }: SettingsDial
                 <Button type="button" variant="ghost" disabled={saving} onClick={() => void handleOpenLogs()}>
                   ログフォルダを開く
                 </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={saving || !onOpenGitDebug}
+                  onClick={handleOpenGitDebug}
+                >
+                  デバッグウィンドウを開く
+                </Button>
               </div>
+              <p className={styles.toolDesc}>
+                デバッグウィンドウは実行中・直近の git コマンドを一覧表示します（通常利用では不要）。
+              </p>
             </div>
           </section>
 

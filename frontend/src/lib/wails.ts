@@ -5,6 +5,7 @@ import type {
   CommitFileChange,
   FileDiff,
   FileStatus,
+  GitDebugSnapshot,
   HistoryScope,
   ListCommitsResult,
   FsMonitorState,
@@ -108,6 +109,10 @@ export async function setFsMonitor(repoPath: string, enabled: boolean): Promise<
 
 export async function getGitLogsDir(): Promise<string> {
   return callApp('GetGitLogsDir')
+}
+
+export async function getGitDebugSnapshot(): Promise<GitDebugSnapshot> {
+  return callApp('GetGitDebugSnapshot')
 }
 
 export async function openGitLogsDir(): Promise<void> {

@@ -59,6 +59,8 @@ export function GetFileDiff(arg1:string,arg2:string,arg3:boolean):Promise<git.Fi
 
 export function GetFsMonitor(arg1:string):Promise<git.FsMonitorState>;
 
+export function GetGitDebugSnapshot():Promise<git.GitDebugSnapshot>;
+
 export function GetGitLogsDir():Promise<string>;
 
 export function GetRangeFileDiff(arg1:string,arg2:string,arg3:string,arg4:string):Promise<git.FileDiff>;

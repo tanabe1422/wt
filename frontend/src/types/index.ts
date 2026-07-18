@@ -31,6 +31,30 @@ export interface FsMonitorState {
   enabled: boolean
 }
 
+/** Live / recent git processes for the debug window. */
+export interface InflightGitCommand {
+  id: number
+  dir: string
+  args: string[]
+  startedAt: number
+}
+
+export interface RecentGitCommand {
+  dir: string
+  args: string[]
+  startedAt: number
+  endedAt: number
+  durationMs: number
+  error: string
+}
+
+export interface GitDebugSnapshot {
+  inflight: InflightGitCommand[]
+  recent: RecentGitCommand[]
+  /** Commands that started within the last 60 seconds (not capped by recent buffer). */
+  lastMinuteCount: number
+}
+
 export type RepoOperationKind = 'none' | 'merge' | 'rebase'
 
 export interface RepoOperationState {

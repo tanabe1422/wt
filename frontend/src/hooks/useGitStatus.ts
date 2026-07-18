@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { invalidateWorktreeDiffs } from '../lib/diffCache'
 import { getStatusCache, isStatusCacheFresh, setStatusCache } from '../lib/repoDataCache'
@@ -78,8 +78,9 @@ export function useGitStatus(worktreePath: string) {
     void reload()
   }, [reload, worktreePath])
 
-  const staged = entries.filter(hasStagedChange)
-  const unstaged = entries.filter(hasUnstagedChange)
+  // entries 不変時は参照を安定させ、下流 effect（amend / operation）の再発火ループを防ぐ
+  const staged = useMemo(() => entries.filter(hasStagedChange), [entries])
+  const unstaged = useMemo(() => entries.filter(hasUnstagedChange), [entries])
 
   const stage = useCallback(
     async (paths: string[]) => {

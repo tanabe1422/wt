@@ -22,6 +22,7 @@ import {
   unstageLines,
 } from '../lib/wails'
 import type { AmendInfo, FileStatus, RepoOperationKind } from '../types'
+import { amendInfoEqual } from '../utils/amendInfo'
 import { isConflict, isUntracked } from '../utils/gitStatus'
 import { worktreeFileDir } from '../utils/worktreePaths'
 
@@ -95,13 +96,15 @@ export function useGitWorkspaceActions({
       return
     }
     try {
-      setAmendInfo(await getAmendInfo(worktreePath))
+      const next = await getAmendInfo(worktreePath)
+      setAmendInfo((current) => (amendInfoEqual(current, next) ? current : next))
     } catch {
-      setAmendInfo({
+      const fallback: AmendInfo = {
         canAmend: false,
         reason: '状態の確認に失敗しました',
         headMessage: '',
-      })
+      }
+      setAmendInfo((current) => (amendInfoEqual(current, fallback) ? current : fallback))
     }
   }, [worktreePath])
 

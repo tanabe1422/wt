@@ -26,6 +26,9 @@ const HistoryView = lazy(() =>
 const SettingsDialog = lazy(() =>
   import('./components/settings/SettingsDialog').then((m) => ({ default: m.SettingsDialog })),
 )
+const GitDebugWindow = lazy(() =>
+  import('./components/settings/GitDebugWindow').then((m) => ({ default: m.GitDebugWindow })),
+)
 
 const GIT_PROGRESS_EVENT = 'git:progress'
 
@@ -44,6 +47,7 @@ function AppShell() {
   const [sidebarBusy, setSidebarBusy] = useState(false)
   const [busyMessage, setBusyMessage] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [gitDebugOpen, setGitDebugOpen] = useState(false)
   const [fetchPhase, setFetchPhase] = useState<FetchPhase | null>(null)
   const [compareRequest, setCompareRequest] = useState<CompareRange | null>(null)
   const handleWorkspaceBusyChange = useCallback<BusyChangeHandler>((busy, message) => {
@@ -366,7 +370,16 @@ function AppShell() {
             onSave={async (next) => {
               await updateSettings(next)
             }}
+            onOpenGitDebug={() => {
+              setGitDebugOpen(true)
+              setSettingsOpen(false)
+            }}
           />
+        </Suspense>
+      ) : null}
+      {gitDebugOpen ? (
+        <Suspense fallback={null}>
+          <GitDebugWindow open={gitDebugOpen} onClose={() => setGitDebugOpen(false)} />
         </Suspense>
       ) : null}
       <ErrorDialog

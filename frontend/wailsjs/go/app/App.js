@@ -114,6 +114,10 @@ export function GetFsMonitor(arg1) {
   return window['go']['app']['App']['GetFsMonitor'](arg1);
 }
 
+export function GetGitDebugSnapshot() {
+  return window['go']['app']['App']['GetGitDebugSnapshot']();
+}
+
 export function GetGitLogsDir() {
   return window['go']['app']['App']['GetGitLogsDir']();
 }
