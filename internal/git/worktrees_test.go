@@ -100,10 +100,10 @@ func TestGetWorktreeChangedCounts(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("len=%d want 2", len(got))
 	}
-	if got[0].Path != dirA || got[0].Count != 1 {
+	if got[0].Path != dirA || got[0].Count != 1 || !got[0].OK {
 		t.Fatalf("got[0]=%+v", got[0])
 	}
-	if got[1].Path != dirB || got[1].Count != 1 {
+	if got[1].Path != dirB || got[1].Count != 1 || !got[1].OK {
 		t.Fatalf("got[1]=%+v", got[1])
 	}
 }

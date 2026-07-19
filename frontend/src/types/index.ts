@@ -128,6 +128,7 @@ export interface WorktreeEntry {
 export interface WorktreeChangedCount {
   path: string
   count: number
+  ok: boolean
 }
 
 export interface StashEntry {

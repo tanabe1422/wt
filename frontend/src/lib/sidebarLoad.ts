@@ -122,10 +122,13 @@ export async function fillWorktreeBadges(
     if (!isCurrent()) {
       return
     }
-    for (const item of counts) {
+    const okCounts = counts.filter((item) => item.ok)
+    for (const item of okCounts) {
       patchWorktreeChangedCount(repoPath, item.path, item.count)
     }
-    onCounts(counts)
+    if (okCounts.length > 0) {
+      onCounts(okCounts)
+    }
   } catch {
     // バッジ更新失敗は非致命
   }

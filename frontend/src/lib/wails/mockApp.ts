@@ -574,6 +574,7 @@ export const mockApp: WailsApp = {
       paths.map(async (path) => ({
         path,
         count: await mockApp.GetWorktreeChangedCount(path),
+        ok: true,
       })),
     )
   },

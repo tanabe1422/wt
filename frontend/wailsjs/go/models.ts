@@ -595,6 +595,7 @@ export namespace git {
 	export class WorktreeChangedCount {
 	    path: string;
 	    count: number;
+	    ok: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new WorktreeChangedCount(source);
@@ -604,6 +605,7 @@ export namespace git {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.path = source["path"];
 	        this.count = source["count"];
+	        this.ok = source["ok"];
 	    }
 	}
 	export class WorktreeEntry {

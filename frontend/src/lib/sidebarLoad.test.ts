@@ -146,8 +146,8 @@ describe('fillWorktreeBadges', () => {
 
   it('batches counts with preferred worktree first', async () => {
     vi.mocked(getWorktreeChangedCounts).mockResolvedValue([
-      { path: '/feat', count: 7 },
-      { path: '/main', count: 1 },
+      { path: '/feat', count: 7, ok: true },
+      { path: '/main', count: 1, ok: true },
     ])
 
     const onCounts = vi.fn()
@@ -160,10 +160,28 @@ describe('fillWorktreeBadges', () => {
 
     expect(getWorktreeChangedCounts).toHaveBeenCalledWith(['/feat', '/main'])
     expect(onCounts).toHaveBeenCalledWith([
-      { path: '/feat', count: 7 },
-      { path: '/main', count: 1 },
+      { path: '/feat', count: 7, ok: true },
+      { path: '/main', count: 1, ok: true },
     ])
     expect(patchWorktreeChangedCount).toHaveBeenCalledWith('/repo', '/feat', 7)
     expect(patchWorktreeChangedCount).toHaveBeenCalledWith('/repo', '/main', 1)
+  })
+
+  it('skips failed counts so prior badges are not cleared', async () => {
+    vi.mocked(getWorktreeChangedCounts).mockResolvedValue([
+      { path: '/feat', count: 0, ok: false },
+      { path: '/main', count: 3, ok: true },
+    ])
+    const onCounts = vi.fn()
+    const entries = [
+      worktree({ path: '/main', branch: 'main', isMain: true }),
+      worktree({ path: '/feat', branch: 'feat' }),
+    ]
+
+    await fillWorktreeBadges('/repo', entries, '/feat', () => true, onCounts)
+
+    expect(onCounts).toHaveBeenCalledWith([{ path: '/main', count: 3, ok: true }])
+    expect(patchWorktreeChangedCount).toHaveBeenCalledTimes(1)
+    expect(patchWorktreeChangedCount).toHaveBeenCalledWith('/repo', '/main', 3)
   })
 })

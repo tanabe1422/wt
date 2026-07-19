@@ -184,7 +184,7 @@ export async function getWorktreeChangedCount(worktreePath: string): Promise<num
 
 export async function getWorktreeChangedCounts(
   paths: string[],
-): Promise<{ path: string; count: number }[]> {
+): Promise<{ path: string; count: number; ok: boolean }[]> {
   return callApp('GetWorktreeChangedCounts', paths)
 }
 

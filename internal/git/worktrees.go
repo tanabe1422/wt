@@ -46,9 +46,11 @@ func GetWorktreeChangedCount(worktreePath string) (int, error) {
 type WorktreeChangedCount struct {
 	Path  string `json:"path"`
 	Count int    `json:"count"`
+	OK    bool   `json:"ok"`
 }
 
 // GetWorktreeChangedCounts returns badge counts for many worktrees in parallel.
+// Failed status probes set OK=false so callers can skip overwriting prior badges.
 func GetWorktreeChangedCounts(paths []string) []WorktreeChangedCount {
 	results := make([]WorktreeChangedCount, len(paths))
 	if len(paths) == 0 {
@@ -66,6 +68,7 @@ func GetWorktreeChangedCounts(paths []string) []WorktreeChangedCount {
 				return
 			}
 			results[i].Count = n
+			results[i].OK = true
 		}(i, p)
 	}
 	wg.Wait()
