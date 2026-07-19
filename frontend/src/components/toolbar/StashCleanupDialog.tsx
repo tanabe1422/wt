@@ -9,9 +9,9 @@ import { cx } from '../../utils/cx'
 import { CommitFileList } from '../git/CommitFileList'
 import { DiffView } from '../git/DiffView'
 import { Button } from '../ui/Button'
+import { CleanupDialogShell } from '../ui/CleanupDialogShell'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ErrorDialog } from '../ui/ErrorDialog'
-import { IconButton } from '../ui/IconButton'
 import { ResizeHandle } from '../ui/ResizeHandle'
 import {
   SelectionTable,
@@ -30,19 +30,6 @@ interface StashCleanupDialogProps {
 
 const VERTICAL_SPLIT_KEY = 'wt-manager.stashCleanupVerticalRatio'
 const HORIZONTAL_SPLIT_KEY = 'wt-manager.stashCleanupHorizontalRatio'
-
-function CloseIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M18 6L6 18M6 6l12 12"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
 
 export function StashCleanupDialog({
   open,
@@ -141,138 +128,15 @@ export function StashCleanupDialog({
 
   return (
     <>
-      <div className={styles.backdrop} onClick={onClose}>
-        <div
-          className={styles.dialog}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="stash-cleanup-title"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <div className={styles.header}>
-            <h2 id="stash-cleanup-title">スタッシュ整理</h2>
-            <IconButton type="button" aria-label="閉じる" onClick={onClose}>
-              <CloseIcon />
-            </IconButton>
-          </div>
-
-          <div
-            ref={verticalSplitRef}
-            className={cx(styles.body, verticalResizing && styles.bodyResizing)}
-          >
-            <div className={styles.listPane} style={{ flex: `${verticalRatio} 1 0%` }}>
-              <div className={styles.listHeader}>
-                <span className={styles.listMeta}>
-                  {loading ? '読み込み中…' : `${stashes.length} 件`}
-                  {selectedIndexes.length > 0 ? ` / ${selectedIndexes.length} 選択` : ''}
-                </span>
-              </div>
-
-              <SelectionTableList constrained={false} placeholder={listPlaceholder}>
-                <SelectionTable>
-                  <thead>
-                    <tr>
-                      <th className={st.colCheck}>
-                        <input
-                          type="checkbox"
-                          checked={allSelected}
-                          disabled={loading || busy || stashes.length === 0}
-                          onChange={toggleAll}
-                          aria-label="すべて選択"
-                        />
-                      </th>
-                      <th className={styles.colRef}>参照</th>
-                      <th className={styles.colMessage}>メッセージ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stashes.map((entry) => {
-                      const focused = focusedIndex === entry.index
-                      return (
-                        <SelectionTableRow
-                          key={entry.ref}
-                          focused={focused}
-                          onClick={() => focusRow(entry.index)}
-                        >
-                          <td className={st.colCheck}>
-                            <input
-                              type="checkbox"
-                              checked={selected.has(entry.index)}
-                              disabled={busy}
-                              onChange={() => toggleOne(entry.index)}
-                              onClick={(event) => event.stopPropagation()}
-                              aria-label={`${entry.ref} を選択`}
-                            />
-                          </td>
-                          <td className={styles.colRef}>
-                            <span className={cx(st.mono, styles.ref)}>{entry.ref}</span>
-                          </td>
-                          <td className={styles.colMessage}>
-                            <span className={st.truncate}>
-                              {entry.message || '（メッセージなし）'}
-                            </span>
-                          </td>
-                        </SelectionTableRow>
-                      )
-                    })}
-                  </tbody>
-                </SelectionTable>
-              </SelectionTableList>
-            </div>
-
-            <ResizeHandle
-              orientation="vertical"
-              onPointerDown={handleVerticalResizeStart}
-              ariaLabel="スタッシュ一覧と差分の高さを調整"
-              active={verticalResizing}
-            />
-
-            <div
-              ref={horizontalSplitRef}
-              className={cx(styles.detailPane, horizontalResizing && styles.bodyResizing)}
-              style={{ flex: `${1 - verticalRatio} 1 0%` }}
-            >
-              {focusedIndex === null ? (
-                <p className={styles.placeholder}>スタッシュを選択すると内容が表示されます</p>
-              ) : (
-                <>
-                  <div
-                    className={styles.filesPane}
-                    style={{ flex: `${horizontalRatio} 1 0%` }}
-                  >
-                    <header className={styles.filesHeader}>変更ファイル</header>
-                    <CommitFileList
-                      files={files}
-                      loading={filesLoading}
-                      selectedPath={selectedPath}
-                      onSelect={setSelectedPath}
-                    />
-                  </div>
-                  <ResizeHandle
-                    orientation="horizontal"
-                    onPointerDown={handleHorizontalResizeStart}
-                    ariaLabel="ファイル一覧と差分の幅を調整"
-                    active={horizontalResizing}
-                  />
-                  <div
-                    className={styles.diffPane}
-                    style={{ flex: `${1 - horizontalRatio} 1 0%` }}
-                  >
-                    <DiffView
-                      diff={diff}
-                      loading={diffLoading}
-                      error={diffError}
-                      file={selectedPath}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {error ? <p className={styles.error}>{error}</p> : null}
-
-          <div className={styles.footer}>
+      <CleanupDialogShell
+        open={open}
+        title="スタッシュ整理"
+        titleId="stash-cleanup-title"
+        onClose={onClose}
+        dialogClassName={styles.dialog}
+        bodyClassName={styles.shellBody}
+        footer={
+          <>
             <Button variant="ghost" onClick={onClose} disabled={busy}>
               閉じる
             </Button>
@@ -283,9 +147,125 @@ export function StashCleanupDialog({
             >
               選択を削除
             </Button>
+          </>
+        }
+      >
+        <div
+          ref={verticalSplitRef}
+          className={cx(styles.body, verticalResizing && styles.bodyResizing)}
+        >
+          <div className={styles.listPane} style={{ flex: `${verticalRatio} 1 0%` }}>
+            <div className={styles.listHeader}>
+              <span className={styles.listMeta}>
+                {loading ? '読み込み中…' : `${stashes.length} 件`}
+                {selectedIndexes.length > 0 ? ` / ${selectedIndexes.length} 選択` : ''}
+              </span>
+            </div>
+
+            <SelectionTableList constrained={false} placeholder={listPlaceholder}>
+              <SelectionTable>
+                <thead>
+                  <tr>
+                    <th className={st.colCheck}>
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        disabled={loading || busy || stashes.length === 0}
+                        onChange={toggleAll}
+                        aria-label="すべて選択"
+                      />
+                    </th>
+                    <th className={styles.colRef}>参照</th>
+                    <th className={styles.colMessage}>メッセージ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stashes.map((entry) => {
+                    const focused = focusedIndex === entry.index
+                    return (
+                      <SelectionTableRow
+                        key={entry.ref}
+                        focused={focused}
+                        onClick={() => focusRow(entry.index)}
+                      >
+                        <td className={st.colCheck}>
+                          <input
+                            type="checkbox"
+                            checked={selected.has(entry.index)}
+                            disabled={busy}
+                            onChange={() => toggleOne(entry.index)}
+                            onClick={(event) => event.stopPropagation()}
+                            aria-label={`${entry.ref} を選択`}
+                          />
+                        </td>
+                        <td className={styles.colRef}>
+                          <span className={cx(st.mono, styles.ref)}>{entry.ref}</span>
+                        </td>
+                        <td className={styles.colMessage}>
+                          <span className={st.truncate}>
+                            {entry.message || '（メッセージなし）'}
+                          </span>
+                        </td>
+                      </SelectionTableRow>
+                    )
+                  })}
+                </tbody>
+              </SelectionTable>
+            </SelectionTableList>
+          </div>
+
+          <ResizeHandle
+            orientation="vertical"
+            onPointerDown={handleVerticalResizeStart}
+            ariaLabel="スタッシュ一覧と差分の高さを調整"
+            active={verticalResizing}
+          />
+
+          <div
+            ref={horizontalSplitRef}
+            className={cx(styles.detailPane, horizontalResizing && styles.bodyResizing)}
+            style={{ flex: `${1 - verticalRatio} 1 0%` }}
+          >
+            {focusedIndex === null ? (
+              <p className={styles.placeholder}>スタッシュを選択すると内容が表示されます</p>
+            ) : (
+              <>
+                <div
+                  className={styles.filesPane}
+                  style={{ flex: `${horizontalRatio} 1 0%` }}
+                >
+                  <header className={styles.filesHeader}>変更ファイル</header>
+                  <CommitFileList
+                    files={files}
+                    loading={filesLoading}
+                    selectedPath={selectedPath}
+                    onSelect={setSelectedPath}
+                  />
+                </div>
+                <ResizeHandle
+                  orientation="horizontal"
+                  onPointerDown={handleHorizontalResizeStart}
+                  ariaLabel="ファイル一覧と差分の幅を調整"
+                  active={horizontalResizing}
+                />
+                <div
+                  className={styles.diffPane}
+                  style={{ flex: `${1 - horizontalRatio} 1 0%` }}
+                >
+                  <DiffView
+                    diff={diff}
+                    loading={diffLoading}
+                    error={diffError}
+                    file={selectedPath}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
-      </div>
+
+        {error ? <p className={styles.error}>{error}</p> : null}
+      </CleanupDialogShell>
 
       <ConfirmDialog
         open={confirmOpen}

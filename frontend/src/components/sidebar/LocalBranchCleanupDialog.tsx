@@ -2,8 +2,11 @@ import { useLocalBranchCleanup } from '../../hooks/useLocalBranchCleanup'
 import type { BranchEntry } from '../../types'
 import { cx } from '../../utils/cx'
 import { Button } from '../ui/Button'
+import {
+  CleanupDialogShell,
+  cleanupDialogShellStyles,
+} from '../ui/CleanupDialogShell'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
-import { IconButton } from '../ui/IconButton'
 import {
   SelectionTable,
   SelectionTableList,
@@ -21,19 +24,6 @@ interface LocalBranchCleanupDialogProps {
   worktreeBranches: Set<string>
   onClose: () => void
   onDeleted?: () => void | Promise<void>
-}
-
-function CloseIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M18 6L6 18M6 6l12 12"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
 }
 
 function toneClass(row: {
@@ -88,97 +78,13 @@ export function LocalBranchCleanupDialog({
 
   return (
     <>
-      <div className={styles.backdrop} onClick={onClose}>
-        <div
-          className={styles.dialog}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="local-branch-cleanup-title"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <div className={styles.header}>
-            <h2 id="local-branch-cleanup-title">ブランチの整理</h2>
-            <IconButton type="button" aria-label="閉じる" onClick={onClose}>
-              <CloseIcon />
-            </IconButton>
-          </div>
-
-          <div className={styles.body}>
-            <div className={styles.listHeader}>
-              <span className={styles.listMeta}>
-                {`${rows.length} 件`}
-                {selectedNames.length > 0 ? ` / ${selectedNames.length} 選択` : ''}
-              </span>
-            </div>
-
-            <SelectionTableList
-              placeholder={rows.length === 0 ? 'ローカルブランチはありません' : null}
-            >
-              <SelectionTable>
-                <thead>
-                  <tr>
-                    <th className={st.colCheck}>
-                      <input
-                        type="checkbox"
-                        checked={allDeletableSelected}
-                        disabled={deletableCount === 0 || busy}
-                        onChange={toggleAllDeletable}
-                        aria-label="削除可能なブランチをすべて選択"
-                      />
-                    </th>
-                    <th className={styles.colBranch}>ブランチ</th>
-                    <th className={styles.colRemote}>リモート</th>
-                    <th className={cx(st.colNumeric, styles.colAhead)}>未プッシュ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => {
-                    const locked = row.locked
-                    return (
-                      <SelectionTableRow
-                        key={row.name}
-                        locked={locked}
-                        onClick={() => {
-                          if (!busy) {
-                            toggleOne(row.name)
-                          }
-                        }}
-                      >
-                        <td className={st.colCheck}>
-                          <input
-                            type="checkbox"
-                            checked={selected.has(row.name)}
-                            disabled={locked || busy}
-                            onChange={() => toggleOne(row.name)}
-                            onClick={(event) => event.stopPropagation()}
-                            aria-label={`${row.name} を選択`}
-                          />
-                        </td>
-                        <td className={styles.colBranch}>
-                          <span className={cx(styles.branchCell, toneClass(row))}>
-                            <span className={styles.iconSlot} aria-hidden="true">
-                              {row.hasWorktree ? <HardDriveIcon /> : null}
-                            </span>
-                            <span className={cx(st.mono, st.truncate)}>{row.name}</span>
-                          </span>
-                        </td>
-                        <td className={styles.colRemote}>
-                          {row.hasUpstream ? 'あり' : 'なし'}
-                        </td>
-                        <td className={cx(st.colNumeric, styles.colAhead)}>
-                          {row.hasUpstream ? row.aheadCount : '—'}
-                        </td>
-                      </SelectionTableRow>
-                    )
-                  })}
-                </tbody>
-              </SelectionTable>
-            </SelectionTableList>
-
-            {error ? <p className={styles.error}>{error}</p> : null}
-          </div>
-
-          <div className={styles.footer}>
+      <CleanupDialogShell
+        open={open}
+        title="ブランチの整理"
+        titleId="local-branch-cleanup-title"
+        onClose={onClose}
+        footer={
+          <>
             <Button variant="ghost" onClick={onClose} disabled={busy}>
               閉じる
             </Button>
@@ -189,9 +95,82 @@ export function LocalBranchCleanupDialog({
             >
               選択を削除
             </Button>
-          </div>
+          </>
+        }
+      >
+        <div className={styles.listHeader}>
+          <span className={styles.listMeta}>
+            {`${rows.length} 件`}
+            {selectedNames.length > 0 ? ` / ${selectedNames.length} 選択` : ''}
+          </span>
         </div>
-      </div>
+
+        <SelectionTableList
+          placeholder={rows.length === 0 ? 'ローカルブランチはありません' : null}
+        >
+          <SelectionTable>
+            <thead>
+              <tr>
+                <th className={st.colCheck}>
+                  <input
+                    type="checkbox"
+                    checked={allDeletableSelected}
+                    disabled={deletableCount === 0 || busy}
+                    onChange={toggleAllDeletable}
+                    aria-label="削除可能なブランチをすべて選択"
+                  />
+                </th>
+                <th className={styles.colBranch}>ブランチ</th>
+                <th className={styles.colRemote}>リモート</th>
+                <th className={cx(st.colNumeric, styles.colAhead)}>未プッシュ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const locked = row.locked
+                return (
+                  <SelectionTableRow
+                    key={row.name}
+                    locked={locked}
+                    onClick={() => {
+                      if (!busy) {
+                        toggleOne(row.name)
+                      }
+                    }}
+                  >
+                    <td className={st.colCheck}>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(row.name)}
+                        disabled={locked || busy}
+                        onChange={() => toggleOne(row.name)}
+                        onClick={(event) => event.stopPropagation()}
+                        aria-label={`${row.name} を選択`}
+                      />
+                    </td>
+                    <td className={styles.colBranch}>
+                      <span className={cx(styles.branchCell, toneClass(row))}>
+                        <span className={styles.iconSlot} aria-hidden="true">
+                          {row.hasWorktree ? <HardDriveIcon /> : null}
+                        </span>
+                        <span className={cx(st.mono, st.truncate)}>{row.name}</span>
+                      </span>
+                    </td>
+                    <td className={styles.colRemote}>
+                      {row.hasUpstream ? 'あり' : 'なし'}
+                    </td>
+                    <td className={cx(st.colNumeric, styles.colAhead)}>
+                      {row.hasUpstream ? row.aheadCount : '—'}
+                    </td>
+                  </SelectionTableRow>
+                )
+              })}
+            </tbody>
+          </SelectionTable>
+        </SelectionTableList>
+
+        {error ? <p className={cleanupDialogShellStyles.error}>{error}</p> : null}
+      </CleanupDialogShell>
 
       <ConfirmDialog
         open={confirmOpen}

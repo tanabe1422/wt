@@ -11,13 +11,6 @@
 
 .dialog {
   width: min(880px, 96vw);
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--color-white);
-  border-radius: var(--dialog-radius);
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
 }
 
 .excludedDialog {
@@ -48,12 +41,8 @@
 }
 
 .body {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
   gap: 1.5rem;
-  padding: 1.25rem 1.25rem 1.25rem;
+  padding: 1.25rem;
 }
 
 .excludedBody {
@@ -233,12 +222,6 @@
 .badgeUnmerged {
   color: var(--color-slate-600);
   background: var(--color-slate-100);
-}
-
-.error {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--color-red-600);
 }
 
 .footer {
