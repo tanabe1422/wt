@@ -133,9 +133,13 @@ export function PopStash(arg1:string,arg2:number):Promise<void>;
 
 export function Pull(arg1:string):Promise<void>;
 
+export function PullForce(arg1:string):Promise<void>;
+
 export function PullRebase(arg1:string):Promise<void>;
 
 export function Push(arg1:string):Promise<void>;
+
+export function PushForce(arg1:string):Promise<void>;
 
 export function PushSetUpstream(arg1:string,arg2:string):Promise<void>;
 

@@ -267,10 +267,24 @@ func (a *App) PullRebase(worktreePath string) error {
 	})
 }
 
+func (a *App) PullForce(worktreePath string) error {
+	a.emitGitProgress("強制プルしています…")
+	return mutateWorktree(worktreePath, func(dir string) error {
+		return git.PullForceWithProgress(dir, a.emitGitProgress)
+	})
+}
+
 func (a *App) Push(worktreePath string) error {
 	a.emitGitProgress("プッシュしています…")
 	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.PushWithProgress(dir, a.emitGitProgress)
+	})
+}
+
+func (a *App) PushForce(worktreePath string) error {
+	a.emitGitProgress("強制プッシュしています…")
+	return mutateWorktree(worktreePath, func(dir string) error {
+		return git.PushForceWithProgress(dir, a.emitGitProgress)
 	})
 }
 

@@ -262,12 +262,20 @@ export function Pull(arg1) {
   return window['go']['app']['App']['Pull'](arg1);
 }
 
+export function PullForce(arg1) {
+  return window['go']['app']['App']['PullForce'](arg1);
+}
+
 export function PullRebase(arg1) {
   return window['go']['app']['App']['PullRebase'](arg1);
 }
 
 export function Push(arg1) {
   return window['go']['app']['App']['Push'](arg1);
+}
+
+export function PushForce(arg1) {
+  return window['go']['app']['App']['PushForce'](arg1);
 }
 
 export function PushSetUpstream(arg1, arg2) {

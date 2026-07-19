@@ -70,6 +70,22 @@
   user-select: none;
 }
 
+.checkboxRowDisabled {
+  color: var(--color-slate-400);
+}
+
+.checkboxGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.875rem;
+}
+
+.checkboxGroup .checkboxRow,
+.checkboxGroup .choice {
+  margin-top: 0;
+}
+
 .checkbox {
   width: 0.875rem;
   height: 0.875rem;

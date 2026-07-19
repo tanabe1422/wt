@@ -134,6 +134,33 @@ func PullWithProgress(worktreePath string, onProgress ProgressFunc) error {
 	return err
 }
 
+// PullForce fetches the current upstream and hard-resets HEAD to match it,
+// discarding local commits and uncommitted changes.
+func PullForce(worktreePath string) error {
+	return PullForceWithProgress(worktreePath, nil)
+}
+
+// PullForceWithProgress is PullForce with stderr progress callbacks.
+func PullForceWithProgress(worktreePath string, onProgress ProgressFunc) error {
+	dir, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return err
+	}
+
+	return withRepoFetchLock(dir, func() error {
+		remote, branch, err := currentUpstream(dir)
+		if err != nil {
+			return err
+		}
+		upstreamRef := remote + "/" + branch
+		if _, err := runGitProgress(dir, onProgress, fetchCurrentUpstreamArgs(remote, branch)...); err != nil {
+			return err
+		}
+		_, err = runGitProgress(dir, onProgress, pullForceResetArgs(upstreamRef)...)
+		return err
+	})
+}
+
 // Push pushes the current branch to its upstream remote.
 func Push(worktreePath string) error {
 	return PushWithProgress(worktreePath, nil)
@@ -147,6 +174,23 @@ func PushWithProgress(worktreePath string, onProgress ProgressFunc) error {
 	}
 
 	_, err = runGitProgress(dir, onProgress, pushArgs()...)
+	return err
+}
+
+// PushForce force-pushes the current branch with --force-with-lease,
+// refusing to overwrite remote commits that the local tracking ref does not expect.
+func PushForce(worktreePath string) error {
+	return PushForceWithProgress(worktreePath, nil)
+}
+
+// PushForceWithProgress is PushForce with stderr progress callbacks.
+func PushForceWithProgress(worktreePath string, onProgress ProgressFunc) error {
+	dir, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return err
+	}
+
+	_, err = runGitProgress(dir, onProgress, pushForceArgs()...)
 	return err
 }
 
@@ -206,8 +250,16 @@ func pullArgs() []string {
 	return []string{"pull", "--progress"}
 }
 
+func pullForceResetArgs(upstreamRef string) []string {
+	return []string{"reset", "--hard", upstreamRef}
+}
+
 func pushArgs() []string {
 	return []string{"push", "--progress"}
+}
+
+func pushForceArgs() []string {
+	return []string{"push", "--force-with-lease", "--progress"}
 }
 
 func pushSetUpstreamArgs(remote string) []string {

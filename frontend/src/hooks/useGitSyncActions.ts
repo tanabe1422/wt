@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { type GitSyncAction } from '../components/toolbar/GitSyncIcons'
+import type { PullOptions } from '../components/toolbar/PullOptionsDialog'
+import type { PushOptions } from '../components/toolbar/PushOptionsDialog'
 import {
   createBranch,
   fetchRemote,
@@ -8,8 +10,10 @@ import {
   fetchRemotePriority,
   getRepoOperationState,
   pull,
+  pullForce,
   pullRebase,
   push,
+  pushForce,
   pushSetUpstream,
   saveStash,
   showInExplorer,
@@ -25,20 +29,6 @@ const actionTitles: Record<GitSyncAction, string> = {
   fetch: 'フェッチに失敗しました',
   pull: 'プルに失敗しました',
   push: 'プッシュに失敗しました',
-}
-
-const syncOverlayMessages: Record<GitSyncAction, string> = {
-  fetch: 'フェッチしています…',
-  pull: 'プルしています…',
-  push: 'プッシュしています…',
-}
-
-async function runSyncAction(action: GitSyncAction, worktreePath: string): Promise<void> {
-  if (action === 'pull') {
-    await pull(worktreePath)
-    return
-  }
-  await push(worktreePath)
 }
 
 interface UseGitSyncActionsOptions {
@@ -65,8 +55,13 @@ export function useGitSyncActions({
   const [reloading, setReloading] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [stashOpen, setStashOpen] = useState(false)
-  const [pushConfirmOpen, setPushConfirmOpen] = useState(false)
+  const [pushOpen, setPushOpen] = useState(false)
+  const [pushForceConfirmOpen, setPushForceConfirmOpen] = useState(false)
+  const [pendingPushOptions, setPendingPushOptions] = useState<PushOptions | null>(null)
   const [upstreamPushOpen, setUpstreamPushOpen] = useState(false)
+  const [pullOpen, setPullOpen] = useState(false)
+  const [pullForceConfirmOpen, setPullForceConfirmOpen] = useState(false)
+  const [pendingPullOptions, setPendingPullOptions] = useState<PullOptions | null>(null)
   const actionErrorDialog = useErrorDialog(actionError)
 
   const setOverlay = useCallback(
@@ -100,8 +95,20 @@ export function useGitSyncActions({
     [onActionComplete, setOverlay],
   )
 
+  const dialogOpen =
+    createOpen ||
+    stashOpen ||
+    pushOpen ||
+    pushForceConfirmOpen ||
+    upstreamPushOpen ||
+    pullOpen ||
+    pullForceConfirmOpen
+
   const runFetch = useCallback(
     async (prune: boolean) => {
+      if (acting || dialogOpen) {
+        return
+      }
       setActionError(null)
       setActing(true)
 
@@ -146,25 +153,84 @@ export function useGitSyncActions({
         onFetchPhaseChange?.(null)
       }
     },
-    [finishAction, hasUpstream, onActionComplete, onFetchPhaseChange, setOverlay, worktreePath],
+    [
+      acting,
+      dialogOpen,
+      finishAction,
+      hasUpstream,
+      onActionComplete,
+      onFetchPhaseChange,
+      setOverlay,
+      worktreePath,
+    ],
   )
 
-  const runPush = useCallback(async () => {
-    setActionError(null)
-    setActing(true)
-    setOverlay(true, 'プッシュしています…')
-    try {
-      await push(worktreePath)
-    } catch (err) {
-      setActionTitle(actionTitles.push)
-      setActionError(err instanceof Error ? err.message : 'プッシュに失敗しました')
-    } finally {
-      await finishAction('push')
-    }
-  }, [finishAction, setOverlay, worktreePath])
+  const executePush = useCallback(
+    async (options: PushOptions) => {
+      setActionError(null)
+      setActing(true)
+      const overlayMessage = options.force ? '強制プッシュしています…' : 'プッシュしています…'
+      setOverlay(true, overlayMessage)
+      try {
+        if (options.force) {
+          await pushForce(worktreePath)
+        } else {
+          await push(worktreePath)
+        }
+      } catch (err) {
+        const title = options.force ? '強制プッシュに失敗しました' : actionTitles.push
+        setActionTitle(title)
+        setActionError(err instanceof Error ? err.message : title)
+      } finally {
+        await finishAction('push')
+      }
+    },
+    [finishAction, setOverlay, worktreePath],
+  )
+
+  const executePull = useCallback(
+    async (options: PullOptions) => {
+      setActionError(null)
+      setActing(true)
+      const overlayMessage = options.force ? '強制プルしています…' : 'プルしています…'
+      setOverlay(true, overlayMessage)
+      try {
+        if (options.force) {
+          await pullForce(worktreePath)
+        } else if (options.rebase) {
+          await pullRebase(worktreePath)
+        } else {
+          await pull(worktreePath)
+        }
+      } catch (err) {
+        if (options.rebase && !options.force) {
+          try {
+            const state = await getRepoOperationState(worktreePath)
+            if (state.kind !== 'rebase') {
+              setActionTitle('プル（rebase）に失敗しました')
+              setActionError(err instanceof Error ? err.message : 'プル（rebase）に失敗しました')
+            }
+          } catch {
+            setActionTitle('プル（rebase）に失敗しました')
+            setActionError(err instanceof Error ? err.message : 'プル（rebase）に失敗しました')
+          }
+        } else {
+          const title = options.force ? '強制プルに失敗しました' : actionTitles.pull
+          setActionTitle(title)
+          setActionError(err instanceof Error ? err.message : title)
+        }
+      } finally {
+        await finishAction('pull')
+      }
+    },
+    [finishAction, setOverlay, worktreePath],
+  )
 
   const run = useCallback(
     async (action: GitSyncAction) => {
+      if (acting || dialogOpen) {
+        return
+      }
       if (action === 'fetch') {
         await runFetch(false)
         return
@@ -174,29 +240,65 @@ export function useGitSyncActions({
           setUpstreamPushOpen(true)
           return
         }
-        setPushConfirmOpen(true)
+        setPushOpen(true)
         return
       }
-      setActionError(null)
-      setActing(true)
-      setOverlay(true, syncOverlayMessages[action])
-      try {
-        await runSyncAction(action, worktreePath)
-      } catch (err) {
-        setActionTitle(actionTitles[action])
-        setActionError(err instanceof Error ? err.message : '操作に失敗しました')
-      } finally {
-        // pull は作業ツリーが変わるが、全 WT status は不要（statusBadgeAndBranches）。
-        await finishAction(action === 'pull' ? 'pull' : 'fetch')
+      if (action === 'pull') {
+        setPullOpen(true)
+        return
       }
     },
-    [finishAction, hasUpstream, runFetch, setOverlay, worktreePath],
+    [acting, dialogOpen, hasUpstream, runFetch],
   )
 
-  const handlePushConfirm = useCallback(() => {
-    setPushConfirmOpen(false)
-    void runPush()
-  }, [runPush])
+  const handlePullOptionsConfirm = useCallback((options: PullOptions) => {
+    setPullOpen(false)
+    if (options.force) {
+      setPendingPullOptions(options)
+      setPullForceConfirmOpen(true)
+      return
+    }
+    void executePull(options)
+  }, [executePull])
+
+  const handlePullForceConfirm = useCallback(() => {
+    setPullForceConfirmOpen(false)
+    const options = pendingPullOptions ?? { rebase: false, force: true }
+    setPendingPullOptions(null)
+    void executePull(options)
+  }, [executePull, pendingPullOptions])
+
+  const handlePullForceConfirmCancel = useCallback(() => {
+    setPullForceConfirmOpen(false)
+    setPendingPullOptions(null)
+    setPullOpen(true)
+  }, [])
+
+  const handlePushOptionsConfirm = useCallback(
+    (options: PushOptions) => {
+      setPushOpen(false)
+      if (options.force) {
+        setPendingPushOptions(options)
+        setPushForceConfirmOpen(true)
+        return
+      }
+      void executePush(options)
+    },
+    [executePush],
+  )
+
+  const handlePushForceConfirm = useCallback(() => {
+    setPushForceConfirmOpen(false)
+    const options = pendingPushOptions ?? { force: true }
+    setPendingPushOptions(null)
+    void executePush(options)
+  }, [executePush, pendingPushOptions])
+
+  const handlePushForceConfirmCancel = useCallback(() => {
+    setPushForceConfirmOpen(false)
+    setPendingPushOptions(null)
+    setPushOpen(true)
+  }, [])
 
   const handlePushSetUpstream = useCallback(async () => {
     setUpstreamPushOpen(false)
@@ -216,28 +318,6 @@ export function useGitSyncActions({
   const handleFetchPrune = useCallback(async () => {
     await runFetch(true)
   }, [runFetch])
-
-  const handlePullRebase = useCallback(async () => {
-    setActionError(null)
-    setActing(true)
-    setOverlay(true, 'プルしています…')
-    try {
-      await pullRebase(worktreePath)
-    } catch (err) {
-      try {
-        const state = await getRepoOperationState(worktreePath)
-        if (state.kind !== 'rebase') {
-          setActionTitle('プル（rebase）に失敗しました')
-          setActionError(err instanceof Error ? err.message : 'プル（rebase）に失敗しました')
-        }
-      } catch {
-        setActionTitle('プル（rebase）に失敗しました')
-        setActionError(err instanceof Error ? err.message : 'プル（rebase）に失敗しました')
-      }
-    } finally {
-      await finishAction('pull')
-    }
-  }, [finishAction, setOverlay, worktreePath])
 
   const handleCreateBranch = useCallback(
     async (name: string) => {
@@ -293,24 +373,33 @@ export function useGitSyncActions({
 
   return {
     acting,
+    dialogOpen,
     reloading,
     createOpen,
     setCreateOpen,
     stashOpen,
     setStashOpen,
-    pushConfirmOpen,
-    setPushConfirmOpen,
+    pushOpen,
+    setPushOpen,
+    pushForceConfirmOpen,
     upstreamPushOpen,
     setUpstreamPushOpen,
+    pullOpen,
+    setPullOpen,
+    pullForceConfirmOpen,
     actionTitle,
     actionErrorDialog,
     run,
     handleFetchPrune,
-    handlePullRebase,
+    handlePullOptionsConfirm,
+    handlePullForceConfirm,
+    handlePullForceConfirmCancel,
     handleCreateBranch,
     handleSaveStash,
     handleOpenExplorer,
-    handlePushConfirm,
+    handlePushOptionsConfirm,
+    handlePushForceConfirm,
+    handlePushForceConfirmCancel,
     handlePushSetUpstream,
     handleReload,
   }

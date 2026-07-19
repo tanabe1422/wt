@@ -78,6 +78,7 @@
 - [x] **P1** 競合ファイル検出・表示 + 外部 mergetool 起動
 - [x] **P1** コミット amend（直近・未 push のみ等のガード付き）
 - [x] **P2** pull --rebase / rebase 継続・中止 UI
+- [x] **P1** force push（`--force-with-lease`・明示確認ダイアログ。保護ブランチ設定との連携は別項目）
 
 ## 8. 履歴 & グラフ
 

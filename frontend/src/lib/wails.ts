@@ -364,8 +364,16 @@ export async function pullRebase(worktreePath: string): Promise<void> {
   return callApp('PullRebase', worktreePath)
 }
 
+export async function pullForce(worktreePath: string): Promise<void> {
+  return callApp('PullForce', worktreePath)
+}
+
 export async function push(worktreePath: string): Promise<void> {
   return callApp('Push', worktreePath)
+}
+
+export async function pushForce(worktreePath: string): Promise<void> {
+  return callApp('PushForce', worktreePath)
 }
 
 export async function pushSetUpstream(worktreePath: string, remote = 'origin'): Promise<void> {

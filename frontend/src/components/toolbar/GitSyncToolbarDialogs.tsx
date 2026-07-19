@@ -1,6 +1,8 @@
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ErrorDialog } from '../ui/ErrorDialog'
 import { PromptDialog } from '../ui/PromptDialog'
+import { PullOptionsDialog, type PullOptions } from './PullOptionsDialog'
+import { PushOptionsDialog, type PushOptions } from './PushOptionsDialog'
 
 interface ErrorDialogState {
   open: boolean
@@ -13,18 +15,27 @@ interface GitSyncToolbarDialogsProps {
   aheadCount: number
   createOpen: boolean
   stashOpen: boolean
-  pushConfirmOpen: boolean
+  pushOpen: boolean
+  pushForceConfirmOpen: boolean
   upstreamPushOpen: boolean
+  pullOpen: boolean
+  pullForceConfirmOpen: boolean
   actionTitle: string
   actionErrorDialog: ErrorDialogState
   onCreateConfirm: (name: string) => void
   onCreateCancel: () => void
   onStashConfirm: (message: string) => void
   onStashCancel: () => void
-  onPushConfirm: () => void
-  onPushConfirmCancel: () => void
+  onPushConfirm: (options: PushOptions) => void
+  onPushCancel: () => void
+  onPushForceConfirm: () => void
+  onPushForceConfirmCancel: () => void
   onUpstreamPushConfirm: () => void
   onUpstreamPushCancel: () => void
+  onPullConfirm: (options: PullOptions) => void
+  onPullCancel: () => void
+  onPullForceConfirm: () => void
+  onPullForceConfirmCancel: () => void
   onActionErrorDismiss: () => void
 }
 
@@ -33,8 +44,11 @@ export function GitSyncToolbarDialogs({
   aheadCount,
   createOpen,
   stashOpen,
-  pushConfirmOpen,
+  pushOpen,
+  pushForceConfirmOpen,
   upstreamPushOpen,
+  pullOpen,
+  pullForceConfirmOpen,
   actionTitle,
   actionErrorDialog,
   onCreateConfirm,
@@ -42,9 +56,15 @@ export function GitSyncToolbarDialogs({
   onStashConfirm,
   onStashCancel,
   onPushConfirm,
-  onPushConfirmCancel,
+  onPushCancel,
+  onPushForceConfirm,
+  onPushForceConfirmCancel,
   onUpstreamPushConfirm,
   onUpstreamPushCancel,
+  onPullConfirm,
+  onPullCancel,
+  onPullForceConfirm,
+  onPullForceConfirmCancel,
   onActionErrorDismiss,
 }: GitSyncToolbarDialogsProps) {
   return (
@@ -67,21 +87,39 @@ export function GitSyncToolbarDialogs({
         onConfirm={onStashConfirm}
         onCancel={onStashCancel}
       />
+      <PullOptionsDialog open={pullOpen} onConfirm={onPullConfirm} onCancel={onPullCancel} />
       <ConfirmDialog
-        open={pushConfirmOpen}
-        title="プッシュの確認"
+        open={pullForceConfirmOpen}
+        title="強制プルの確認"
         message={
           currentBranch
-            ? aheadCount > 0
-              ? `ブランチ「${currentBranch}」をリモートにプッシュしますか？（${aheadCount} コミット先行）`
-              : `ブランチ「${currentBranch}」をリモートにプッシュしますか？`
-            : aheadCount > 0
-              ? `リモートにプッシュしますか？（${aheadCount} コミット先行）`
-              : 'リモートにプッシュしますか？'
+            ? `ブランチ「${currentBranch}」をリモート追跡ブランチに完全一致させます。ローカルの先行コミットと未コミットの変更は破棄されます。よろしいですか？`
+            : 'リモート追跡ブランチに完全一致させます。ローカルの先行コミットと未コミットの変更は破棄されます。よろしいですか？'
         }
-        confirmLabel="プッシュ"
+        confirmLabel="強制プル"
+        danger
+        onConfirm={onPullForceConfirm}
+        onCancel={onPullForceConfirmCancel}
+      />
+      <PushOptionsDialog
+        open={pushOpen}
+        currentBranch={currentBranch}
+        aheadCount={aheadCount}
         onConfirm={onPushConfirm}
-        onCancel={onPushConfirmCancel}
+        onCancel={onPushCancel}
+      />
+      <ConfirmDialog
+        open={pushForceConfirmOpen}
+        title="強制プッシュの確認"
+        message={
+          currentBranch
+            ? `ブランチ「${currentBranch}」を強制プッシュします。リモートの履歴が上書きされます。よろしいですか？`
+            : '強制プッシュします。リモートの履歴が上書きされます。よろしいですか？'
+        }
+        confirmLabel="強制プッシュ"
+        danger
+        onConfirm={onPushForceConfirm}
+        onCancel={onPushForceConfirmCancel}
       />
       <ConfirmDialog
         open={upstreamPushOpen}

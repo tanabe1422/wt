@@ -88,7 +88,9 @@ export interface WailsApp {
   FetchPrune(worktreePath: string): Promise<string[]>
   Pull(worktreePath: string): Promise<void>
   PullRebase(worktreePath: string): Promise<void>
+  PullForce(worktreePath: string): Promise<void>
   Push(worktreePath: string): Promise<void>
+  PushForce(worktreePath: string): Promise<void>
   PushSetUpstream(worktreePath: string, remote: string): Promise<void>
   OpenMergetool(worktreePath: string, file: string): Promise<void>
   OpenDifftool(worktreePath: string, file: string, staged: boolean): Promise<void>

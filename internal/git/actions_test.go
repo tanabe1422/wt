@@ -228,11 +228,80 @@ func TestPullArgs(t *testing.T) {
 	}
 }
 
+func TestPullForceResetArgs(t *testing.T) {
+	args := pullForceResetArgs("origin/main")
+	want := []string{"reset", "--hard", "origin/main"}
+	if len(args) != len(want) {
+		t.Fatalf("pullForceResetArgs()=%v want %v", args, want)
+	}
+	for i := range want {
+		if args[i] != want[i] {
+			t.Fatalf("pullForceResetArgs()=%v want %v", args, want)
+		}
+	}
+}
+
+func TestPullForce(t *testing.T) {
+	dir := initHotpathRepo(t)
+	fake := newFakeRunner()
+	fake.On("fetch", "--progress", "origin", "main").Return("", nil)
+	fake.On("reset", "--hard", "origin/main").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := PullForce(dir); err != nil {
+		t.Fatalf("PullForce: %v", err)
+	}
+	fake.AssertCalled(t, "fetch", "--progress", "origin", "main")
+	fake.AssertCalled(t, "reset", "--hard", "origin/main")
+}
+
+func TestPullForceNoUpstream(t *testing.T) {
+	dir := initHotpathRepo(t)
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("checkout", "-b", "no-up")
+
+	if err := PullForce(dir); err == nil {
+		t.Fatal("expected error when upstream is missing")
+	}
+}
+
 func TestPushArgs(t *testing.T) {
 	args := pushArgs()
 	if len(args) != 2 || args[0] != "push" || args[1] != "--progress" {
 		t.Fatalf("pushArgs()=%v want [push --progress]", args)
 	}
+}
+
+func TestPushForceArgs(t *testing.T) {
+	args := pushForceArgs()
+	want := []string{"push", "--force-with-lease", "--progress"}
+	if len(args) != len(want) {
+		t.Fatalf("pushForceArgs()=%v want %v", args, want)
+	}
+	for i := range want {
+		if args[i] != want[i] {
+			t.Fatalf("pushForceArgs()=%v want %v", args, want)
+		}
+	}
+}
+
+func TestPushForce(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("push", "--force-with-lease", "--progress").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := PushForce(dir); err != nil {
+		t.Fatalf("PushForce: %v", err)
+	}
+	fake.AssertCalled(t, "push", "--force-with-lease", "--progress")
 }
 
 func TestPushSetUpstreamArgs(t *testing.T) {

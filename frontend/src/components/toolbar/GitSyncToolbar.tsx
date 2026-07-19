@@ -68,24 +68,33 @@ export function GitSyncToolbar({
 }: GitSyncToolbarProps) {
   const {
     acting,
+    dialogOpen,
     reloading,
     createOpen,
     setCreateOpen,
     stashOpen,
     setStashOpen,
-    pushConfirmOpen,
-    setPushConfirmOpen,
+    pushOpen,
+    setPushOpen,
+    pushForceConfirmOpen,
     upstreamPushOpen,
     setUpstreamPushOpen,
+    pullOpen,
+    setPullOpen,
+    pullForceConfirmOpen,
     actionTitle,
     actionErrorDialog,
     run,
     handleFetchPrune,
-    handlePullRebase,
+    handlePullOptionsConfirm,
+    handlePullForceConfirm,
+    handlePullForceConfirmCancel,
     handleCreateBranch,
     handleSaveStash,
     handleOpenExplorer,
-    handlePushConfirm,
+    handlePushOptionsConfirm,
+    handlePushForceConfirm,
+    handlePushForceConfirmCancel,
     handlePushSetUpstream,
     handleReload,
   } = useGitSyncActions({
@@ -108,7 +117,7 @@ export function GitSyncToolbar({
     }
   }, [createBranchRequestKey, setCreateOpen])
 
-  const isDisabled = disabled || acting || fetchPhase !== null || !worktreePath
+  const isDisabled = disabled || acting || dialogOpen || fetchPhase !== null || !worktreePath
 
   return (
     <header className={styles.bar}>
@@ -139,16 +148,7 @@ export function GitSyncToolbar({
                           },
                         },
                       ]
-                    : action === 'pull'
-                      ? [
-                          {
-                            label: 'プル（rebase）',
-                            onClick: () => {
-                              void handlePullRebase()
-                            },
-                          },
-                        ]
-                      : undefined
+                    : undefined
                 }
                 onClick={() => void run(action)}
               />
@@ -205,8 +205,11 @@ export function GitSyncToolbar({
         aheadCount={aheadCount}
         createOpen={createOpen}
         stashOpen={stashOpen}
-        pushConfirmOpen={pushConfirmOpen}
+        pushOpen={pushOpen}
+        pushForceConfirmOpen={pushForceConfirmOpen}
         upstreamPushOpen={upstreamPushOpen}
+        pullOpen={pullOpen}
+        pullForceConfirmOpen={pullForceConfirmOpen}
         actionTitle={actionTitle}
         actionErrorDialog={actionErrorDialog}
         onCreateConfirm={(value) => {
@@ -217,12 +220,18 @@ export function GitSyncToolbar({
           void handleSaveStash(value)
         }}
         onStashCancel={() => setStashOpen(false)}
-        onPushConfirm={handlePushConfirm}
-        onPushConfirmCancel={() => setPushConfirmOpen(false)}
+        onPushConfirm={handlePushOptionsConfirm}
+        onPushCancel={() => setPushOpen(false)}
+        onPushForceConfirm={handlePushForceConfirm}
+        onPushForceConfirmCancel={handlePushForceConfirmCancel}
         onUpstreamPushConfirm={() => {
           void handlePushSetUpstream()
         }}
         onUpstreamPushCancel={() => setUpstreamPushOpen(false)}
+        onPullConfirm={handlePullOptionsConfirm}
+        onPullCancel={() => setPullOpen(false)}
+        onPullForceConfirm={handlePullForceConfirm}
+        onPullForceConfirmCancel={handlePullForceConfirmCancel}
         onActionErrorDismiss={actionErrorDialog.dismiss}
       />
     </header>

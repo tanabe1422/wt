@@ -928,10 +928,22 @@ export const mockApp: WailsApp = {
     updateCurrentBranchCounts({ behindCount: 0 })
   },
 
+  async PullForce(_worktreePath: string) {
+    console.info('[mock] PullForce')
+    await delay(SYNC_MOCK_DELAY_MS)
+    updateCurrentBranchCounts({ behindCount: 0, aheadCount: 0 })
+  },
+
   async Push(_worktreePath: string) {
     console.info('[mock] Push')
     await delay(SYNC_MOCK_DELAY_MS)
     updateCurrentBranchCounts({ aheadCount: 0 })
+  },
+
+  async PushForce(_worktreePath: string) {
+    console.info('[mock] PushForce')
+    await delay(SYNC_MOCK_DELAY_MS)
+    updateCurrentBranchCounts({ aheadCount: 0, behindCount: 0 })
   },
 
   async PushSetUpstream(_worktreePath: string, remote: string) {
