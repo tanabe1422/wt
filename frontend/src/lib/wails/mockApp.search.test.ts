@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { CommitLogEntry } from '../../types'
-import { filterMockCommits } from './mockApp'
+import { filterMockCommits } from './mockCommits'
 
 const catalog: CommitLogEntry[] = [
   {
