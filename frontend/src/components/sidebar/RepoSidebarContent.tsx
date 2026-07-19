@@ -65,8 +65,14 @@ export interface RepoSidebarContentProps {
   onRemoteContextMenu?: (fullName: string, event: MouseEvent) => void
   onWorktreeContextMenu?: (worktree: WorktreeEntry, event: MouseEvent) => void
   onStashContextMenu?: (stash: StashEntry, event: MouseEvent) => void
+  /** 「ワークツリー」見出し右のアクション */
+  worktreeHeaderAction?: ReactNode
   /** ローカル「ブランチ」見出し右のアクション */
   localBranchHeaderAction?: ReactNode
+  /** 「リモート」見出し右のアクション */
+  remoteBranchHeaderAction?: ReactNode
+  /** 「スタッシュ」見出し右のアクション */
+  stashHeaderAction?: ReactNode
 }
 
 export function RepoSidebarContent({
@@ -86,7 +92,10 @@ export function RepoSidebarContent({
   onRemoteContextMenu,
   onWorktreeContextMenu,
   onStashContextMenu,
+  worktreeHeaderAction = null,
   localBranchHeaderAction = null,
+  remoteBranchHeaderAction = null,
+  stashHeaderAction = null,
 }: RepoSidebarContentProps) {
   const { localUnfiltered, remoteUnfiltered } = useMemo(() => {
     const trees = splitBranchTrees(branches)
@@ -126,6 +135,7 @@ export function RepoSidebarContent({
         title="ワークツリー"
         icon={<WorktreeIcon />}
         storageKey={expansionScope ? `${expansionScope}\0section\0ワークツリー` : null}
+        headerAction={worktreeHeaderAction}
       >
         {filteredWorktrees.length === 0 ? (
           filtering ? null : (
@@ -178,6 +188,7 @@ export function RepoSidebarContent({
               worktreeBranches={new Set()}
               expansionThreshold={expansionThreshold}
               expansionScope={expansionScope}
+              headerAction={remoteBranchHeaderAction}
               onActivate={onActivateRemote}
               onContextMenu={onRemoteContextMenu}
             />
@@ -189,6 +200,7 @@ export function RepoSidebarContent({
         title="スタッシュ"
         icon={<StashIcon />}
         storageKey={expansionScope ? `${expansionScope}\0section\0スタッシュ` : null}
+        headerAction={stashHeaderAction}
       >
         {filteredStashes.length === 0 ? (
           filtering ? null : (

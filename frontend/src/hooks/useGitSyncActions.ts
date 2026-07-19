@@ -65,7 +65,6 @@ export function useGitSyncActions({
   const [reloading, setReloading] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [stashOpen, setStashOpen] = useState(false)
-  const [cleanupOpen, setCleanupOpen] = useState(false)
   const [pushConfirmOpen, setPushConfirmOpen] = useState(false)
   const [upstreamPushOpen, setUpstreamPushOpen] = useState(false)
   const actionErrorDialog = useErrorDialog(actionError)
@@ -299,8 +298,6 @@ export function useGitSyncActions({
     setCreateOpen,
     stashOpen,
     setStashOpen,
-    cleanupOpen,
-    setCleanupOpen,
     pushConfirmOpen,
     setPushConfirmOpen,
     upstreamPushOpen,

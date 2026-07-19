@@ -150,6 +150,10 @@ export function GetSettings() {
   return window['go']['app']['App']['GetSettings']();
 }
 
+export function GetStashFileDiff(arg1, arg2, arg3) {
+  return window['go']['app']['App']['GetStashFileDiff'](arg1, arg2, arg3);
+}
+
 export function GetStatus(arg1) {
   return window['go']['app']['App']['GetStatus'](arg1);
 }
@@ -188,6 +192,10 @@ export function ListRangeFiles(arg1, arg2, arg3) {
 
 export function ListRemoteMergeStatus(arg1, arg2, arg3) {
   return window['go']['app']['App']['ListRemoteMergeStatus'](arg1, arg2, arg3);
+}
+
+export function ListStashFiles(arg1, arg2) {
+  return window['go']['app']['App']['ListStashFiles'](arg1, arg2);
 }
 
 export function ListStashes(arg1) {

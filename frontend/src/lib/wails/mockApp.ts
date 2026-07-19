@@ -1269,4 +1269,41 @@ export const mockApp: WailsApp = {
       }))
     console.info('[mock] DropStash', index)
   },
+
+  async ListStashFiles(_worktreePath: string, index: number) {
+    if (!mockStashList.some((entry) => entry.index === index)) {
+      throw new Error(`stash@{${index}} が見つかりません`)
+    }
+    if (index === 0) {
+      return [
+        { path: 'src/App.tsx', status: 'M' },
+        { path: 'README.md', status: 'M' },
+        { path: 'notes.wip.txt', status: 'A' },
+      ]
+    }
+    return [
+      { path: 'docs/draft.md', status: 'M' },
+      { path: 'scratch.txt', status: 'A' },
+    ]
+  },
+
+  async GetStashFileDiff(_worktreePath: string, index: number, file: string) {
+    if (!mockStashList.some((entry) => entry.index === index)) {
+      throw new Error(`stash@{${index}} が見つかりません`)
+    }
+    return {
+      path: file,
+      hunks: [
+        {
+          header: '@@ -1,2 +1,3 @@',
+          lines: [
+            { kind: 'ctx', content: '// stash preview', oldNo: 1, newNo: 1 },
+            { kind: 'del', content: 'old content', oldNo: 2 },
+            { kind: 'add', content: 'stashed content', newNo: 2 },
+            { kind: 'add', content: `from ${file}`, newNo: 3 },
+          ],
+        },
+      ],
+    }
+  },
 }

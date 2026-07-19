@@ -1,7 +1,6 @@
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ErrorDialog } from '../ui/ErrorDialog'
 import { PromptDialog } from '../ui/PromptDialog'
-import { RemoteCleanupDialog } from './RemoteCleanupDialog'
 
 interface ErrorDialogState {
   open: boolean
@@ -12,11 +11,8 @@ interface ErrorDialogState {
 interface GitSyncToolbarDialogsProps {
   currentBranch: string
   aheadCount: number
-  repositoryPath: string
-  worktreePath: string
   createOpen: boolean
   stashOpen: boolean
-  cleanupOpen: boolean
   pushConfirmOpen: boolean
   upstreamPushOpen: boolean
   actionTitle: string
@@ -25,8 +21,6 @@ interface GitSyncToolbarDialogsProps {
   onCreateCancel: () => void
   onStashConfirm: (message: string) => void
   onStashCancel: () => void
-  onCleanupClose: () => void
-  onCleanupDeleted: () => void | Promise<void>
   onPushConfirm: () => void
   onPushConfirmCancel: () => void
   onUpstreamPushConfirm: () => void
@@ -37,11 +31,8 @@ interface GitSyncToolbarDialogsProps {
 export function GitSyncToolbarDialogs({
   currentBranch,
   aheadCount,
-  repositoryPath,
-  worktreePath,
   createOpen,
   stashOpen,
-  cleanupOpen,
   pushConfirmOpen,
   upstreamPushOpen,
   actionTitle,
@@ -50,8 +41,6 @@ export function GitSyncToolbarDialogs({
   onCreateCancel,
   onStashConfirm,
   onStashCancel,
-  onCleanupClose,
-  onCleanupDeleted,
   onPushConfirm,
   onPushConfirmCancel,
   onUpstreamPushConfirm,
@@ -77,13 +66,6 @@ export function GitSyncToolbarDialogs({
         confirmLabel="退避"
         onConfirm={onStashConfirm}
         onCancel={onStashCancel}
-      />
-      <RemoteCleanupDialog
-        open={cleanupOpen}
-        repositoryPath={repositoryPath}
-        worktreePath={worktreePath}
-        onClose={onCleanupClose}
-        onDeleted={onCleanupDeleted}
       />
       <ConfirmDialog
         open={pushConfirmOpen}

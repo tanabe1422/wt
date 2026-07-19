@@ -1,3 +1,6 @@
+/** サイドバーセクション見出しアイコン（整理アクションと揃える） */
+export const SIDEBAR_SECTION_ICON_SIZE = 18
+
 function ChevronDownIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -72,9 +75,9 @@ function GitBranchIcon({ size = 14, filled = false }: { size?: number; filled?: 
 }
 
 /** ブランチ一覧セクション見出し用（TreeDiagram） */
-function BranchSectionIcon() {
+function BranchSectionIcon({ size = SIDEBAR_SECTION_ICON_SIZE }: { size?: number }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="5" r="2.5" stroke="currentColor" strokeWidth="2" />
       <path d="M12 8v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path d="M6 11h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -86,7 +89,7 @@ function BranchSectionIcon() {
   )
 }
 
-function CloudIcon({ size = 14 }: { size?: number }) {
+function CloudIcon({ size = SIDEBAR_SECTION_ICON_SIZE }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
@@ -147,11 +150,11 @@ function HardDriveIcon({ size = 14 }: { size?: number }) {
   )
 }
 
-function WorktreeIcon() {
-  return <HardDriveIcon />
+function WorktreeIcon({ size = SIDEBAR_SECTION_ICON_SIZE }: { size?: number }) {
+  return <HardDriveIcon size={size} />
 }
 
-function StashIcon({ size = 14 }: { size?: number }) {
+function StashIcon({ size = SIDEBAR_SECTION_ICON_SIZE }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path

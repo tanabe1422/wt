@@ -142,4 +142,6 @@ export interface WailsApp {
   ApplyStash(worktreePath: string, index: number): Promise<void>
   PopStash(worktreePath: string, index: number): Promise<void>
   DropStash(worktreePath: string, index: number): Promise<void>
+  ListStashFiles(worktreePath: string, index: number): Promise<CommitFileChange[]>
+  GetStashFileDiff(worktreePath: string, index: number, file: string): Promise<FileDiff>
 }

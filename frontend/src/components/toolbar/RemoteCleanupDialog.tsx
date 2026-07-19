@@ -1,8 +1,15 @@
 import { useRemoteCleanup } from '../../hooks/useRemoteCleanup'
 import type { RemoteCleanupStatusFilter } from '../../lib/remoteCleanupPrefsStorage'
+import { cx } from '../../utils/cx'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { IconButton } from '../ui/IconButton'
+import {
+  SelectionTable,
+  SelectionTableList,
+  SelectionTableRow,
+  selectionTableStyles as st,
+} from '../ui/SelectionTable'
 import { ExcludedListDialog } from './ExcludedListDialog'
 import styles from './RemoteCleanupDialog.module.css'
 
@@ -85,6 +92,14 @@ export function RemoteCleanupDialog({
   if (!open) {
     return null
   }
+
+  const placeholder = isLoading
+    ? baseLoading
+      ? '基準ブランチを読み込み中…'
+      : 'マージ状態を判定しています…'
+    : visible.length === 0
+      ? '該当するリモートブランチはありません'
+      : null
 
   return (
     <>
@@ -178,39 +193,33 @@ export function RemoteCleanupDialog({
               </label>
             </div>
 
-            <div className={styles.listHeader}>
-              <span className={styles.listMeta}>
-                {isLoading ? '読み込み中…' : `${visible.length} 件`}
-                {selectedNames.length > 0 ? ` / ${selectedNames.length} 選択` : ''}
-              </span>
-              <div className={styles.listHeaderActions}>
-                <Button
-                  variant="ghost"
-                  disabled={selectedNames.length === 0 || busy || isLoading}
-                  onClick={() => {
-                    void handleAddExcluded()
-                  }}
-                >
-                  除外に追加
-                </Button>
-                <Button variant="ghost" disabled={busy} onClick={() => setExcludedOpen(true)}>
-                  除外リスト
-                </Button>
+            <div className={styles.listSection}>
+              <div className={styles.listHeader}>
+                <span className={styles.listMeta}>
+                  {isLoading ? '読み込み中…' : `${visible.length} 件`}
+                  {selectedNames.length > 0 ? ` / ${selectedNames.length} 選択` : ''}
+                </span>
+                <div className={styles.listHeaderActions}>
+                  <Button
+                    variant="ghost"
+                    disabled={selectedNames.length === 0 || busy || isLoading}
+                    onClick={() => {
+                      void handleAddExcluded()
+                    }}
+                  >
+                    除外に追加
+                  </Button>
+                  <Button variant="ghost" disabled={busy} onClick={() => setExcludedOpen(true)}>
+                    除外リスト
+                  </Button>
+                </div>
               </div>
-            </div>
 
-            <div className={styles.list}>
-              {isLoading ? (
-                <p className={styles.status}>
-                  {baseLoading ? '基準ブランチを読み込み中…' : 'マージ状態を判定しています…'}
-                </p>
-              ) : visible.length === 0 ? (
-                <p className={styles.empty}>該当するリモートブランチはありません</p>
-              ) : (
-                <table className={styles.table}>
+              <SelectionTableList placeholder={placeholder}>
+                <SelectionTable>
                   <thead>
                     <tr>
-                      <th className={styles.colCheck}>
+                      <th className={st.colCheck}>
                         <input
                           type="checkbox"
                           checked={allVisibleSelected}
@@ -220,19 +229,15 @@ export function RemoteCleanupDialog({
                         />
                       </th>
                       <th className={styles.colBranch}>ブランチ</th>
-                      <th className={styles.colDate}>最終コミット</th>
+                      <th className={cx(st.colTabular, styles.colDate)}>最終コミット</th>
                       <th className={styles.colAuthor}>作者</th>
                       <th className={styles.colStatus}>状態</th>
                     </tr>
                   </thead>
                   <tbody>
                     {visible.map((entry) => (
-                      <tr
-                        key={entry.name}
-                        className={styles.tableRow}
-                        onClick={() => toggleOne(entry.name)}
-                      >
-                        <td className={styles.colCheck}>
+                      <SelectionTableRow key={entry.name} onClick={() => toggleOne(entry.name)}>
+                        <td className={st.colCheck}>
                           <input
                             type="checkbox"
                             checked={selected.has(entry.name)}
@@ -241,9 +246,11 @@ export function RemoteCleanupDialog({
                           />
                         </td>
                         <td className={styles.colBranch}>
-                          <span className={styles.branchName}>{entry.name}</span>
+                          <span className={cx(st.mono, st.truncate)}>{entry.name}</span>
                         </td>
-                        <td className={styles.colDate}>{formatCommitAt(entry.lastCommitAt)}</td>
+                        <td className={cx(st.colTabular, styles.colDate)}>
+                          {formatCommitAt(entry.lastCommitAt)}
+                        </td>
                         <td className={styles.colAuthor}>{entry.lastAuthor || '—'}</td>
                         <td className={styles.colStatus}>
                           <span
@@ -254,11 +261,11 @@ export function RemoteCleanupDialog({
                             {entry.merged ? 'マージ済み' : '未マージ'}
                           </span>
                         </td>
-                      </tr>
+                      </SelectionTableRow>
                     ))}
                   </tbody>
-                </table>
-              )}
+                </SelectionTable>
+              </SelectionTableList>
             </div>
 
             {error && <p className={styles.error}>{error}</p>}

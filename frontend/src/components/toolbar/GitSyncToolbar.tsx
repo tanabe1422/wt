@@ -8,7 +8,6 @@ import { GitSyncActionButton } from './GitSyncActionButton'
 import {
   ExplorerIcon,
   ReloadIcon,
-  RemoteCleanupIcon,
   SettingsIcon,
   type GitSyncAction,
 } from './GitSyncIcons'
@@ -22,7 +21,6 @@ export type { FetchPhase }
 
 interface GitSyncToolbarProps {
   worktreePath: string
-  repositoryPath?: string
   currentBranch?: string
   disabled?: boolean
   aheadCount?: number
@@ -51,7 +49,6 @@ const syncActions: GitSyncAction[] = ['pull', 'push', 'fetch']
 
 export function GitSyncToolbar({
   worktreePath,
-  repositoryPath = '',
   currentBranch = '',
   disabled = false,
   aheadCount = 0,
@@ -76,8 +73,6 @@ export function GitSyncToolbar({
     setCreateOpen,
     stashOpen,
     setStashOpen,
-    cleanupOpen,
-    setCleanupOpen,
     pushConfirmOpen,
     setPushConfirmOpen,
     upstreamPushOpen,
@@ -191,14 +186,6 @@ export function GitSyncToolbar({
       <div className={styles.trailing}>
         {!settingsOnly && (
           <ToolbarActionButton
-            label="リモート整理"
-            icon={<RemoteCleanupIcon size={20} />}
-            disabled={isDisabled}
-            onClick={() => setCleanupOpen(true)}
-          />
-        )}
-        {!settingsOnly && (
-          <ToolbarActionButton
             label="エクスプローラー"
             icon={<ExplorerIcon size={20} />}
             disabled={isDisabled}
@@ -216,11 +203,8 @@ export function GitSyncToolbar({
       <GitSyncToolbarDialogs
         currentBranch={currentBranch}
         aheadCount={aheadCount}
-        repositoryPath={repositoryPath}
-        worktreePath={worktreePath}
         createOpen={createOpen}
         stashOpen={stashOpen}
-        cleanupOpen={cleanupOpen}
         pushConfirmOpen={pushConfirmOpen}
         upstreamPushOpen={upstreamPushOpen}
         actionTitle={actionTitle}
@@ -233,10 +217,6 @@ export function GitSyncToolbar({
           void handleSaveStash(value)
         }}
         onStashCancel={() => setStashOpen(false)}
-        onCleanupClose={() => setCleanupOpen(false)}
-        onCleanupDeleted={async () => {
-          await onActionComplete?.('fetch')
-        }}
         onPushConfirm={handlePushConfirm}
         onPushConfirmCancel={() => setPushConfirmOpen(false)}
         onUpstreamPushConfirm={() => {

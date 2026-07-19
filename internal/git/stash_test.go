@@ -168,3 +168,74 @@ func TestIsStashConflictOutput(t *testing.T) {
 		}
 	}
 }
+
+func TestListStashFilesAndDiff(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	nameStatus := "M\x00tracked.txt\x00A\x00untracked.txt\x00"
+	fake.On(
+		"stash", "show",
+		"--include-untracked",
+		"--name-status", "-z",
+		"stash@{0}",
+	).Return(nameStatus, nil)
+	diffOut := "@@ -1,1 +1,2 @@\n context\n+added\n"
+	fake.On(
+		"stash", "show",
+		"--include-untracked",
+		"-U3",
+		"stash@{0}",
+		"--",
+		"tracked.txt",
+	).Return(diffOut, nil)
+	withFakeRunner(t, fake)
+
+	files, err := ListStashFiles(dir, 0)
+	if err != nil {
+		t.Fatalf("ListStashFiles: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files, got %+v", files)
+	}
+	if files[0].Path != "tracked.txt" || files[0].Status != "M" {
+		t.Fatalf("unexpected first file: %+v", files[0])
+	}
+	if files[1].Path != "untracked.txt" || files[1].Status != "A" {
+		t.Fatalf("unexpected second file: %+v", files[1])
+	}
+
+	diff, err := GetStashFileDiff(dir, 0, "tracked.txt")
+	if err != nil {
+		t.Fatalf("GetStashFileDiff: %v", err)
+	}
+	if diff.Path != "tracked.txt" {
+		t.Fatalf("unexpected path: %q", diff.Path)
+	}
+	if len(diff.Hunks) != 1 {
+		t.Fatalf("expected 1 hunk, got %d", len(diff.Hunks))
+	}
+}
+
+func TestListStashFilesEmptyArgs(t *testing.T) {
+	if _, err := ListStashFiles("", 0); err == nil {
+		t.Fatal("expected error for empty worktree")
+	}
+	if _, err := ListStashFiles(".", -1); err == nil {
+		t.Fatal("expected error for negative index")
+	}
+}
+
+func TestGetStashFileDiffEmptyArgs(t *testing.T) {
+	if _, err := GetStashFileDiff("", 0, "a.txt"); err == nil {
+		t.Fatal("expected error for empty worktree")
+	}
+	if _, err := GetStashFileDiff(".", -1, "a.txt"); err == nil {
+		t.Fatal("expected error for negative index")
+	}
+	if _, err := GetStashFileDiff(".", 0, ""); err == nil {
+		t.Fatal("expected error for empty file")
+	}
+	if _, err := GetStashFileDiff(".", 0, "  "); err == nil {
+		t.Fatal("expected error for blank file")
+	}
+}

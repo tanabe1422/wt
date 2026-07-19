@@ -56,44 +56,36 @@
   color: var(--color-slate-500);
 }
 
-.colBranch {
+.colName {
   width: auto;
 }
 
-.branchCell {
+.nameCell {
   display: flex;
   align-items: center;
   gap: 0.375rem;
   min-width: 0;
 }
 
-.iconSlot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.badge {
   flex-shrink: 0;
-  width: 14px;
-  height: 14px;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-slate-600);
+  background: var(--color-slate-200);
 }
 
-.toneActive {
-  color: var(--branch-tone-active, var(--color-blue-600));
+.colBranch {
+  width: 40%;
 }
 
-.toneWorktree {
-  color: var(--branch-tone-worktree, var(--color-slate-900));
-}
-
-.toneIdle {
-  color: var(--branch-tone-idle, var(--color-slate-500));
-}
-
-.colRemote {
-  width: 5.5rem;
+.branchLabel {
   color: var(--color-slate-600);
 }
 
-.colAhead {
+.colChanges {
   width: 5.5rem;
 }
 

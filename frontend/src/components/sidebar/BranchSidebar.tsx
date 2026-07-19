@@ -17,10 +17,14 @@ import {
 } from '../../utils/branchMarks'
 import { localBranchFromRemote } from '../../utils/branchTree'
 import { RemoteCleanupIcon } from '../toolbar/GitSyncIcons'
+import { RemoteCleanupDialog } from '../toolbar/RemoteCleanupDialog'
+import { StashCleanupDialog } from '../toolbar/StashCleanupDialog'
 import { IconButton } from '../ui/IconButton'
+import { SIDEBAR_SECTION_ICON_SIZE } from './BranchIcons'
 import { BranchSidebarDialogs } from './BranchSidebarDialogs'
 import { LocalBranchCleanupDialog } from './LocalBranchCleanupDialog'
 import { RepoSidebarContent } from './RepoSidebarContent'
+import { WorktreeCleanupDialog } from './WorktreeCleanupDialog'
 import styles from './BranchSidebar.module.css'
 
 interface BranchSidebarProps {
@@ -45,6 +49,8 @@ interface BranchSidebarProps {
   onBusyChange?: BusyChangeHandler
   compareFromRef?: string | null
   onCompareWithCurrent?: (branch: string) => void
+  /** ワークスペース内容変更（stash 一覧の再取得トリガー） */
+  contentRevision?: number
 }
 
 export function BranchSidebar({
@@ -66,6 +72,7 @@ export function BranchSidebar({
   onBusyChange,
   compareFromRef,
   onCompareWithCurrent,
+  contentRevision = 0,
 }: BranchSidebarProps) {
   const errorDialog = useErrorDialog(error)
   const checkedOutBranch = getSelectedWorktreeBranch(worktrees, selectedWorktree)
@@ -83,6 +90,9 @@ export function BranchSidebar({
   const [mergeTarget, setMergeTarget] = useState<string | null>(null)
   const [mergeAllowFFDraft, setMergeAllowFFDraft] = useState(true)
   const [cleanupOpen, setCleanupOpen] = useState(false)
+  const [wtCleanupOpen, setWtCleanupOpen] = useState(false)
+  const [remoteCleanupOpen, setRemoteCleanupOpen] = useState(false)
+  const [stashCleanupOpen, setStashCleanupOpen] = useState(false)
   const [filterQuery, setFilterQuery] = useState('')
   const toast = useToast()
 
@@ -129,7 +139,7 @@ export function BranchSidebar({
 
   const stashActions = useStashActions({
     worktreePath: actionWorktreePath,
-    reloadToken: `${activeRepository}:${actionWorktreePath ?? ''}`,
+    reloadToken: `${activeRepository}:${actionWorktreePath ?? ''}:${contentRevision}`,
     onSuccess: handleLightSuccess,
   })
 
@@ -357,6 +367,20 @@ export function BranchSidebar({
             onRemoteContextMenu={remoteContextMenu.openBranchMenu}
             onWorktreeContextMenu={worktreeDialogs.handleWorktreeContextMenu}
             onStashContextMenu={stashActions.openMenu}
+            worktreeHeaderAction={
+              <IconButton
+                type="button"
+                size="sm"
+                title="ワークツリーの整理"
+                aria-label="ワークツリーの整理"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setWtCleanupOpen(true)
+                }}
+              >
+                <RemoteCleanupIcon size={SIDEBAR_SECTION_ICON_SIZE} />
+              </IconButton>
+            }
             localBranchHeaderAction={
               <IconButton
                 type="button"
@@ -368,12 +392,49 @@ export function BranchSidebar({
                   setCleanupOpen(true)
                 }}
               >
-                <RemoteCleanupIcon size={14} />
+                <RemoteCleanupIcon size={SIDEBAR_SECTION_ICON_SIZE} />
+              </IconButton>
+            }
+            remoteBranchHeaderAction={
+              <IconButton
+                type="button"
+                size="sm"
+                title="リモートの整理"
+                aria-label="リモートの整理"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setRemoteCleanupOpen(true)
+                }}
+              >
+                <RemoteCleanupIcon size={SIDEBAR_SECTION_ICON_SIZE} />
+              </IconButton>
+            }
+            stashHeaderAction={
+              <IconButton
+                type="button"
+                size="sm"
+                title="スタッシュの整理"
+                aria-label="スタッシュの整理"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setStashCleanupOpen(true)
+                }}
+              >
+                <RemoteCleanupIcon size={SIDEBAR_SECTION_ICON_SIZE} />
               </IconButton>
             }
           />
         )}
       </div>
+      <WorktreeCleanupDialog
+        open={wtCleanupOpen}
+        repoPath={activeRepository || null}
+        worktrees={worktrees}
+        selectedWorktree={selectedWorktree}
+        onSelectWorktree={onSelectWorktree}
+        onClose={() => setWtCleanupOpen(false)}
+        onDeleted={handleStructureSuccess}
+      />
       <LocalBranchCleanupDialog
         open={cleanupOpen}
         worktreePath={actionWorktreePath}
@@ -382,6 +443,21 @@ export function BranchSidebar({
         worktreeBranches={worktreeBranches}
         onClose={() => setCleanupOpen(false)}
         onDeleted={handleStructureSuccess}
+      />
+      <RemoteCleanupDialog
+        open={remoteCleanupOpen}
+        repositoryPath={activeRepository}
+        worktreePath={actionWorktreePath ?? ''}
+        onClose={() => setRemoteCleanupOpen(false)}
+        onDeleted={handleStructureSuccess}
+      />
+      <StashCleanupDialog
+        open={stashCleanupOpen}
+        worktreePath={actionWorktreePath ?? ''}
+        onClose={() => setStashCleanupOpen(false)}
+        onDeleted={async () => {
+          await stashActions.reload()
+        }}
       />
       <BranchSidebarDialogs
         loadError={errorDialog}

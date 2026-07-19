@@ -546,6 +546,21 @@ export async function dropStash(worktreePath: string, index: number): Promise<vo
   return callApp('DropStash', worktreePath, index)
 }
 
+export async function listStashFiles(
+  worktreePath: string,
+  index: number,
+): Promise<CommitFileChange[]> {
+  return callApp('ListStashFiles', worktreePath, index)
+}
+
+export async function getStashFileDiff(
+  worktreePath: string,
+  index: number,
+  file: string,
+): Promise<FileDiff> {
+  return callApp('GetStashFileDiff', worktreePath, index, file)
+}
+
 export function isRunningInWails(): boolean {
   return isWailsRuntime()
 }

@@ -1,0 +1,275 @@
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--color-slate-200);
+  border-radius: 0.25rem;
+  background: var(--color-white);
+}
+
+.listConstrained {
+  min-height: 12rem;
+  max-height: 26rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.8125rem;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-slate-600);
+  background: var(--color-slate-50);
+  border-bottom: 1px solid var(--color-slate-200);
+}
+
+.row {
+  cursor: pointer;
+}
+
+.rowLocked {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.row:hover:not(.rowLocked):not(.rowFocused) {
+  background: var(--color-slate-50);
+}
+
+.rowFocused {
+  background: var(--color-blue-50);
+}
+
+.rowFocused:hover {
+  background: var(--color-blue-50);
+}
+
+.table td {
+  padding: 0.28rem 0.5rem;
+  border-bottom: 1px solid var(--color-slate-100);
+  color: var(--color-slate-800);
+  vertical-align: middle;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.colCheck {
+  width: 2.25rem;
+  text-align: center;
+}
+
+.table thead th.colCheck {
+  text-align: center;
+}
+
+.colCheck input {
+  accent-color: var(--color-blue-600);
+}
+
+.colNumeric {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--color-slate-600);
+}
+
+.table thead th.colNumeric {
+  text-align: right;
+}
+
+.colTabular {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--color-slate-600);
+}
+
+.mono {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+}
+
+.truncate {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  margin: 0;
+  padding: 1.25rem 0.75rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-slate-500);
+}
+
+/* --- Alternate candidates (Storybook comparison). Default = Dense + Soft header. --- */
+
+/* Legacy inset look (pre-redesign) */
+.variantLegacy {
+  background: var(--color-slate-50);
+  border-radius: 0.375rem;
+}
+
+.variantLegacy .table {
+  font-size: 0.875rem;
+}
+
+.variantLegacy .table thead th {
+  padding: 0.5rem 0.625rem;
+  font-size: 0.75rem;
+  letter-spacing: normal;
+  text-transform: none;
+  background: var(--color-slate-100);
+}
+
+.variantLegacy .table td {
+  padding: 0.5rem 0.625rem;
+  border-bottom: 1px solid var(--color-slate-200);
+}
+
+.variantLegacy .mono {
+  font-size: 0.8125rem;
+}
+
+.variantLegacy .row:hover:not(.rowLocked):not(.rowFocused) {
+  background: var(--color-white);
+}
+
+/* B: Flat minimal — white surface, header underline only */
+.variantFlat {
+  background: var(--color-white);
+  border-color: var(--color-slate-200);
+  border-radius: 0.375rem;
+}
+
+.variantFlat .table {
+  font-size: 0.875rem;
+}
+
+.variantFlat .table thead th {
+  padding: 0.5rem 0.625rem;
+  font-size: 0.75rem;
+  letter-spacing: normal;
+  text-transform: none;
+  background: var(--color-white);
+  color: var(--color-slate-500);
+  font-weight: 500;
+  border-bottom: 1px solid var(--color-slate-200);
+}
+
+.variantFlat .table td {
+  padding: 0.5rem 0.625rem;
+  border-bottom: 1px solid var(--color-slate-100);
+}
+
+.variantFlat .mono {
+  font-size: 0.8125rem;
+}
+
+.variantFlat .row:hover:not(.rowLocked):not(.rowFocused) {
+  background: var(--color-slate-50);
+}
+
+.variantFlat .rowFocused,
+.variantFlat .rowFocused:hover {
+  background: var(--color-slate-100);
+}
+
+/* C: Zebra — alternating body rows for scanability */
+.variantZebra {
+  background: var(--color-white);
+  border-radius: 0.375rem;
+}
+
+.variantZebra .table {
+  font-size: 0.875rem;
+}
+
+.variantZebra .table thead th {
+  padding: 0.5rem 0.625rem;
+  font-size: 0.75rem;
+  letter-spacing: normal;
+  text-transform: none;
+  background: var(--color-white);
+  border-bottom: 1px solid var(--color-slate-300);
+}
+
+.variantZebra .table td {
+  padding: 0.5rem 0.625rem;
+  border-bottom: none;
+}
+
+.variantZebra .mono {
+  font-size: 0.8125rem;
+}
+
+.variantZebra .table tbody tr:nth-child(even):not(.rowFocused) {
+  background: var(--color-slate-50);
+}
+
+.variantZebra .row:hover:not(.rowLocked):not(.rowFocused) {
+  background: var(--color-slate-100);
+}
+
+.variantZebra .rowFocused,
+.variantZebra .rowFocused:hover {
+  background: var(--color-blue-50);
+}
+
+/* D: Dense with Soft header — same as default (kept for Story comparison) */
+.variantDense {
+  /* identical to base; class retained for variant="dense" Story */
+  border-radius: 0.25rem;
+}
+
+/* E: Soft select — calm blue hover/focus, slightly roomier */
+.variantSoft {
+  background: var(--color-white);
+  border-color: var(--color-slate-200);
+  border-radius: 0.5rem;
+}
+
+.variantSoft .table {
+  font-size: 0.875rem;
+}
+
+.variantSoft .table thead th {
+  background: var(--color-slate-50);
+  border-bottom: 1px solid var(--color-slate-200);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.75rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.variantSoft .table td {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--color-slate-100);
+}
+
+.variantSoft .mono {
+  font-size: 0.8125rem;
+}
+
+.variantSoft .row:hover:not(.rowLocked):not(.rowFocused) {
+  background: var(--color-blue-50);
+}
+
+.variantSoft .rowFocused,
+.variantSoft .rowFocused:hover {
+  background: var(--color-blue-100);
+  box-shadow: inset 3px 0 0 var(--color-blue-600);
+}

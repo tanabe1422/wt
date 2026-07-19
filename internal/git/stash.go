@@ -116,6 +116,71 @@ func DropStash(worktreePath string, index int) error {
 	return err
 }
 
+// ListStashFiles returns files changed in stash@{index}, including untracked
+// files that were saved with stash push -u.
+func ListStashFiles(worktreePath string, index int) ([]CommitFileChange, error) {
+	if worktreePath == "" {
+		return nil, errors.New("ワークツリーが指定されていません")
+	}
+	dir, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return nil, err
+	}
+	ref, err := stashRef(index)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := runGitAllowDiffExit(
+		dir,
+		"stash", "show",
+		"--include-untracked",
+		"--name-status", "-z",
+		ref,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return parseNameStatusZ(out), nil
+}
+
+// GetStashFileDiff returns a parsed unified diff for one file in stash@{index}.
+func GetStashFileDiff(worktreePath string, index int, file string) (FileDiff, error) {
+	if worktreePath == "" {
+		return FileDiff{}, errors.New("ワークツリーが指定されていません")
+	}
+	dir, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return FileDiff{}, err
+	}
+	ref, err := stashRef(index)
+	if err != nil {
+		return FileDiff{}, err
+	}
+	if strings.TrimSpace(file) == "" {
+		return FileDiff{}, errors.New("ファイルパスが空です")
+	}
+
+	out, err := runGitAllowDiffExit(
+		dir,
+		"stash", "show",
+		"--include-untracked",
+		"-U"+strconv.Itoa(diffContextLines),
+		ref,
+		"--",
+		file,
+	)
+	if err != nil {
+		return FileDiff{}, err
+	}
+
+	if strings.Contains(out, "Binary files") {
+		return FileDiff{}, errors.New("バイナリファイルの diff は表示できません")
+	}
+
+	return parseUnifiedDiff(file, out), nil
+}
+
 func stashRef(index int) (string, error) {
 	if index < 0 {
 		return "", fmt.Errorf("無効な stash インデックスです")

@@ -333,7 +333,6 @@ function AppShell() {
           !loading && activeRepository ? (
             <GitSyncToolbar
               worktreePath={worktreePath}
-              repositoryPath={activeRepository}
               currentBranch={currentBranch}
               aheadCount={aheadCount}
               behindCount={behindCount}
@@ -379,6 +378,7 @@ function AppShell() {
             onBusyChange={handleSidebarBusyChange}
             compareFromRef={compareFromRef}
             onCompareWithCurrent={handleCompareWithCurrent}
+            contentRevision={workspaceContentRevision}
           />
         }
       >

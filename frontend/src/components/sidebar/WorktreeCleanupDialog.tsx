@@ -1,5 +1,5 @@
-import { useLocalBranchCleanup } from '../../hooks/useLocalBranchCleanup'
-import type { BranchEntry } from '../../types'
+import { useWorktreeCleanup } from '../../hooks/useWorktreeCleanup'
+import type { WorktreeEntry } from '../../types'
 import { cx } from '../../utils/cx'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
@@ -10,15 +10,14 @@ import {
   SelectionTableRow,
   selectionTableStyles as st,
 } from '../ui/SelectionTable'
-import { HardDriveIcon } from './BranchIcons'
-import styles from './LocalBranchCleanupDialog.module.css'
+import styles from './WorktreeCleanupDialog.module.css'
 
-interface LocalBranchCleanupDialogProps {
+interface WorktreeCleanupDialogProps {
   open: boolean
-  worktreePath: string | null
-  branches: BranchEntry[]
-  checkedOutBranch: string | null
-  worktreeBranches: Set<string>
+  repoPath: string | null
+  worktrees: WorktreeEntry[]
+  selectedWorktree: string | null
+  onSelectWorktree?: (path: string) => void
   onClose: () => void
   onDeleted?: () => void | Promise<void>
 }
@@ -36,32 +35,19 @@ function CloseIcon() {
   )
 }
 
-function toneClass(row: {
-  isCheckedOutOnSelected: boolean
-  hasWorktree: boolean
-}): string {
-  if (row.isCheckedOutOnSelected) {
-    return styles.toneActive
-  }
-  if (row.hasWorktree) {
-    return styles.toneWorktree
-  }
-  return styles.toneIdle
-}
-
-export function LocalBranchCleanupDialog({
+export function WorktreeCleanupDialog({
   open,
-  worktreePath,
-  branches,
-  checkedOutBranch,
-  worktreeBranches,
+  repoPath,
+  worktrees,
+  selectedWorktree,
+  onSelectWorktree,
   onClose,
   onDeleted,
-}: LocalBranchCleanupDialogProps) {
+}: WorktreeCleanupDialogProps) {
   const {
     rows,
     selected,
-    selectedNames,
+    selectedPaths,
     allDeletableSelected,
     deletableCount,
     busy,
@@ -73,18 +59,22 @@ export function LocalBranchCleanupDialog({
     toggleOne,
     toggleAllDeletable,
     handleDelete,
-  } = useLocalBranchCleanup({
+  } = useWorktreeCleanup({
     open,
-    worktreePath,
-    branches,
-    checkedOutBranch,
-    worktreeBranches,
+    repoPath,
+    worktrees,
+    selectedWorktree,
+    onSelectWorktree,
     onDeleted,
   })
 
   if (!open) {
     return null
   }
+
+  const selectedNames = rows
+    .filter((row) => selectedPaths.includes(row.path))
+    .map((row) => row.name)
 
   return (
     <>
@@ -93,11 +83,11 @@ export function LocalBranchCleanupDialog({
           className={styles.dialog}
           role="dialog"
           aria-modal="true"
-          aria-labelledby="local-branch-cleanup-title"
+          aria-labelledby="worktree-cleanup-title"
           onClick={(event) => event.stopPropagation()}
         >
           <div className={styles.header}>
-            <h2 id="local-branch-cleanup-title">ブランチの整理</h2>
+            <h2 id="worktree-cleanup-title">ワークツリーの整理</h2>
             <IconButton type="button" aria-label="閉じる" onClick={onClose}>
               <CloseIcon />
             </IconButton>
@@ -107,12 +97,12 @@ export function LocalBranchCleanupDialog({
             <div className={styles.listHeader}>
               <span className={styles.listMeta}>
                 {`${rows.length} 件`}
-                {selectedNames.length > 0 ? ` / ${selectedNames.length} 選択` : ''}
+                {selectedPaths.length > 0 ? ` / ${selectedPaths.length} 選択` : ''}
               </span>
             </div>
 
             <SelectionTableList
-              placeholder={rows.length === 0 ? 'ローカルブランチはありません' : null}
+              placeholder={rows.length === 0 ? 'ワークツリーはありません' : null}
             >
               <SelectionTable>
                 <thead>
@@ -123,12 +113,12 @@ export function LocalBranchCleanupDialog({
                         checked={allDeletableSelected}
                         disabled={deletableCount === 0 || busy}
                         onChange={toggleAllDeletable}
-                        aria-label="削除可能なブランチをすべて選択"
+                        aria-label="削除可能なワークツリーをすべて選択"
                       />
                     </th>
+                    <th className={styles.colName}>ワークツリー</th>
                     <th className={styles.colBranch}>ブランチ</th>
-                    <th className={styles.colRemote}>リモート</th>
-                    <th className={cx(st.colNumeric, styles.colAhead)}>未プッシュ</th>
+                    <th className={cx(st.colNumeric, styles.colChanges)}>未コミット</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -136,37 +126,37 @@ export function LocalBranchCleanupDialog({
                     const locked = row.locked
                     return (
                       <SelectionTableRow
-                        key={row.name}
+                        key={row.path}
                         locked={locked}
                         onClick={() => {
                           if (!busy) {
-                            toggleOne(row.name)
+                            toggleOne(row.path)
                           }
                         }}
                       >
                         <td className={st.colCheck}>
                           <input
                             type="checkbox"
-                            checked={selected.has(row.name)}
+                            checked={selected.has(row.path)}
                             disabled={locked || busy}
-                            onChange={() => toggleOne(row.name)}
+                            onChange={() => toggleOne(row.path)}
                             onClick={(event) => event.stopPropagation()}
                             aria-label={`${row.name} を選択`}
                           />
                         </td>
-                        <td className={styles.colBranch}>
-                          <span className={cx(styles.branchCell, toneClass(row))}>
-                            <span className={styles.iconSlot} aria-hidden="true">
-                              {row.hasWorktree ? <HardDriveIcon /> : null}
-                            </span>
+                        <td className={styles.colName}>
+                          <span className={styles.nameCell}>
                             <span className={cx(st.mono, st.truncate)}>{row.name}</span>
+                            {row.isMain ? <span className={styles.badge}>メイン</span> : null}
                           </span>
                         </td>
-                        <td className={styles.colRemote}>
-                          {row.hasUpstream ? 'あり' : 'なし'}
+                        <td className={styles.colBranch}>
+                          <span className={cx(st.mono, st.truncate, styles.branchLabel)}>
+                            {row.branchLabel}
+                          </span>
                         </td>
-                        <td className={cx(st.colNumeric, styles.colAhead)}>
-                          {row.hasUpstream ? row.aheadCount : '—'}
+                        <td className={cx(st.colNumeric, styles.colChanges)}>
+                          {row.changedFileCount}
                         </td>
                       </SelectionTableRow>
                     )
@@ -184,7 +174,7 @@ export function LocalBranchCleanupDialog({
             </Button>
             <Button
               variant="danger"
-              disabled={selectedNames.length === 0 || busy || !worktreePath}
+              disabled={selectedPaths.length === 0 || busy || !repoPath}
               onClick={() => setConfirmOpen(true)}
             >
               選択を削除
@@ -195,7 +185,7 @@ export function LocalBranchCleanupDialog({
 
       <ConfirmDialog
         open={confirmOpen}
-        title="ローカルブランチを削除"
+        title="ワークツリーを削除"
         message={
           selectedNames.length > 0
             ? `次の ${selectedNames.length} 件を削除しますか？\n\n${selectedNames.join('\n')}`

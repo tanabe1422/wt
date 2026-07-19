@@ -77,6 +77,8 @@ export function GetRepoOperationState(arg1:string):Promise<git.RepoOperationStat
 
 export function GetSettings():Promise<config.Settings>;
 
+export function GetStashFileDiff(arg1:string,arg2:number,arg3:string):Promise<git.FileDiff>;
+
 export function GetStatus(arg1:string):Promise<Array<git.FileStatus>>;
 
 export function GetWorktreeChangedCount(arg1:string):Promise<number>;
@@ -96,6 +98,8 @@ export function ListCommits(arg1:string,arg2:string,arg3:string,arg4:number,arg5
 export function ListRangeFiles(arg1:string,arg2:string,arg3:string):Promise<Array<git.CommitFileChange>>;
 
 export function ListRemoteMergeStatus(arg1:string,arg2:string,arg3:string):Promise<Array<git.RemoteMergeEntry>>;
+
+export function ListStashFiles(arg1:string,arg2:number):Promise<Array<git.CommitFileChange>>;
 
 export function ListStashes(arg1:string):Promise<Array<git.StashEntry>>;
 

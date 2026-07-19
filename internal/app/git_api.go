@@ -454,3 +454,15 @@ func (a *App) DropStash(worktreePath string, index int) error {
 		return git.DropStash(dir, index)
 	})
 }
+
+func (a *App) ListStashFiles(worktreePath string, index int) ([]git.CommitFileChange, error) {
+	return withWorktreeResult(worktreePath, func(dir string) ([]git.CommitFileChange, error) {
+		return git.ListStashFiles(dir, index)
+	})
+}
+
+func (a *App) GetStashFileDiff(worktreePath string, index int, file string) (git.FileDiff, error) {
+	return withWorktreeResult(worktreePath, func(dir string) (git.FileDiff, error) {
+		return git.GetStashFileDiff(dir, index, file)
+	})
+}

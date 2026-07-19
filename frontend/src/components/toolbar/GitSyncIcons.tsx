@@ -184,38 +184,12 @@ export function ReloadIcon({ size = 20 }: { size?: number }) {
   )
 }
 
+/** 整理: 一覧から項目を減らす（ListMinus） */
 export function RemoteCleanupIcon({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4 7h12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-      <path
-        d="M6 7v11a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V7"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M9 7V5a1 1 0 0 1 1-1h0a1 1 0 0 1 1 1v2"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M15.5 11.5 20 16l-1.5 1.5-4.5-4.5"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M18.5 13.5 20 12l2 2-1.5 1.5"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M4 7h10M4 12h10M4 17h6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      <path d="M15 17h5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
     </svg>
   )
 }
