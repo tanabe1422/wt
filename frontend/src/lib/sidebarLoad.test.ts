@@ -16,9 +16,11 @@ vi.mock('./wails', () => ({
 
 vi.mock('./repoDataCache', () => ({
   patchWorktreeChangedCount: vi.fn(),
+  getStatusCache: vi.fn(),
+  isStatusCacheFresh: vi.fn(),
 }))
 
-import { patchWorktreeChangedCount } from './repoDataCache'
+import { getStatusCache, isStatusCacheFresh, patchWorktreeChangedCount } from './repoDataCache'
 import { listBranchTracks, getWorktreeChangedCounts } from './wails'
 
 const branch = (partial: Partial<BranchEntry> & Pick<BranchEntry, 'name'>): BranchEntry => ({
@@ -142,6 +144,10 @@ describe('fillWorktreeBadges', () => {
   beforeEach(() => {
     vi.mocked(getWorktreeChangedCounts).mockReset()
     vi.mocked(patchWorktreeChangedCount).mockReset()
+    vi.mocked(getStatusCache).mockReset()
+    vi.mocked(isStatusCacheFresh).mockReset()
+    vi.mocked(isStatusCacheFresh).mockReturnValue(false)
+    vi.mocked(getStatusCache).mockReturnValue(undefined)
   })
 
   it('batches counts with preferred worktree first', async () => {
@@ -165,6 +171,28 @@ describe('fillWorktreeBadges', () => {
     ])
     expect(patchWorktreeChangedCount).toHaveBeenCalledWith('/repo', '/feat', 7)
     expect(patchWorktreeChangedCount).toHaveBeenCalledWith('/repo', '/main', 1)
+  })
+
+  it('reuses fresh status cache instead of re-running porcelain', async () => {
+    vi.mocked(isStatusCacheFresh).mockImplementation((path) => path === '/feat')
+    vi.mocked(getStatusCache).mockImplementation((path) =>
+      path === '/feat' ? [{ path: 'a.ts' } as never, { path: 'b.ts' } as never] : undefined,
+    )
+    vi.mocked(getWorktreeChangedCounts).mockResolvedValue([{ path: '/main', count: 1, ok: true }])
+
+    const onCounts = vi.fn()
+    const entries = [
+      worktree({ path: '/main', branch: 'main', isMain: true }),
+      worktree({ path: '/feat', branch: 'feat' }),
+    ]
+
+    await fillWorktreeBadges('/repo', entries, '/feat', () => true, onCounts)
+
+    expect(getWorktreeChangedCounts).toHaveBeenCalledWith(['/main'])
+    expect(onCounts).toHaveBeenCalledWith([
+      { path: '/feat', count: 2, ok: true },
+      { path: '/main', count: 1, ok: true },
+    ])
   })
 
   it('skips failed counts so prior badges are not cleared', async () => {

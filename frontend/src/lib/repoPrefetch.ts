@@ -1,23 +1,18 @@
 import {
   getSidebarCache,
   getStatusCache,
-  patchWorktreeChangedCount,
   setSidebarCache,
   setStatusCache,
 } from './repoDataCache'
 import { pickDefaultSelection } from './sidebarSelection'
-import {
-  getStatus,
-  getWorktreeChangedCount,
-  listBranches,
-  listWorktreesMeta,
-} from './wails'
+import { getStatus, listBranches, listWorktreesMeta } from './wails'
 
 const inFlight = new Map<string, Promise<void>>()
 
 /**
  * Meta + branches でサイドバーキャッシュを温める。
  * GetStatus は並列開始するが、完了は待たない（サイドバー表示をブロックしない）。
+ * 選択 WT のバッジは status 完了時に setStatusCache 経由で共有する（二重 porcelain 回避）。
  */
 async function warmRepo(repoPath: string): Promise<void> {
   try {
@@ -57,17 +52,6 @@ async function warmRepo(repoPath: string): Promise<void> {
       void getStatus(worktreePath)
         .then((status) => {
           setStatusCache(worktreePath, status)
-        })
-        .catch(() => {
-          // non-fatal
-        })
-    }
-
-    // 選択 WT のバッジだけ先に埋める（残りはサイドバー表示後に埋まる）
-    if (worktreePath) {
-      void getWorktreeChangedCount(worktreePath)
-        .then((count) => {
-          patchWorktreeChangedCount(repoPath, worktreePath, count)
         })
         .catch(() => {
           // non-fatal

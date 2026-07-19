@@ -151,6 +151,21 @@ describe('repoDataCache', () => {
     expect(cached?.worktrees.find((entry) => entry.path === '/repo-a')?.changedFileCount).toBe(0)
   })
 
+  it('derives badge count from setStatusCache when sidebar knows the worktree', () => {
+    setSidebarCache('/repo-a', {
+      branches: [sampleBranch('main')],
+      worktrees: [
+        sampleWorktree('/repo-a', 'main', true),
+        { ...sampleWorktree('/repo-a-wt', 'feature'), changedFileCount: 9 },
+      ],
+      selectedBranch: 'main',
+      selectedWorktree: '/repo-a',
+    })
+    setStatusCache('/repo-a-wt', [sampleStatus('a.ts'), sampleStatus('b.ts')])
+    const cached = getSidebarCache('/repo-a')
+    expect(cached?.worktrees.find((entry) => entry.path === '/repo-a-wt')?.changedFileCount).toBe(2)
+  })
+
   it('patches current branch flags and selected worktree branch', () => {
     setSidebarCache('/repo-a', {
       branches: [sampleBranch('main'), sampleBranch('feature')],

@@ -3,7 +3,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { BranchEntry, WorktreeEntry } from '../types'
 import {
   getSidebarCache,
+  getStatusCache,
   isSidebarCacheFresh,
+  isStatusCacheFresh,
   patchSidebarBranches,
   patchSidebarWorktreesMeta,
   patchWorktreeChangedCount,
@@ -347,6 +349,14 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
         return
       }
       try {
+        if (isStatusCacheFresh(worktreePath)) {
+          const cached = getStatusCache(worktreePath)
+          if (cached) {
+            applyBadgeCount(worktreePath, cached.length)
+            patchWorktreeChangedCount(activeRepository, worktreePath, cached.length)
+            return
+          }
+        }
         const count = await getWorktreeChangedCount(worktreePath)
         if (activeRepoRef.current !== activeRepository) {
           return

@@ -116,6 +116,16 @@ export function patchWorktreeChangedCount(
   touch(sidebarCache, repoPath, { ...current, worktrees }, MAX_SIDEBAR_ENTRIES)
 }
 
+/** Find owning repo sidebar cache and patch badge by worktree path. */
+export function patchWorktreeChangedCountForPath(worktreePath: string, count: number): void {
+  for (const [repoPath, current] of sidebarCache) {
+    if (current.worktrees.some((entry) => entry.path === worktreePath)) {
+      patchWorktreeChangedCount(repoPath, worktreePath, count)
+      return
+    }
+  }
+}
+
 /**
  * ローカルブランチの isCurrent を更新する（ブランチ切替後の楽観／同期更新）。
  * worktrees の branch フィールドは別途更新が必要な場合がある。
@@ -192,6 +202,8 @@ export function isStatusCacheFresh(
 
 export function setStatusCache(worktreePath: string, entries: FileStatus[]): void {
   touch(statusCache, worktreePath, { entries, fetchedAt: Date.now() }, MAX_STATUS_ENTRIES)
+  // Same porcelain as badge count — share so callers need not re-run git status.
+  patchWorktreeChangedCountForPath(worktreePath, entries.length)
 }
 
 export function invalidateStatusCache(worktreePath: string): void {

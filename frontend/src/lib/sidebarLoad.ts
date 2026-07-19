@@ -1,5 +1,9 @@
 import type { BranchEntry, BranchTrack, WorktreeEntry } from '../types'
-import { patchWorktreeChangedCount } from './repoDataCache'
+import {
+  getStatusCache,
+  isStatusCacheFresh,
+  patchWorktreeChangedCount,
+} from './repoDataCache'
 import { listBranchTracks, getWorktreeChangedCounts } from './wails'
 
 export function sidebarSnapshotEqual(
@@ -117,17 +121,32 @@ export async function fillWorktreeBadges(
     if (b.path === preferredPath) return 1
     return 0
   })
+
+  const fromStatus: { path: string; count: number; ok: boolean }[] = []
+  const needFetch: string[] = []
+  for (const entry of ordered) {
+    if (isStatusCacheFresh(entry.path)) {
+      const cached = getStatusCache(entry.path)
+      if (cached) {
+        fromStatus.push({ path: entry.path, count: cached.length, ok: true })
+        continue
+      }
+    }
+    needFetch.push(entry.path)
+  }
+
   try {
-    const counts = await getWorktreeChangedCounts(ordered.map((entry) => entry.path))
+    const fetched =
+      needFetch.length > 0 ? await getWorktreeChangedCounts(needFetch) : []
     if (!isCurrent()) {
       return
     }
-    const okCounts = counts.filter((item) => item.ok)
-    for (const item of okCounts) {
+    const counts = [...fromStatus, ...fetched.filter((item) => item.ok)]
+    for (const item of counts) {
       patchWorktreeChangedCount(repoPath, item.path, item.count)
     }
-    if (okCounts.length > 0) {
-      onCounts(okCounts)
+    if (counts.length > 0) {
+      onCounts(counts)
     }
   } catch {
     // バッジ更新失敗は非致命
