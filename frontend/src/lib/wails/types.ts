@@ -21,6 +21,7 @@ export interface WailsApp {
   GetSettings(): Promise<Settings>
   SaveSettings(settings: Settings): Promise<Settings>
   AddRepository(path: string): Promise<Settings>
+  CloneRepository(url: string, destPath: string): Promise<Settings>
   RemoveRepository(path: string): Promise<Settings>
   SetActiveRepository(path: string): Promise<Settings>
   SetPushAfterCommit(repoPath: string, enabled: boolean): Promise<Settings>

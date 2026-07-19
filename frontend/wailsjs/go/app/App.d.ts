@@ -21,6 +21,8 @@ export function CheckoutRemoteBranch(arg1:string,arg2:string):Promise<void>;
 
 export function CherryPick(arg1:string,arg2:string):Promise<void>;
 
+export function CloneRepository(arg1:string,arg2:string):Promise<config.Settings>;
+
 export function Commit(arg1:string,arg2:string):Promise<void>;
 
 export function ContinueCherryPick(arg1:string):Promise<void>;

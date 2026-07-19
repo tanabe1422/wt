@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -88,6 +89,23 @@ func (a *App) AddRepository(path string) (config.Settings, error) {
 		return config.Settings{}, err
 	}
 
+	return settings, nil
+}
+
+// CloneRepository clones a remote repository into destPath and opens it as a tab.
+func (a *App) CloneRepository(url, destPath string) (config.Settings, error) {
+	a.emitGitProgress("クローンしています…")
+	if err := git.CloneWithProgress(url, destPath, a.emitGitProgress); err != nil {
+		return config.Settings{}, err
+	}
+	settings, err := a.AddRepository(destPath)
+	if err != nil {
+		return config.Settings{}, fmt.Errorf(
+			"クローンは完了しましたがリポジトリの追加に失敗しました（%s）。ローカルリポジトリの追加から開けます: %w",
+			destPath,
+			err,
+		)
+	}
 	return settings, nil
 }
 

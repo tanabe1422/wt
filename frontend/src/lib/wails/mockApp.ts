@@ -339,6 +339,27 @@ export const mockApp: WailsApp = {
     return mockApp.GetSettings()
   },
 
+  async CloneRepository(url: string, destPath: string) {
+    const trimmedUrl = url.trim()
+    const trimmedDest = destPath.trim()
+    if (!trimmedUrl) {
+      throw new Error('リポジトリ URL を入力してください')
+    }
+    if (!trimmedDest) {
+      throw new Error('保存先ディレクトリを指定してください')
+    }
+    console.info('[mock] CloneRepository', trimmedUrl, trimmedDest)
+    const normalized = normalizePath(trimmedDest)
+    const exists = mockSettings.repositories.some(
+      (repo) => normalizePath(repo) === normalized,
+    )
+    if (!exists) {
+      mockSettings.repositories = [...mockSettings.repositories, trimmedDest]
+    }
+    mockSettings.activeRepository = trimmedDest
+    return mockApp.GetSettings()
+  },
+
   async RemoveRepository(path: string) {
     const normalized = normalizePath(path)
     mockSettings.repositories = mockSettings.repositories.filter(

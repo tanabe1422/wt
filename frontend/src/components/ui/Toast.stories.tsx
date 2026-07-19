@@ -164,7 +164,8 @@ function AppScreenWithToast({ preset }: { preset: AppToastPreset }) {
                 activeRepository="C:/dev/sample-repo"
                 onActivate={() => undefined}
                 onClose={() => undefined}
-                onAdd={() => undefined}
+                onAddLocal={() => undefined}
+                onOpenClone={() => undefined}
               />
             }
             workspaceToolbar={

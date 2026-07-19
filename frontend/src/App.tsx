@@ -5,6 +5,7 @@ import { GitWorkspace } from './components/git/GitWorkspace'
 import type { CompareRange } from './components/git/CompareDetailPane'
 import { BranchSidebar } from './components/sidebar/BranchSidebar'
 import { RepoTabBar } from './components/tabs/RepoTabBar'
+import { CloneRepositoryDialog } from './components/tabs/CloneRepositoryDialog'
 import { GitSyncToolbar, type FetchPhase } from './components/toolbar/GitSyncToolbar'
 import type { MainView } from './components/toolbar/MainViewToolbarTabs'
 import { ErrorDialog } from './components/ui/ErrorDialog'
@@ -81,7 +82,26 @@ function AppShell() {
     setFetchPhase(phase)
   }, [])
 
-  const overlayBusy = workspaceBusy || toolbarBusy || sidebarBusy
+  const {
+    settings,
+    repositories,
+    activeRepository,
+    loading,
+    error,
+    busy: repoBusy,
+    cloneOpen,
+    activateRepo,
+    closeRepo,
+    addLocalRepo,
+    openCloneDialog,
+    closeCloneDialog,
+    cloneRepo,
+    updateSettings,
+    updatePushAfterCommit,
+    updateMergeAllowFastForward,
+  } = useRepoTabs()
+
+  const overlayBusy = workspaceBusy || toolbarBusy || sidebarBusy || repoBusy
 
   useEffect(() => {
     if (!isWailsRuntime()) {
@@ -102,19 +122,6 @@ function AppShell() {
     }
     setBusyMessage('')
   }, [overlayBusy])
-  const {
-    settings,
-    repositories,
-    activeRepository,
-    loading,
-    error,
-    activateRepo,
-    closeRepo,
-    addRepo,
-    updateSettings,
-    updatePushAfterCommit,
-    updateMergeAllowFastForward,
-  } = useRepoTabs()
 
   useEffect(() => {
     setFetchPhase(null)
@@ -325,7 +332,8 @@ function AppShell() {
             activeRepository={activeRepository}
             onActivate={activateRepo}
             onClose={handleCloseRepo}
-            onAdd={addRepo}
+            onAddLocal={() => void addLocalRepo()}
+            onOpenClone={openCloneDialog}
             onPrefetch={handlePrefetchRepo}
           />
         }
@@ -427,7 +435,7 @@ function AppShell() {
             <div className={styles.empty}>
               <h1 className={styles.title}>wt-manager</h1>
               <p className={styles.hint}>
-                右上の + ボタンからローカルの Git リポジトリを追加してください
+                右上の + ボタンからローカルリポジトリの追加、またはリモートからのクローンができます
               </p>
             </div>
           </div>
@@ -458,6 +466,14 @@ function AppShell() {
         open={repoErrorDialog.open}
         message={repoErrorDialog.message}
         onClose={repoErrorDialog.dismiss}
+      />
+      <CloneRepositoryDialog
+        open={cloneOpen}
+        busy={repoBusy}
+        onCancel={closeCloneDialog}
+        onConfirm={(url, destPath) => {
+          void cloneRepo(url, destPath)
+        }}
       />
     </>
   )

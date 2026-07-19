@@ -4,6 +4,7 @@ import { emptyExternalTool, migrateExternalTool } from '../lib/externalToolPrese
 import { prefetchRepo } from '../lib/repoPrefetch'
 import {
   addRepository,
+  cloneRepository,
   getSettings,
   pickDirectory,
   removeRepository,
@@ -45,6 +46,8 @@ export function useRepoTabs() {
   const [settings, setSettings] = useState<Settings>(emptySettings)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [cloneOpen, setCloneOpen] = useState(false)
 
   useEffect(() => {
     getSettings()
@@ -82,7 +85,7 @@ export function useRepoTabs() {
     }
   }, [])
 
-  const addRepo = useCallback(async () => {
+  const addLocalRepo = useCallback(async () => {
     try {
       setError(null)
       const path = await pickDirectory()
@@ -93,6 +96,31 @@ export function useRepoTabs() {
       setSettings(normalizeLoadedSettings(next))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [])
+
+  const openCloneDialog = useCallback(() => {
+    setCloneOpen(true)
+  }, [])
+
+  const closeCloneDialog = useCallback(() => {
+    if (busy) {
+      return
+    }
+    setCloneOpen(false)
+  }, [busy])
+
+  const cloneRepo = useCallback(async (url: string, destPath: string) => {
+    try {
+      setError(null)
+      setBusy(true)
+      const next = await cloneRepository(url, destPath)
+      setSettings(normalizeLoadedSettings(next))
+      setCloneOpen(false)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
     }
   }, [])
 
@@ -129,9 +157,14 @@ export function useRepoTabs() {
     activeRepository: settings.activeRepository,
     loading,
     error,
+    busy,
+    cloneOpen,
     activateRepo,
     closeRepo,
-    addRepo,
+    addLocalRepo,
+    openCloneDialog,
+    closeCloneDialog,
+    cloneRepo,
     updateSettings,
     updatePushAfterCommit,
     updateMergeAllowFastForward,

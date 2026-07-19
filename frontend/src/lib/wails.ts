@@ -87,6 +87,10 @@ export async function addRepository(path: string): Promise<Settings> {
   return callApp('AddRepository', path)
 }
 
+export async function cloneRepository(url: string, destPath: string): Promise<Settings> {
+  return callApp('CloneRepository', url, destPath)
+}
+
 export async function removeRepository(path: string): Promise<Settings> {
   return callApp('RemoveRepository', path)
 }

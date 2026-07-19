@@ -38,6 +38,10 @@ export function CherryPick(arg1, arg2) {
   return window['go']['app']['App']['CherryPick'](arg1, arg2);
 }
 
+export function CloneRepository(arg1, arg2) {
+  return window['go']['app']['App']['CloneRepository'](arg1, arg2);
+}
+
 export function Commit(arg1, arg2) {
   return window['go']['app']['App']['Commit'](arg1, arg2);
 }

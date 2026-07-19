@@ -131,6 +131,19 @@
   color: var(--color-slate-500);
 }
 
+.pathRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.pathRow .input {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
+
 .hint {
   margin: 0.5rem 0 0;
   font-size: 0.75rem;

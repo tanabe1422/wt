@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { ContextMenu } from '../ui/ContextMenu'
 import { IconButton } from '../ui/IconButton'
 import { GitRateChips } from './GitRateChips'
 import styles from './RepoTabBar.module.css'
@@ -9,7 +10,8 @@ interface RepoTabBarProps {
   activeRepository: string
   onActivate: (path: string) => void
   onClose: (path: string) => void
-  onAdd: () => void
+  onAddLocal: () => void
+  onOpenClone: () => void
   onPrefetch?: (path: string) => void
 }
 
@@ -49,11 +51,36 @@ export function RepoTabBar({
   activeRepository,
   onActivate,
   onClose,
-  onAdd,
+  onAddLocal,
+  onOpenClone,
   onPrefetch,
 }: RepoTabBarProps) {
   const barRef = useRef<HTMLDivElement>(null)
+  const addButtonRef = useRef<HTMLButtonElement>(null)
   const tabRefs = useRef(new Map<string, HTMLDivElement>())
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null)
+  const menuOpen = menuPos !== null
+
+  const closeMenu = useCallback(() => {
+    setMenuPos(null)
+  }, [])
+
+  const openMenu = useCallback(() => {
+    const el = addButtonRef.current
+    if (!el) {
+      return
+    }
+    const rect = el.getBoundingClientRect()
+    setMenuPos({ x: rect.left, y: rect.bottom + 4 })
+  }, [])
+
+  const toggleMenu = useCallback(() => {
+    if (menuOpen) {
+      closeMenu()
+      return
+    }
+    openMenu()
+  }, [closeMenu, menuOpen, openMenu])
 
   useEffect(() => {
     if (!activeRepository) {
@@ -104,63 +131,85 @@ export function RepoTabBar({
   }, [repositories.length])
 
   return (
-    <div className={styles.wrapper}>
-      <div ref={barRef} className={styles.bar} role="tablist">
-        {repositories.map((path) => {
-          const isActive = path === activeRepository
-          return (
-            <div
-              key={path}
-              ref={(element) => {
-                if (element) {
-                  tabRefs.current.set(path, element)
-                } else {
-                  tabRefs.current.delete(path)
-                }
-              }}
-              role="tab"
-              aria-selected={isActive}
-              title={path}
-              className={`${styles.tab}${isActive ? ` ${styles.active}` : ''}`}
-              onClick={() => onActivate(path)}
-              onMouseEnter={() => {
-                if (!isActive) {
-                  onPrefetch?.(path)
-                }
-              }}
-              onMouseDown={(event) => {
-                if (event.button === 1) {
-                  event.preventDefault()
-                  onClose(path)
-                }
-              }}
-            >
-              <span className={styles.label}>{baseName(path)}</span>
-              <IconButton
-                size="sm"
-                className={styles.close}
-                aria-label="閉じる"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onClose(path)
+    <>
+      <div className={styles.wrapper}>
+        <div ref={barRef} className={styles.bar} role="tablist">
+          {repositories.map((path) => {
+            const isActive = path === activeRepository
+            return (
+              <div
+                key={path}
+                ref={(element) => {
+                  if (element) {
+                    tabRefs.current.set(path, element)
+                  } else {
+                    tabRefs.current.delete(path)
+                  }
+                }}
+                role="tab"
+                aria-selected={isActive}
+                title={path}
+                className={`${styles.tab}${isActive ? ` ${styles.active}` : ''}`}
+                onClick={() => onActivate(path)}
+                onMouseEnter={() => {
+                  if (!isActive) {
+                    onPrefetch?.(path)
+                  }
+                }}
+                onMouseDown={(event) => {
+                  if (event.button === 1) {
+                    event.preventDefault()
+                    onClose(path)
+                  }
                 }}
               >
-                <CloseIcon />
-              </IconButton>
-            </div>
-          )
-        })}
+                <span className={styles.label}>{baseName(path)}</span>
+                <IconButton
+                  size="sm"
+                  className={styles.close}
+                  aria-label="閉じる"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onClose(path)
+                  }}
+                >
+                  <CloseIcon />
+                </IconButton>
+              </div>
+            )
+          })}
+        </div>
+        <GitRateChips />
+        <button
+          ref={addButtonRef}
+          type="button"
+          className={styles.addButton}
+          aria-label="リポジトリを追加"
+          title="リポジトリを追加"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onClick={toggleMenu}
+        >
+          <PlusIcon />
+        </button>
       </div>
-      <GitRateChips />
-      <button
-        type="button"
-        className={styles.addButton}
-        aria-label="リポジトリを追加"
-        title="リポジトリを追加"
-        onClick={onAdd}
-      >
-        <PlusIcon />
-      </button>
-    </div>
+      {menuPos && (
+        <ContextMenu
+          x={menuPos.x}
+          y={menuPos.y}
+          items={[
+            {
+              label: 'ローカルリポジトリを選択',
+              onClick: onAddLocal,
+            },
+            {
+              label: 'リモートからクローン',
+              onClick: onOpenClone,
+            },
+          ]}
+          onClose={closeMenu}
+        />
+      )}
+    </>
   )
 }
