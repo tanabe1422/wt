@@ -4,7 +4,7 @@ import { getGitDebugSnapshot } from '../../lib/wails'
 import { HardDriveIcon } from '../sidebar/BranchIcons'
 import styles from './GitRateChips.module.css'
 
-const POLL_MS = 1000
+const POLL_MS = 2500
 const ICON_SIZE = 16
 const TOGGLE_ICON_SIZE = 14
 const STORAGE_KEY = 'wt-manager.gitRateChipsCollapsed'
@@ -154,12 +154,20 @@ export function GitRateChips() {
           if (cancelled) {
             return
           }
-          setCounts({
+          const next = {
             inflightNetwork: snap.inflightNetworkCount ?? 0,
             local: snap.lastMinuteLocalCount ?? 0,
             goGit: snap.lastMinuteGoGitCount ?? 0,
             network: snap.lastMinuteNetworkCount ?? 0,
-          })
+          }
+          setCounts((current) =>
+            current.inflightNetwork === next.inflightNetwork &&
+            current.local === next.local &&
+            current.goGit === next.goGit &&
+            current.network === next.network
+              ? current
+              : next,
+          )
         })
         .catch(() => {
           // Keep last known values; this is debug-only chrome.
