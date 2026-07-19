@@ -78,15 +78,20 @@ export function useCommitRebaseActions({
     }
   }, [worktreePath])
 
+  const conflictCount = unstaged.filter(isConflict).length
+  const statusLenKey = `${staged.length}:${unstaged.length}:${conflictCount}`
+
   useEffect(() => {
     void refreshOperationState()
-  }, [refreshOperationState, unstaged, staged])
+  }, [refreshOperationState, statusLenKey])
 
   useEffect(() => {
-    void refreshAmendInfo()
-  }, [refreshAmendInfo, unstaged, staged])
+    const timer = window.setTimeout(() => {
+      void refreshAmendInfo()
+    }, 200)
+    return () => window.clearTimeout(timer)
+  }, [refreshAmendInfo, statusLenKey])
 
-  const conflictCount = unstaged.filter(isConflict).length
   const canContinueOperation =
     (repoOperation === 'rebase' || repoOperation === 'cherry-pick') &&
     conflictCount === 0 &&
