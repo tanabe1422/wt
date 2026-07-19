@@ -134,7 +134,8 @@ export function BranchSidebar({
     onReload,
     onBranchChanged: onWorkspaceContentChanged,
   })
-  const openAppIconUrls = useExecutableIcons(openApps.map((app) => app.path))
+  const openAppPaths = useMemo(() => openApps.map((app) => app.path), [openApps])
+  const openAppIconUrls = useExecutableIcons(openAppPaths)
   const worktreeErrorDialog = useErrorDialog(worktreeDialogs.worktreeError)
 
   const stashActions = useStashActions({
