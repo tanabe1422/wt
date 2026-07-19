@@ -1,6 +1,6 @@
-import type { BranchEntry, WorktreeEntry } from '../types'
+import type { BranchEntry, BranchTrack, WorktreeEntry } from '../types'
 import { patchWorktreeChangedCount } from './repoDataCache'
-import { getBranchAheadBehind, getWorktreeChangedCount } from './wails'
+import { listBranchTracks, getWorktreeChangedCount } from './wails'
 
 export function sidebarSnapshotEqual(
   branchesA: BranchEntry[],
@@ -40,27 +40,28 @@ export function sidebarSnapshotEqual(
   return true
 }
 
-/** ListBranches は現行ブランチの track だけ埋める。他は裏で順次。 */
+/** ListBranches は現行ブランチの track だけ埋める。他は裏で 1 IPC。 */
 export async function fillBranchTracks(
   repoPath: string,
   entries: BranchEntry[],
   isCurrent: () => boolean,
-  onTrack: (branch: string, ahead: number, behind: number) => void,
+  onTracks: (tracks: BranchTrack[]) => void,
 ): Promise<void> {
-  const targets = entries.filter((entry) => !entry.isRemote && entry.hasUpstream && !entry.isCurrent)
-  for (const entry of targets) {
+  const needsFill = entries.some((entry) => !entry.isRemote && entry.hasUpstream && !entry.isCurrent)
+  if (!needsFill) {
+    return
+  }
+  if (!isCurrent()) {
+    return
+  }
+  try {
+    const tracks = await listBranchTracks(repoPath)
     if (!isCurrent()) {
       return
     }
-    try {
-      const { ahead, behind } = await getBranchAheadBehind(repoPath, entry.name)
-      if (!isCurrent()) {
-        return
-      }
-      onTrack(entry.name, ahead, behind)
-    } catch {
-      // ahead/behind 更新失敗は非致命
-    }
+    onTracks(tracks)
+  } catch {
+    // ahead/behind 更新失敗は非致命
   }
 }
 

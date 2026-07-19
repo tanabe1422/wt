@@ -512,6 +512,16 @@ export const mockApp: WailsApp = {
     return { ahead: entry?.aheadCount ?? 0, behind: entry?.behindCount ?? 0 }
   },
 
+  async ListBranchTracks(_repoPath: string) {
+    return mockBranchList
+      .filter((entry) => !entry.isRemote && entry.hasUpstream)
+      .map((entry) => ({
+        name: entry.name,
+        ahead: entry.aheadCount,
+        behind: entry.behindCount,
+      }))
+  },
+
   async ListWorktrees(repoPath: string) {
     const root = repoPath || mockSettings.activeRepository || 'C:/dev/sample-repo'
     if (mockWorktreeList.length === 0) {

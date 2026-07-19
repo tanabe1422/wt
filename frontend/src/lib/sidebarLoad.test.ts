@@ -10,7 +10,7 @@ import {
 } from './sidebarLoad'
 
 vi.mock('./wails', () => ({
-  getBranchAheadBehind: vi.fn(),
+  listBranchTracks: vi.fn(),
   getWorktreeChangedCount: vi.fn(),
 }))
 
@@ -19,7 +19,7 @@ vi.mock('./repoDataCache', () => ({
 }))
 
 import { patchWorktreeChangedCount } from './repoDataCache'
-import { getBranchAheadBehind, getWorktreeChangedCount } from './wails'
+import { listBranchTracks, getWorktreeChangedCount } from './wails'
 
 const branch = (partial: Partial<BranchEntry> & Pick<BranchEntry, 'name'>): BranchEntry => ({
   isRemote: false,
@@ -97,16 +97,17 @@ describe('mergeWorktreeBadgeCounts', () => {
 
 describe('fillBranchTracks', () => {
   beforeEach(() => {
-    vi.mocked(getBranchAheadBehind).mockReset()
+    vi.mocked(listBranchTracks).mockReset()
   })
 
-  it('fills tracks for non-current upstream locals and stops when stale', async () => {
-    vi.mocked(getBranchAheadBehind)
-      .mockResolvedValueOnce({ ahead: 1, behind: 0 })
-      .mockResolvedValueOnce({ ahead: 2, behind: 3 })
+  it('loads all tracks in one call and skips when no non-current upstream locals', async () => {
+    vi.mocked(listBranchTracks).mockResolvedValue([
+      { name: 'main', ahead: 0, behind: 0 },
+      { name: 'feat', ahead: 1, behind: 0 },
+      { name: 'other', ahead: 2, behind: 3 },
+    ])
 
-    const onTrack = vi.fn()
-    let current = true
+    const onTracks = vi.fn()
     const entries = [
       branch({ name: 'main', isCurrent: true, hasUpstream: true }),
       branch({ name: 'feat', hasUpstream: true }),
@@ -114,14 +115,26 @@ describe('fillBranchTracks', () => {
       branch({ name: 'origin/main', isRemote: true, hasUpstream: true }),
     ]
 
-    await fillBranchTracks('/repo', entries, () => current, (name, ahead, behind) => {
-      onTrack(name, ahead, behind)
-      current = false
-    })
+    await fillBranchTracks('/repo', entries, () => true, onTracks)
 
-    expect(getBranchAheadBehind).toHaveBeenCalledTimes(1)
-    expect(getBranchAheadBehind).toHaveBeenCalledWith('/repo', 'feat')
-    expect(onTrack).toHaveBeenCalledWith('feat', 1, 0)
+    expect(listBranchTracks).toHaveBeenCalledTimes(1)
+    expect(listBranchTracks).toHaveBeenCalledWith('/repo')
+    expect(onTracks).toHaveBeenCalledWith([
+      { name: 'main', ahead: 0, behind: 0 },
+      { name: 'feat', ahead: 1, behind: 0 },
+      { name: 'other', ahead: 2, behind: 3 },
+    ])
+  })
+
+  it('skips IPC when stale before fetch', async () => {
+    vi.mocked(listBranchTracks).mockResolvedValue([])
+    const onTracks = vi.fn()
+    const entries = [branch({ name: 'feat', hasUpstream: true })]
+
+    await fillBranchTracks('/repo', entries, () => false, onTracks)
+
+    expect(listBranchTracks).not.toHaveBeenCalled()
+    expect(onTracks).not.toHaveBeenCalled()
   })
 })
 

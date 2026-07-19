@@ -176,6 +176,55 @@ func TestParseUpstreamTrack(t *testing.T) {
 	}
 }
 
+func TestParseBranchTracks(t *testing.T) {
+	out := strings.Join([]string{
+		"main|[ahead 1]",
+		"feat|[behind 2, ahead 3]",
+		"gone|[gone]",
+		"synced|",
+		"",
+	}, "\n")
+	got := parseBranchTracks(out)
+	want := []BranchTrack{
+		{Name: "main", Ahead: 1, Behind: 0},
+		{Name: "feat", Ahead: 3, Behind: 2},
+		{Name: "gone", Ahead: 0, Behind: 0},
+		{Name: "synced", Ahead: 0, Behind: 0},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("len=%d want %d: %+v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("[%d] = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestListBranchTracks(t *testing.T) {
+	fake := newFakeRunner()
+	fake.On("for-each-ref", "--format=%(refname:short)|%(upstream:track)", "refs/heads/").Return(
+		"main|[ahead 2]\nfeat|[behind 1]\n",
+		nil,
+	)
+	withFakeRunner(t, fake)
+
+	tracks, err := ListBranchTracks("/repo")
+	if err != nil {
+		t.Fatalf("ListBranchTracks: %v", err)
+	}
+	if len(tracks) != 2 {
+		t.Fatalf("len=%d want 2: %+v", len(tracks), tracks)
+	}
+	if tracks[0] != (BranchTrack{Name: "main", Ahead: 2}) {
+		t.Fatalf("tracks[0]=%+v", tracks[0])
+	}
+	if tracks[1] != (BranchTrack{Name: "feat", Behind: 1}) {
+		t.Fatalf("tracks[1]=%+v", tracks[1])
+	}
+	fake.AssertCalled(t, "for-each-ref", "--format=%(refname:short)|%(upstream:track)", "refs/heads/")
+}
+
 func TestParseBranchRefLine(t *testing.T) {
 	tests := []struct {
 		line        string

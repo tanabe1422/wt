@@ -97,6 +97,12 @@ export interface AheadBehind {
   behind: number
 }
 
+export interface BranchTrack {
+  name: string
+  ahead: number
+  behind: number
+}
+
 export type MergeCheckMode = 'ancestry' | 'content'
 
 export interface RemoteMergeEntry {

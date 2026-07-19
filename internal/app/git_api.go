@@ -26,6 +26,17 @@ func (a *App) GetBranchAheadBehind(repoPath, branch string) (git.AheadBehind, er
 	return git.GetBranchAheadBehind(repoRoot, branch)
 }
 
+func (a *App) ListBranchTracks(repoPath string) ([]git.BranchTrack, error) {
+	root, ok, err := tryResolveRepoRoot(repoPath)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return []git.BranchTrack{}, nil
+	}
+	return git.ListBranchTracks(root)
+}
+
 func (a *App) ListWorktrees(repoPath string) ([]git.WorktreeEntry, error) {
 	return listFromRepo(repoPath, git.ListWorktrees)
 }

@@ -3,6 +3,7 @@ package git
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 )
 
@@ -45,9 +46,16 @@ type AheadBehind struct {
 	Behind int `json:"behind"`
 }
 
+// BranchTrack is ahead/behind for one local branch vs its upstream.
+type BranchTrack struct {
+	Name   string `json:"name"`
+	Ahead  int    `json:"ahead"`
+	Behind int    `json:"behind"`
+}
+
 // ListBranches returns local and remote branches for the repository at repoPath.
 // Ahead/behind is filled only for the current branch (fast path after fetch).
-// Use GetBranchAheadBehind for other locals off the critical path.
+// Use ListBranchTracks for other locals off the critical path.
 func ListBranches(repoPath string) ([]BranchEntry, error) {
 	entries, err := listBranchesMeta(repoPath)
 	if err != nil {
@@ -55,6 +63,49 @@ func ListBranches(repoPath string) ([]BranchEntry, error) {
 	}
 	fillCurrentBranchTrack(repoPath, entries)
 	return entries, nil
+}
+
+// ListBranchTracks returns ahead/behind for all local branches that have an upstream.
+// Uses a single for-each-ref spawn (avoids N history walks via GetBranchAheadBehind).
+func ListBranchTracks(repoPath string) ([]BranchTrack, error) {
+	dir, err := filepath.Abs(filepath.Clean(repoPath))
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := runGit(dir, "for-each-ref", "--format=%(refname:short)|%(upstream:track)", "refs/heads/")
+	if err != nil {
+		return nil, err
+	}
+	return parseBranchTracks(out), nil
+}
+
+func parseBranchTracks(out string) []BranchTrack {
+	if strings.TrimSpace(out) == "" {
+		return []BranchTrack{}
+	}
+	lines := strings.Split(out, "\n")
+	tracks := make([]BranchTrack, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		name, track, ok := strings.Cut(line, "|")
+		name = strings.TrimSpace(name)
+		if !ok || name == "" {
+			continue
+		}
+		track = strings.TrimSpace(track)
+		// Empty / [gone] still need a row so the UI can clear stale ahead/behind.
+		ahead, behind := parseUpstreamTrack(track)
+		tracks = append(tracks, BranchTrack{
+			Name:   name,
+			Ahead:  ahead,
+			Behind: behind,
+		})
+	}
+	return tracks
 }
 
 // listBranchesMeta lists branches without computing upstream ahead/behind.

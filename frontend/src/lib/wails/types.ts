@@ -3,6 +3,7 @@ import type {
   AheadBehind,
   BranchEntry,
   BranchHead,
+  BranchTrack,
   CommitFileChange,
   FileDiff,
   FileStatus,
@@ -39,6 +40,7 @@ export interface WailsApp {
   GetExecutableIconDataURL(commandOrPath: string): Promise<string>
   ListBranches(repoPath: string): Promise<BranchEntry[]>
   GetBranchAheadBehind(repoPath: string, branch: string): Promise<AheadBehind>
+  ListBranchTracks(repoPath: string): Promise<BranchTrack[]>
   ListWorktrees(repoPath: string): Promise<WorktreeEntry[]>
   ListWorktreesMeta(repoPath: string): Promise<WorktreeEntry[]>
   GetWorktreeChangedCount(worktreePath: string): Promise<number>

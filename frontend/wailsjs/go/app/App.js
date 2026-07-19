@@ -182,6 +182,10 @@ export function ListBranches(arg1) {
   return window['go']['app']['App']['ListBranches'](arg1);
 }
 
+export function ListBranchTracks(arg1) {
+  return window['go']['app']['App']['ListBranchTracks'](arg1);
+}
+
 export function ListCommitFiles(arg1, arg2) {
   return window['go']['app']['App']['ListCommitFiles'](arg1, arg2);
 }

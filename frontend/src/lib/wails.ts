@@ -2,6 +2,7 @@ import type {
   AmendInfo,
   BranchEntry,
   BranchHead,
+  BranchTrack,
   CommitFileChange,
   FileDiff,
   FileStatus,
@@ -163,6 +164,10 @@ export async function getBranchAheadBehind(
   branch: string,
 ): Promise<{ ahead: number; behind: number }> {
   return callApp('GetBranchAheadBehind', repoPath, branch)
+}
+
+export async function listBranchTracks(repoPath = ''): Promise<BranchTrack[]> {
+  return callApp('ListBranchTracks', repoPath)
 }
 
 export async function listWorktrees(repoPath = ''): Promise<WorktreeEntry[]> {

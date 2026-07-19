@@ -56,11 +56,34 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
     )
   }, [])
 
-  const applyBranchTrack = useCallback((branch: string, ahead: number, behind: number) => {
+  const applyBranchTracks = useCallback((tracks: { name: string; ahead: number; behind: number }[]) => {
+    if (tracks.length === 0) {
+      return
+    }
+    const byName = new Map(tracks.map((track) => [track.name, track]))
     setBranches((current) => {
-      const next = current.map((entry) =>
-        entry.name === branch ? { ...entry, aheadCount: ahead, behindCount: behind } : entry,
-      )
+      let changed = false
+      const next = current.map((entry) => {
+        if (entry.isRemote || entry.isCurrent || !entry.hasUpstream) {
+          return entry
+        }
+        const track = byName.get(entry.name)
+        if (!track) {
+          return entry
+        }
+        if (entry.aheadCount === track.ahead && entry.behindCount === track.behind) {
+          return entry
+        }
+        changed = true
+        return {
+          ...entry,
+          aheadCount: track.ahead,
+          behindCount: track.behind,
+        }
+      })
+      if (!changed) {
+        return current
+      }
       const repoPath = activeRepoRef.current
       if (repoPath) {
         patchSidebarBranches(repoPath, next)
@@ -175,11 +198,11 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
           }
           applyBadgeCount(path, count)
         })
-        void fillBranchTracks(repoPath, mergedBranches, isCurrent, (name, ahead, behind) => {
+        void fillBranchTracks(repoPath, mergedBranches, isCurrent, (tracks) => {
           if (!isCurrent()) {
             return
           }
-          applyBranchTrack(name, ahead, behind)
+          applyBranchTracks(tracks)
         })
       } catch (err) {
         if (!isCurrent()) {
@@ -199,7 +222,7 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
     },
     [
       applyBadgeCount,
-      applyBranchTrack,
+      applyBranchTracks,
       applySelection,
       clearSelection,
       selectedBranchRef,
@@ -255,11 +278,11 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
           applyBadgeCount(path, count)
         },
       )
-      void fillBranchTracks(repoPath, cached.branches, isCurrent, (name, ahead, behind) => {
+      void fillBranchTracks(repoPath, cached.branches, isCurrent, (tracks) => {
         if (!isCurrent()) {
           return
         }
-        applyBranchTrack(name, ahead, behind)
+        applyBranchTracks(tracks)
       })
     }
 
@@ -297,7 +320,7 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
     return () => {
       cancelled = true
     }
-  }, [activeRepository, applyBadgeCount, applyBranchTrack, applySelection, clearSelection, loadSidebar])
+  }, [activeRepository, applyBadgeCount, applyBranchTracks, applySelection, clearSelection, loadSidebar])
 
   const refreshWorktreeBadge = useCallback(
     async (worktreePath: string) => {
@@ -342,16 +365,16 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
       const repoPath = activeRepository
       const isCurrent = () =>
         requestId === requestIdRef.current && activeRepoRef.current === repoPath
-      void fillBranchTracks(repoPath, mergedBranches, isCurrent, (name, ahead, behind) => {
+      void fillBranchTracks(repoPath, mergedBranches, isCurrent, (tracks) => {
         if (!isCurrent()) {
           return
         }
-        applyBranchTrack(name, ahead, behind)
+        applyBranchTracks(tracks)
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ブランチ情報の取得に失敗しました')
     }
-  }, [activeRepository, applyBranchTrack])
+  }, [activeRepository, applyBranchTracks])
 
   /** WT 一覧メタ（path/branch）だけ。status スキャンなし。更新後の meta を返す。 */
   const reloadWorktreesMeta = useCallback(async (): Promise<WorktreeEntry[] | undefined> => {
