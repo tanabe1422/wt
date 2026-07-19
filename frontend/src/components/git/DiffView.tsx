@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import type { MouseEvent as ReactMouseEvent } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
+import type { MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent } from 'react'
 
 import type { FileDiff } from '../../types'
 import { applyDiffLineSelection, isSelectableDiffKind } from '../../utils/diffLineSelection'
@@ -7,32 +7,107 @@ import { cx } from '../../utils/cx'
 import { Button } from '../ui/Button'
 import styles from './DiffView.module.css'
 
-/** 半角スペースを · で可視化（コピー時は実スペースのまま） */
-function DiffLineText({ content }: { content: string }): ReactNode {
-  if (!content.includes(' ')) {
-    return content
-  }
+/** 半角スペースを · で可視化（コピー時は実スペース）。1 行 1 テキストノードで DOM を抑える。 */
+const DiffLineText = memo(function DiffLineText({ content }: { content: string }) {
+  const display = content.includes(' ') ? content.replaceAll(' ', '·') : content
+  return (
+    <span
+      className={styles.text}
+      onCopy={(event) => {
+        event.clipboardData.setData('text/plain', content)
+        event.preventDefault()
+      }}
+    >
+      {display}
+    </span>
+  )
+})
 
-  const nodes: ReactNode[] = []
-  let textStart = 0
-  for (let i = 0; i < content.length; i++) {
-    if (content[i] === ' ') {
-      if (i > textStart) {
-        nodes.push(content.slice(textStart, i))
-      }
-      nodes.push(
-        <span key={i} className={styles.space}>
-          {' '}
-        </span>,
+type DiffLineRowProps = {
+  hunkIndex: number
+  lineIndex: number
+  kind: string
+  oldNo?: number
+  newNo?: number
+  content: string
+  selectable: boolean
+  selected: boolean
+  kinds: readonly string[]
+  onMouseDown: (event: ReactMouseEvent) => void
+  onClick: (
+    event: ReactMouseEvent,
+    hunkIndex: number,
+    lineIndex: number,
+    kinds: readonly string[],
+  ) => void
+  onApplySelection: (
+    hunkIndex: number,
+    lineIndex: number,
+    kinds: readonly string[],
+    shiftKey: boolean,
+    ctrlOrMeta: boolean,
+  ) => void
+}
+
+const DiffLineRow = memo(function DiffLineRow({
+  hunkIndex,
+  lineIndex,
+  kind,
+  oldNo,
+  newNo,
+  content,
+  selectable,
+  selected,
+  kinds,
+  onMouseDown,
+  onClick,
+  onApplySelection,
+}: DiffLineRowProps) {
+  const handleKeyDown = (event: ReactKeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onApplySelection(
+        hunkIndex,
+        lineIndex,
+        kinds,
+        event.shiftKey,
+        event.ctrlKey || event.metaKey,
       )
-      textStart = i + 1
     }
   }
-  if (textStart < content.length) {
-    nodes.push(content.slice(textStart))
-  }
-  return nodes
-}
+
+  return (
+    <div
+      className={cx(
+        styles.line,
+        selectable && styles.lineSelectable,
+        selected && styles.lineSelected,
+      )}
+      onMouseDown={selectable ? onMouseDown : undefined}
+      onClick={
+        selectable ? (event) => onClick(event, hunkIndex, lineIndex, kinds) : undefined
+      }
+      role={selectable ? 'button' : undefined}
+      tabIndex={selectable ? 0 : undefined}
+      onKeyDown={selectable ? handleKeyDown : undefined}
+    >
+      <div className={styles.lineNums}>
+        <span className={styles.lineNo}>{oldNo ? String(oldNo) : ''}</span>
+        <span className={styles.lineNo}>{newNo ? String(newNo) : ''}</span>
+      </div>
+      <div
+        className={cx(
+          styles.lineBody,
+          kind === 'add' && styles.add,
+          kind === 'del' && styles.del,
+        )}
+      >
+        <span className={styles.prefix}>{kind === 'add' ? '+' : kind === 'del' ? '-' : ' '}</span>
+        <DiffLineText content={content} />
+      </div>
+    </div>
+  )
+})
 
 export interface DiffViewProps {
   diff: FileDiff | null
@@ -111,48 +186,54 @@ export function DiffView({
     return [...selection.lines].sort((a, b) => a - b)
   }
 
-  const applyLineSelection = (
-    hunkIndex: number,
-    lineIndex: number,
-    kinds: readonly string[],
-    shiftKey: boolean,
-    ctrlOrMeta: boolean,
-  ) => {
-    if (!lineActionsEnabled) {
-      return
-    }
-    setSelection((current) =>
-      applyDiffLineSelection({
-        kinds,
-        hunkIndex,
-        lineIndex,
-        current,
-        shiftKey,
-        ctrlOrMeta,
-      }),
-    )
-  }
+  const applyLineSelection = useCallback(
+    (
+      hunkIndex: number,
+      lineIndex: number,
+      kinds: readonly string[],
+      shiftKey: boolean,
+      ctrlOrMeta: boolean,
+    ) => {
+      if (!lineActionsEnabled) {
+        return
+      }
+      setSelection((current) =>
+        applyDiffLineSelection({
+          kinds,
+          hunkIndex,
+          lineIndex,
+          current,
+          shiftKey,
+          ctrlOrMeta,
+        }),
+      )
+    },
+    [lineActionsEnabled],
+  )
 
-  const handleLineMouseDown = (event: ReactMouseEvent) => {
+  const handleLineMouseDown = useCallback((event: ReactMouseEvent) => {
     // Prevent native text selection during Shift/Ctrl line picking.
     event.preventDefault()
-  }
+  }, [])
 
-  const handleLineClick = (
-    event: ReactMouseEvent,
-    hunkIndex: number,
-    lineIndex: number,
-    kinds: readonly string[],
-  ) => {
-    event.preventDefault()
-    applyLineSelection(
-      hunkIndex,
-      lineIndex,
-      kinds,
-      event.shiftKey,
-      event.ctrlKey || event.metaKey,
-    )
-  }
+  const handleLineClick = useCallback(
+    (
+      event: ReactMouseEvent,
+      hunkIndex: number,
+      lineIndex: number,
+      kinds: readonly string[],
+    ) => {
+      event.preventDefault()
+      applyLineSelection(
+        hunkIndex,
+        lineIndex,
+        kinds,
+        event.shiftKey,
+        event.ctrlKey || event.metaKey,
+      )
+    },
+    [applyLineSelection],
+  )
 
   const clearSelection = () => setSelection(null)
 
@@ -274,61 +355,21 @@ export function DiffView({
                       selection?.hunkIndex === index && selection.lines.has(lineIndex)
 
                     return (
-                      <div
+                      <DiffLineRow
                         key={`${index}-${lineIndex}`}
-                        className={cx(
-                          styles.line,
-                          selectable && styles.lineSelectable,
-                          selected && styles.lineSelected,
-                        )}
-                        onMouseDown={selectable ? handleLineMouseDown : undefined}
-                        onClick={
-                          selectable
-                            ? (event) => handleLineClick(event, index, lineIndex, kinds)
-                            : undefined
-                        }
-                        role={selectable ? 'button' : undefined}
-                        tabIndex={selectable ? 0 : undefined}
-                        onKeyDown={
-                          selectable
-                            ? (event) => {
-                                if (event.key === 'Enter' || event.key === ' ') {
-                                  event.preventDefault()
-                                  applyLineSelection(
-                                    index,
-                                    lineIndex,
-                                    kinds,
-                                    event.shiftKey,
-                                    event.ctrlKey || event.metaKey,
-                                  )
-                                }
-                              }
-                            : undefined
-                        }
-                      >
-                        <div className={styles.lineNums}>
-                          <span className={styles.lineNo}>
-                            {line.oldNo ? String(line.oldNo) : ''}
-                          </span>
-                          <span className={styles.lineNo}>
-                            {line.newNo ? String(line.newNo) : ''}
-                          </span>
-                        </div>
-                        <div
-                          className={cx(
-                            styles.lineBody,
-                            line.kind === 'add' && styles.add,
-                            line.kind === 'del' && styles.del,
-                          )}
-                        >
-                          <span className={styles.prefix}>
-                            {line.kind === 'add' ? '+' : line.kind === 'del' ? '-' : ' '}
-                          </span>
-                          <span className={styles.text}>
-                            <DiffLineText content={line.content} />
-                          </span>
-                        </div>
-                      </div>
+                        hunkIndex={index}
+                        lineIndex={lineIndex}
+                        kind={line.kind}
+                        oldNo={line.oldNo}
+                        newNo={line.newNo}
+                        content={line.content}
+                        selectable={selectable}
+                        selected={selected}
+                        kinds={kinds}
+                        onMouseDown={handleLineMouseDown}
+                        onClick={handleLineClick}
+                        onApplySelection={applyLineSelection}
+                      />
                     )
                   })}
                 </pre>

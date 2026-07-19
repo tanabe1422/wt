@@ -182,20 +182,6 @@
   color: var(--color-slate-800);
 }
 
-.space {
-  position: relative;
-}
-
-.space::before {
-  content: '·';
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  color: var(--color-slate-300);
-  pointer-events: none;
-  user-select: none;
-}
-
 .add {
   background: var(--color-green-100);
 }
