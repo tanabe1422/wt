@@ -56,6 +56,25 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
     )
   }, [])
 
+  const applyBadgeCounts = useCallback((counts: { path: string; count: number }[]) => {
+    if (counts.length === 0) {
+      return
+    }
+    const byPath = new Map(counts.map((item) => [item.path, item.count]))
+    setWorktrees((current) => {
+      let changed = false
+      const next = current.map((entry) => {
+        const count = byPath.get(entry.path)
+        if (count === undefined || entry.changedFileCount === count) {
+          return entry
+        }
+        changed = true
+        return { ...entry, changedFileCount: count }
+      })
+      return changed ? next : current
+    })
+  }, [])
+
   const applyBranchTracks = useCallback((tracks: { name: string; ahead: number; behind: number }[]) => {
     if (tracks.length === 0) {
       return
@@ -192,11 +211,11 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
         })
 
         // バッジ埋めはクリティカルパス外（選択 WT 優先）
-        void fillWorktreeBadges(repoPath, mergedWorktrees, nextWorktree, isCurrent, (path, count) => {
+        void fillWorktreeBadges(repoPath, mergedWorktrees, nextWorktree, isCurrent, (counts) => {
           if (!isCurrent()) {
             return
           }
-          applyBadgeCount(path, count)
+          applyBadgeCounts(counts)
         })
         void fillBranchTracks(repoPath, mergedBranches, isCurrent, (tracks) => {
           if (!isCurrent()) {
@@ -221,7 +240,7 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
       }
     },
     [
-      applyBadgeCount,
+      applyBadgeCounts,
       applyBranchTracks,
       applySelection,
       clearSelection,
@@ -271,11 +290,11 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
         cached.worktrees,
         cached.selectedWorktree,
         isCurrent,
-        (path, count) => {
+        (counts) => {
           if (!isCurrent()) {
             return
           }
-          applyBadgeCount(path, count)
+          applyBadgeCounts(counts)
         },
       )
       void fillBranchTracks(repoPath, cached.branches, isCurrent, (tracks) => {
@@ -320,7 +339,7 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
     return () => {
       cancelled = true
     }
-  }, [activeRepository, applyBadgeCount, applyBranchTracks, applySelection, clearSelection, loadSidebar])
+  }, [activeRepository, applyBadgeCounts, applyBranchTracks, applySelection, clearSelection, loadSidebar])
 
   const refreshWorktreeBadge = useCallback(
     async (worktreePath: string) => {
@@ -397,7 +416,7 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
   }, [activeRepository])
 
   /**
-   * 全 WT の変更数バッジを裏で順次更新（busy なし・選択 WT 優先）。
+   * 全 WT の変更数バッジを裏で一括更新（busy なし・選択 WT 優先）。
    * ウィンドウ復帰時など、フル sidebar 再取得なしでバッジだけ揃える用。
    */
   const refreshWorktreeBadges = useCallback(() => {
@@ -417,14 +436,14 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
       entries,
       selectedWorktreeRef.current,
       isCurrent,
-      (path, count) => {
+      (counts) => {
         if (!isCurrent()) {
           return
         }
-        applyBadgeCount(path, count)
+        applyBadgeCounts(counts)
       },
     )
-  }, [activeRepository, applyBadgeCount, selectedWorktreeRef])
+  }, [activeRepository, applyBadgeCounts, selectedWorktreeRef])
 
   return {
     branches,

@@ -14,6 +14,7 @@ import type {
   FsMonitorState,
   Settings,
   StashEntry,
+  WorktreeChangedCount,
   WorktreeEntry,
 } from '../../types'
 
@@ -44,6 +45,7 @@ export interface WailsApp {
   ListWorktrees(repoPath: string): Promise<WorktreeEntry[]>
   ListWorktreesMeta(repoPath: string): Promise<WorktreeEntry[]>
   GetWorktreeChangedCount(worktreePath: string): Promise<number>
+  GetWorktreeChangedCounts(paths: string[]): Promise<WorktreeChangedCount[]>
   DefaultWorktreePath(repoPath: string, branch: string): Promise<string>
   AddWorktree(
     repoPath: string,

@@ -89,6 +89,25 @@ func TestGetWorktreeChangedCount(t *testing.T) {
 	}
 }
 
+func TestGetWorktreeChangedCounts(t *testing.T) {
+	dirA := t.TempDir()
+	dirB := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("status", "--porcelain=v1", "-u").Return(" M a.txt", nil)
+	withFakeRunner(t, fake)
+
+	got := GetWorktreeChangedCounts([]string{dirA, dirB})
+	if len(got) != 2 {
+		t.Fatalf("len=%d want 2", len(got))
+	}
+	if got[0].Path != dirA || got[0].Count != 1 {
+		t.Fatalf("got[0]=%+v", got[0])
+	}
+	if got[1].Path != dirB || got[1].Count != 1 {
+		t.Fatalf("got[1]=%+v", got[1])
+	}
+}
+
 func TestCountChangedFiles(t *testing.T) {
 	dir := t.TempDir()
 	fake := newFakeRunner()

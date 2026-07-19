@@ -166,6 +166,10 @@ export function GetWorktreeChangedCount(arg1) {
   return window['go']['app']['App']['GetWorktreeChangedCount'](arg1);
 }
 
+export function GetWorktreeChangedCounts(arg1) {
+  return window['go']['app']['App']['GetWorktreeChangedCounts'](arg1);
+}
+
 export function IsMerging(arg1) {
   return window['go']['app']['App']['IsMerging'](arg1);
 }

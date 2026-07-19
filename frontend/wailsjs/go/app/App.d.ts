@@ -85,6 +85,8 @@ export function GetStatus(arg1:string):Promise<Array<git.FileStatus>>;
 
 export function GetWorktreeChangedCount(arg1:string):Promise<number>;
 
+export function GetWorktreeChangedCounts(arg1:Array<string>):Promise<Array<git.WorktreeChangedCount>>;
+
 export function IsMerging(arg1:string):Promise<boolean>;
 
 export function IsRebasing(arg1:string):Promise<boolean>;

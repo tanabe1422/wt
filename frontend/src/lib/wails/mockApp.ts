@@ -569,6 +569,15 @@ export const mockApp: WailsApp = {
     return entry?.changedFileCount ?? 0
   },
 
+  async GetWorktreeChangedCounts(paths: string[]) {
+    return Promise.all(
+      paths.map(async (path) => ({
+        path,
+        count: await mockApp.GetWorktreeChangedCount(path),
+      })),
+    )
+  },
+
   async DefaultWorktreePath(repoPath: string, branch: string) {
     const root = repoPath || mockSettings.activeRepository || 'C:/dev/sample-repo'
     const parent = root.replace(/[/\\][^/\\]+$/, '')

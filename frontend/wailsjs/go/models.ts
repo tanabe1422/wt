@@ -592,6 +592,20 @@ export namespace git {
 	        this.message = source["message"];
 	    }
 	}
+	export class WorktreeChangedCount {
+	    path: string;
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new WorktreeChangedCount(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.count = source["count"];
+	    }
+	}
 	export class WorktreeEntry {
 	    path: string;
 	    branch: string;

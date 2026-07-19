@@ -42,6 +42,36 @@ func GetWorktreeChangedCount(worktreePath string) (int, error) {
 	return countChangedFiles(worktreePath)
 }
 
+// WorktreeChangedCount is a badge count for one worktree path.
+type WorktreeChangedCount struct {
+	Path  string `json:"path"`
+	Count int    `json:"count"`
+}
+
+// GetWorktreeChangedCounts returns badge counts for many worktrees in parallel.
+func GetWorktreeChangedCounts(paths []string) []WorktreeChangedCount {
+	results := make([]WorktreeChangedCount, len(paths))
+	if len(paths) == 0 {
+		return results
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(paths))
+	for i, p := range paths {
+		go func(i int, p string) {
+			defer wg.Done()
+			results[i].Path = p
+			n, err := countChangedFiles(p)
+			if err != nil {
+				return
+			}
+			results[i].Count = n
+		}(i, p)
+	}
+	wg.Wait()
+	return results
+}
+
 // listWorktreesMeta lists worktrees without running git status per entry.
 func listWorktreesMeta(repoPath string) ([]WorktreeEntry, error) {
 	repoRoot, err := filepath.Abs(filepath.Clean(repoPath))

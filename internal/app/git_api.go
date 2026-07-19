@@ -58,6 +58,23 @@ func (a *App) GetWorktreeChangedCount(worktreePath string) (int, error) {
 	return withWorktreeResult(worktreePath, git.GetWorktreeChangedCount)
 }
 
+func (a *App) GetWorktreeChangedCounts(paths []string) ([]git.WorktreeChangedCount, error) {
+	resolved := make([]string, len(paths))
+	for i, p := range paths {
+		dir, err := resolveWorktreePath(p)
+		if err != nil {
+			resolved[i] = p
+			continue
+		}
+		resolved[i] = dir
+	}
+	counts := git.GetWorktreeChangedCounts(resolved)
+	for i := range counts {
+		counts[i].Path = paths[i]
+	}
+	return counts, nil
+}
+
 func (a *App) DefaultWorktreePath(repoPath, branch string) (string, error) {
 	repoRoot, err := resolveRepoRoot(repoPath)
 	if err != nil {

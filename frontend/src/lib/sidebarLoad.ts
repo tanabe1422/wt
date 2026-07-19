@@ -1,6 +1,6 @@
 import type { BranchEntry, BranchTrack, WorktreeEntry } from '../types'
 import { patchWorktreeChangedCount } from './repoDataCache'
-import { listBranchTracks, getWorktreeChangedCount } from './wails'
+import { listBranchTracks, getWorktreeChangedCounts } from './wails'
 
 export function sidebarSnapshotEqual(
   branchesA: BranchEntry[],
@@ -97,33 +97,36 @@ export function mergeWorktreeBadgeCounts(
 }
 
 /**
- * Meta 表示後にバッジを埋める。選択中 WT を優先し、残りは順次（起動クリティカルパス外）。
+ * Meta 表示後にバッジを埋める。選択中 WT を先頭にした 1 バッチ IPC（起動クリティカルパス外）。
  */
 export async function fillWorktreeBadges(
   repoPath: string,
   entries: WorktreeEntry[],
   preferredPath: string | null,
   isCurrent: () => boolean,
-  onCount: (worktreePath: string, count: number) => void,
+  onCounts: (counts: { path: string; count: number }[]) => void,
 ): Promise<void> {
+  if (entries.length === 0) {
+    return
+  }
+  if (!isCurrent()) {
+    return
+  }
   const ordered = [...entries].sort((a, b) => {
     if (a.path === preferredPath) return -1
     if (b.path === preferredPath) return 1
     return 0
   })
-  for (const entry of ordered) {
+  try {
+    const counts = await getWorktreeChangedCounts(ordered.map((entry) => entry.path))
     if (!isCurrent()) {
       return
     }
-    try {
-      const count = await getWorktreeChangedCount(entry.path)
-      if (!isCurrent()) {
-        return
-      }
-      onCount(entry.path, count)
-      patchWorktreeChangedCount(repoPath, entry.path, count)
-    } catch {
-      // バッジ更新失敗は非致命
+    for (const item of counts) {
+      patchWorktreeChangedCount(repoPath, item.path, item.count)
     }
+    onCounts(counts)
+  } catch {
+    // バッジ更新失敗は非致命
   }
 }

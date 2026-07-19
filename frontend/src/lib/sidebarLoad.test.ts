@@ -11,7 +11,7 @@ import {
 
 vi.mock('./wails', () => ({
   listBranchTracks: vi.fn(),
-  getWorktreeChangedCount: vi.fn(),
+  getWorktreeChangedCounts: vi.fn(),
 }))
 
 vi.mock('./repoDataCache', () => ({
@@ -19,7 +19,7 @@ vi.mock('./repoDataCache', () => ({
 }))
 
 import { patchWorktreeChangedCount } from './repoDataCache'
-import { listBranchTracks, getWorktreeChangedCount } from './wails'
+import { listBranchTracks, getWorktreeChangedCounts } from './wails'
 
 const branch = (partial: Partial<BranchEntry> & Pick<BranchEntry, 'name'>): BranchEntry => ({
   isRemote: false,
@@ -140,31 +140,30 @@ describe('fillBranchTracks', () => {
 
 describe('fillWorktreeBadges', () => {
   beforeEach(() => {
-    vi.mocked(getWorktreeChangedCount).mockReset()
+    vi.mocked(getWorktreeChangedCounts).mockReset()
     vi.mocked(patchWorktreeChangedCount).mockReset()
   })
 
-  it('prefers selected worktree then continues in order', async () => {
-    vi.mocked(getWorktreeChangedCount).mockImplementation(async (path) => {
-      if (path === '/feat') return 7
-      if (path === '/main') return 1
-      return 0
-    })
+  it('batches counts with preferred worktree first', async () => {
+    vi.mocked(getWorktreeChangedCounts).mockResolvedValue([
+      { path: '/feat', count: 7 },
+      { path: '/main', count: 1 },
+    ])
 
-    const onCount = vi.fn()
+    const onCounts = vi.fn()
     const entries = [
       worktree({ path: '/main', branch: 'main', isMain: true }),
       worktree({ path: '/feat', branch: 'feat' }),
     ]
 
-    await fillWorktreeBadges('/repo', entries, '/feat', () => true, onCount)
+    await fillWorktreeBadges('/repo', entries, '/feat', () => true, onCounts)
 
-    expect(vi.mocked(getWorktreeChangedCount).mock.calls.map((call) => call[0])).toEqual([
-      '/feat',
-      '/main',
+    expect(getWorktreeChangedCounts).toHaveBeenCalledWith(['/feat', '/main'])
+    expect(onCounts).toHaveBeenCalledWith([
+      { path: '/feat', count: 7 },
+      { path: '/main', count: 1 },
     ])
-    expect(onCount).toHaveBeenNthCalledWith(1, '/feat', 7)
-    expect(onCount).toHaveBeenNthCalledWith(2, '/main', 1)
     expect(patchWorktreeChangedCount).toHaveBeenCalledWith('/repo', '/feat', 7)
+    expect(patchWorktreeChangedCount).toHaveBeenCalledWith('/repo', '/main', 1)
   })
 })

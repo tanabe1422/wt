@@ -125,6 +125,11 @@ export interface WorktreeEntry {
   head?: string
 }
 
+export interface WorktreeChangedCount {
+  path: string
+  count: number
+}
+
 export interface StashEntry {
   index: number
   ref: string

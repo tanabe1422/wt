@@ -182,6 +182,12 @@ export async function getWorktreeChangedCount(worktreePath: string): Promise<num
   return callApp('GetWorktreeChangedCount', worktreePath)
 }
 
+export async function getWorktreeChangedCounts(
+  paths: string[],
+): Promise<{ path: string; count: number }[]> {
+  return callApp('GetWorktreeChangedCounts', paths)
+}
+
 export async function defaultWorktreePath(
   repoPath: string,
   branch: string,
