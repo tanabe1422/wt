@@ -285,6 +285,73 @@ export function GitWorkspace({
 
   refreshMergeStateRef.current = actions.refreshOperationState
 
+  const onStage = useCallback(
+    (path: string) => {
+      void actions.handleStage(path)
+    },
+    [actions],
+  )
+  const onUnstage = useCallback(
+    (path: string) => {
+      void actions.handleUnstage(path)
+    },
+    [actions],
+  )
+  const onStageSelected = useCallback(() => {
+    void actions.handleStageSelected()
+  }, [actions])
+  const onUnstageSelected = useCallback(() => {
+    void actions.handleUnstageSelected()
+  }, [actions])
+  const onStageAll = useCallback(() => {
+    void actions.handleStageAll()
+  }, [actions])
+  const onUnstageAll = useCallback(() => {
+    void actions.handleUnstageAll()
+  }, [actions])
+  const onDiscardSelected = useCallback(() => {
+    destructive.requestDiscardPaths([...unstagedSelection.paths])
+  }, [destructive, unstagedSelection.paths])
+  const onContinueRebase = useCallback(() => {
+    void actions.handleContinueRebase()
+  }, [actions])
+  const onStageHunk = useCallback(
+    (index: number) => {
+      void actions.handleStageHunk(index)
+    },
+    [actions],
+  )
+  const onUnstageHunk = useCallback(
+    (index: number) => {
+      void actions.handleUnstageHunk(index)
+    },
+    [actions],
+  )
+  const onDiscardHunk = useCallback(
+    (index: number) => {
+      void actions.handleDiscardHunk(index)
+    },
+    [actions],
+  )
+  const onStageLines = useCallback(
+    (index: number, lines: number[]) => {
+      void actions.handleStageLines(index, lines)
+    },
+    [actions],
+  )
+  const onUnstageLines = useCallback(
+    (index: number, lines: number[]) => {
+      void actions.handleUnstageLines(index, lines)
+    },
+    [actions],
+  )
+  const onDiscardLines = useCallback(
+    (index: number, lines: number[]) => {
+      void actions.handleDiscardLines(index, lines)
+    },
+    [actions],
+  )
+
   const handleAbortOperation = useCallback(() => {
     const operation =
       actions.repoOperation === 'rebase'
@@ -328,17 +395,15 @@ export function GitWorkspace({
             onFileClick={handleClick}
             onFileHover={handleFileHover}
             onFileContextMenu={actions.handleFileContextMenu}
-            onStage={(path) => void actions.handleStage(path)}
-            onUnstage={(path) => void actions.handleUnstage(path)}
-            onStageSelected={() => void actions.handleStageSelected()}
-            onUnstageSelected={() => void actions.handleUnstageSelected()}
-            onStageAll={() => void actions.handleStageAll()}
-            onUnstageAll={() => void actions.handleUnstageAll()}
-            onDiscardSelected={() =>
-              destructive.requestDiscardPaths([...unstagedSelection.paths])
-            }
+            onStage={onStage}
+            onUnstage={onUnstage}
+            onStageSelected={onStageSelected}
+            onUnstageSelected={onUnstageSelected}
+            onStageAll={onStageAll}
+            onUnstageAll={onUnstageAll}
+            onDiscardSelected={onDiscardSelected}
             onDiscardAll={destructive.requestDiscardAll}
-            onContinueRebase={() => void actions.handleContinueRebase()}
+            onContinueRebase={onContinueRebase}
             onAbortOperation={handleAbortOperation}
             detachedHeadSha={detachedHeadSha}
             onCreateBranchFromDetached={onCreateBranchFromDetached}
@@ -359,12 +424,12 @@ export function GitWorkspace({
             staged={focusFile?.staged ?? false}
             conflict={focusIsConflict}
             busy={busy}
-            onStageHunk={(index) => void actions.handleStageHunk(index)}
-            onUnstageHunk={(index) => void actions.handleUnstageHunk(index)}
-            onDiscardHunk={(index) => void actions.handleDiscardHunk(index)}
-            onStageLines={(index, lines) => void actions.handleStageLines(index, lines)}
-            onUnstageLines={(index, lines) => void actions.handleUnstageLines(index, lines)}
-            onDiscardLines={(index, lines) => void actions.handleDiscardLines(index, lines)}
+            onStageHunk={onStageHunk}
+            onUnstageHunk={onUnstageHunk}
+            onDiscardHunk={onDiscardHunk}
+            onStageLines={onStageLines}
+            onUnstageLines={onUnstageLines}
+            onDiscardLines={onDiscardLines}
           />
         </div>
         {fetchPhase && !busy ? (
