@@ -95,6 +95,7 @@ func clearGitReadCaches() {
 	branchesReadCache.clear()
 	worktreesReadCache.clear()
 	statusReadCache.clear()
+	git.InvalidateNativeRepoCache()
 }
 
 func clearGitReadCachesForTests() {

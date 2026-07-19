@@ -288,3 +288,29 @@ func TestNativeUpstreamAndAhead(t *testing.T) {
 		t.Fatalf("message=%q", msg)
 	}
 }
+
+func TestOpenNativeRepoCache(t *testing.T) {
+	dir := initHotpathRepo(t)
+	InvalidateNativeRepoCache()
+
+	a, err := openNativeRepo(dir)
+	if err != nil {
+		t.Fatalf("open 1: %v", err)
+	}
+	b, err := openNativeRepo(dir)
+	if err != nil {
+		t.Fatalf("open 2: %v", err)
+	}
+	if a != b {
+		t.Fatal("expected cached repository pointer within TTL")
+	}
+
+	InvalidateNativeRepoCache()
+	c, err := openNativeRepo(dir)
+	if err != nil {
+		t.Fatalf("open 3: %v", err)
+	}
+	if c == a {
+		t.Fatal("expected new repository after invalidate")
+	}
+}

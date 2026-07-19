@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -192,13 +194,63 @@ func openNativeRepo(path string) (*gogit.Repository, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	now := time.Now()
+	nativeRepoMu.Lock()
+	if entry, ok := nativeRepoCache[abs]; ok && now.Before(entry.expireAt) {
+		repo := entry.repo
+		nativeRepoMu.Unlock()
+		return repo, nil
+	}
+	nativeRepoMu.Unlock()
+
 	repo, err := gogit.PlainOpenWithOptions(abs, &gogit.PlainOpenOptions{
 		DetectDotGit: true,
 	})
 	if err != nil {
 		return nil, err
 	}
+
+	nativeRepoMu.Lock()
+	defer nativeRepoMu.Unlock()
+	if entry, ok := nativeRepoCache[abs]; ok && time.Now().Before(entry.expireAt) {
+		return entry.repo, nil
+	}
+	if len(nativeRepoCache) >= nativeRepoCacheMax {
+		clearNativeRepoCacheLocked()
+	}
+	nativeRepoCache[abs] = &nativeRepoCacheEntry{
+		repo:     repo,
+		expireAt: time.Now().Add(nativeRepoCacheTTL),
+	}
 	return repo, nil
+}
+
+type nativeRepoCacheEntry struct {
+	repo     *gogit.Repository
+	expireAt time.Time
+}
+
+const (
+	nativeRepoCacheTTL = 3 * time.Second
+	nativeRepoCacheMax = 8
+)
+
+var (
+	nativeRepoMu    sync.Mutex
+	nativeRepoCache = map[string]*nativeRepoCacheEntry{}
+)
+
+// InvalidateNativeRepoCache drops all cached go-git Repository handles.
+// Call after mutating operations so subsequent reads reopen fresh state.
+func InvalidateNativeRepoCache() {
+	nativeRepoMu.Lock()
+	defer nativeRepoMu.Unlock()
+	clearNativeRepoCacheLocked()
+}
+
+func clearNativeRepoCacheLocked() {
+	nativeRepoCache = map[string]*nativeRepoCacheEntry{}
 }
 
 func nativeWorktreeRoot(path string) (string, error) {
