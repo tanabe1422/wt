@@ -167,25 +167,6 @@ export function DiffView({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [lineActionsEnabled, selection])
 
-  if (!file) {
-    return (
-      <div className={styles.panel}>
-        <p className={styles.placeholder}>ファイルを選択すると diff が表示されます</p>
-      </div>
-    )
-  }
-
-  const diffMatchesFile = diff !== null && diff.path === file
-  const showInitialLoading = loading && !diffMatchesFile && !error
-  const showStaleWhileLoading = loading && diffMatchesFile
-
-  const selectedForHunk = (hunkIndex: number): number[] => {
-    if (!selection || selection.hunkIndex !== hunkIndex) {
-      return []
-    }
-    return [...selection.lines].sort((a, b) => a - b)
-  }
-
   const applyLineSelection = useCallback(
     (
       hunkIndex: number,
@@ -235,7 +216,26 @@ export function DiffView({
     [applyLineSelection],
   )
 
-  const clearSelection = () => setSelection(null)
+  const clearSelection = useCallback(() => setSelection(null), [])
+
+  if (!file) {
+    return (
+      <div className={styles.panel}>
+        <p className={styles.placeholder}>ファイルを選択すると diff が表示されます</p>
+      </div>
+    )
+  }
+
+  const diffMatchesFile = diff !== null && diff.path === file
+  const showInitialLoading = loading && !diffMatchesFile && !error
+  const showStaleWhileLoading = loading && diffMatchesFile
+
+  const selectedForHunk = (hunkIndex: number): number[] => {
+    if (!selection || selection.hunkIndex !== hunkIndex) {
+      return []
+    }
+    return [...selection.lines].sort((a, b) => a - b)
+  }
 
   return (
     <div className={styles.panel}>
