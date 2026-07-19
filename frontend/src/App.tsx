@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 
 import { MainLayout } from './components/layout/MainLayout'
+import { seedBusyOverlayMessage } from './components/layout/BusyOverlay'
 import { GitWorkspace } from './components/git/GitWorkspace'
 import type { CompareRange } from './components/git/CompareDetailPane'
 import { BranchSidebar } from './components/sidebar/BranchSidebar'
@@ -19,10 +20,9 @@ import { useWindowActivateRefresh } from './hooks/useWindowActivateRefresh'
 import { invalidateRepoCaches, setStatusCache } from './lib/repoDataCache'
 import { prefetchRepo } from './lib/repoPrefetch'
 import { reconcileSelectionAfterMeta } from './lib/sidebarSelection'
-import { getStatus, isWailsRuntime } from './lib/wails'
+import { getStatus } from './lib/wails'
 import { isDetachedWorktree, resolveCurrentBranch } from './utils/detachedHead'
 import type { GitOp } from './utils/gitRefreshPolicy'
-import { EventsOn } from '../wailsjs/runtime/runtime'
 import styles from './App.module.css'
 
 const HistoryView = lazy(() =>
@@ -35,12 +35,6 @@ const GitDebugWindow = lazy(() =>
   import('./components/settings/GitDebugWindow').then((m) => ({ default: m.GitDebugWindow })),
 )
 
-const GIT_PROGRESS_EVENT = 'git:progress'
-
-interface GitProgressPayload {
-  message?: string
-}
-
 function AppShell() {
   const [mainView, setMainView] = useState<MainView>('files')
   /** 同一 WT 内のコンテンツ変更。remount せず status 等を再同期する。 */
@@ -50,7 +44,6 @@ function AppShell() {
   const [workspaceBusy, setWorkspaceBusy] = useState(false)
   const [toolbarBusy, setToolbarBusy] = useState(false)
   const [sidebarBusy, setSidebarBusy] = useState(false)
-  const [busyMessage, setBusyMessage] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [gitDebugOpen, setGitDebugOpen] = useState(false)
   const [fetchPhase, setFetchPhase] = useState<FetchPhase | null>(null)
@@ -59,19 +52,19 @@ function AppShell() {
   const handleWorkspaceBusyChange = useCallback<BusyChangeHandler>((busy, message) => {
     setWorkspaceBusy(busy)
     if (busy && message) {
-      setBusyMessage(message)
+      seedBusyOverlayMessage(message)
     }
   }, [])
   const handleToolbarBusyChange = useCallback<BusyChangeHandler>((busy, message) => {
     setToolbarBusy(busy)
     if (busy && message) {
-      setBusyMessage(message)
+      seedBusyOverlayMessage(message)
     }
   }, [])
   const handleSidebarBusyChange = useCallback<BusyChangeHandler>((busy, message) => {
     setSidebarBusy(busy)
     if (busy && message) {
-      setBusyMessage(message)
+      seedBusyOverlayMessage(message)
     }
   }, [])
   const handleCompareRequestConsumed = useCallback(() => {
@@ -102,26 +95,6 @@ function AppShell() {
   } = useRepoTabs()
 
   const overlayBusy = workspaceBusy || toolbarBusy || sidebarBusy || repoBusy
-
-  useEffect(() => {
-    if (!isWailsRuntime()) {
-      return
-    }
-    return EventsOn(GIT_PROGRESS_EVENT, (payload: GitProgressPayload) => {
-      const message = typeof payload?.message === 'string' ? payload.message.trim() : ''
-      if (message) {
-        setBusyMessage(message)
-      }
-    })
-  }, [])
-
-  useEffect(() => {
-    if (overlayBusy) {
-      setBusyMessage((current) => current || '処理中…')
-      return
-    }
-    setBusyMessage('')
-  }, [overlayBusy])
 
   useEffect(() => {
     setFetchPhase(null)
@@ -325,7 +298,6 @@ function AppShell() {
     <>
       <MainLayout
         busy={overlayBusy}
-        busyMessage={busyMessage}
         toolbar={
           <RepoTabBar
             repositories={repositories}
