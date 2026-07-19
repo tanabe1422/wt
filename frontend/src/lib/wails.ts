@@ -170,10 +170,6 @@ export async function listBranchTracks(repoPath = ''): Promise<BranchTrack[]> {
   return callApp('ListBranchTracks', repoPath)
 }
 
-export async function listWorktrees(repoPath = ''): Promise<WorktreeEntry[]> {
-  return callApp('ListWorktrees', repoPath)
-}
-
 export async function listWorktreesMeta(repoPath = ''): Promise<WorktreeEntry[]> {
   return callApp('ListWorktreesMeta', repoPath)
 }
@@ -315,14 +311,6 @@ export async function abortRebase(worktreePath: string): Promise<void> {
 
 export async function abortCherryPick(worktreePath: string): Promise<void> {
   return callApp('AbortCherryPick', worktreePath)
-}
-
-export async function isMerging(worktreePath: string): Promise<boolean> {
-  return callApp('IsMerging', worktreePath)
-}
-
-export async function isRebasing(worktreePath: string): Promise<boolean> {
-  return callApp('IsRebasing', worktreePath)
 }
 
 export async function getRepoOperationState(
