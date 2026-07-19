@@ -76,14 +76,6 @@ function normalizePadding(padding?: Padding | number): Padding {
   )
 }
 
-function cloneCommits(commits: GraphCommitItem[]): GraphCommitItem[] {
-  return commits.map((commit) => ({
-    ...commit,
-    parents: [...commit.parents],
-    meta: commit.meta ? { ...commit.meta, prev: [...commit.meta.prev] } : undefined,
-  }))
-}
-
 function buildGraph(
   commits: GraphCommitItem[],
   options: {
@@ -167,7 +159,7 @@ function buildGraph(
     }
   }
 
-  function processNode(commit: GraphCommitItem) {
+  function processNode(commit: GraphCommitItem, yIndex: number) {
     const arrivingBranch = branchPool[commit.id]
     let currentLane = 0
     let currentColor = ''
@@ -182,7 +174,7 @@ function buildGraph(
     }
 
     const x = currentLane * laneWidth + padding.left
-    const y = rowCenterY(commit.meta?.yIndex ?? 0)
+    const y = rowCenterY(yIndex)
     maxWidth = Math.max(maxWidth, x)
 
     drawActiveBranches(y, commit.id)
@@ -314,35 +306,12 @@ function buildGraph(
     compactLanes()
   }
 
-  // Keep git log order (topo-order, newest first). Re-sorting by author date misaligns
-  // nodes with commit rows and breaks lane assignment (e.g. rebased commits).
-  const ordered = commits
-
-  ordered.forEach((commit, index) => {
-    if (!commit.meta) {
-      commit.meta = { yIndex: index, prev: [] }
-    }
-    commit.meta.yIndex = index
-    for (const parentId of commit.parents) {
-      const parentIndex = ordered.findIndex((entry) => entry.id === parentId)
-      if (parentIndex < 0) {
-        continue
-      }
-      const parent = ordered[parentIndex]
-      if (!parent.meta) {
-        parent.meta = { yIndex: parentIndex, prev: [] }
-      }
-      if (!parent.meta.prev.includes(commit.id)) {
-        parent.meta.prev.push(commit.id)
-      }
-    }
-  })
-
-  ordered.forEach((commit) => processNode(commit))
+  // Keep git log order (topo-order, newest first). Do not mutate input commits.
+  commits.forEach((commit, index) => processNode(commit, index))
 
   // Parents outside the loaded window leave unfinished lanes in branchPool.
   // Extend those stubs to the bottom of the graph so lines don't look cut off.
-  const endY = ordered.length * rowHeight + padding.top
+  const endY = commits.length * rowHeight + padding.top
   for (const [key, info] of Object.entries(branchPool)) {
     const targetX = info.xIndex * laneWidth + padding.left
     maxWidth = Math.max(maxWidth, targetX)
@@ -397,7 +366,7 @@ export function GitGraph({
 
   const { nodes, edges, width } = useMemo(
     () =>
-      buildGraph(cloneCommits(commits), {
+      buildGraph(commits, {
         colorPalette,
         rowHeight,
         laneWidth,
