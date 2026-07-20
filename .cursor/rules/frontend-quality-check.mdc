@@ -22,7 +22,8 @@ go test -short ./internal/... &
 wait
 ```
 
-本物 Git 統合スモークは `-short` 外。必要時は:
+本物 Git / go-git 統合は `-short` 外（`initHotpathRepo` 系は short で skip）。
+**go-git ホットパスや `native_repo` を触ったとき**は追加で:
 
 ```bash
 go test ./internal/git/

@@ -12,6 +12,7 @@ import (
 // Uses system git for fixture setup only; the code under test uses go-git.
 func initHotpathRepo(t *testing.T) string {
 	t.Helper()
+	skipIfShort(t)
 	dir := t.TempDir()
 	run := func(args ...string) {
 		t.Helper()
