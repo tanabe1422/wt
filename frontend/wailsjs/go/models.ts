@@ -101,22 +101,6 @@ export namespace git {
 	        this.behind = source["behind"];
 	    }
 	}
-	export class BranchTrack {
-	    name: string;
-	    ahead: number;
-	    behind: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new BranchTrack(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.ahead = source["ahead"];
-	        this.behind = source["behind"];
-	    }
-	}
 	export class AmendInfo {
 	    canAmend: boolean;
 	    reason: string;
@@ -200,6 +184,22 @@ export namespace git {
 		}
 	}
 	
+	export class BranchTrack {
+	    name: string;
+	    ahead: number;
+	    behind: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BranchTrack(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.ahead = source["ahead"];
+	        this.behind = source["behind"];
+	    }
+	}
 	export class CommitAuthor {
 	    name: string;
 	    email?: string;

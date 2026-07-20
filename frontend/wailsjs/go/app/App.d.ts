@@ -93,9 +93,9 @@ export function IsRebasing(arg1:string):Promise<boolean>;
 
 export function ListBranchHeads(arg1:string):Promise<Array<git.BranchHead>>;
 
-export function ListBranches(arg1:string):Promise<Array<git.BranchEntry>>;
-
 export function ListBranchTracks(arg1:string):Promise<Array<git.BranchTrack>>;
+
+export function ListBranches(arg1:string):Promise<Array<git.BranchEntry>>;
 
 export function ListCommitFiles(arg1:string,arg2:string):Promise<Array<git.CommitFileChange>>;
 

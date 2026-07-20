@@ -3,19 +3,24 @@ import { useState } from 'react'
 
 import { MainViewToolbarTabs, type MainView } from './MainViewToolbarTabs'
 
+function InteractiveTabs(args: {
+  view: MainView
+  hasFileChanges?: boolean
+}) {
+  const [view, setView] = useState<MainView>(args.view)
+  return (
+    <MainViewToolbarTabs
+      view={view}
+      onChange={setView}
+      hasFileChanges={args.hasFileChanges}
+    />
+  )
+}
+
 const meta = {
   title: 'Toolbar/MainViewToolbarTabs',
   component: MainViewToolbarTabs,
-  render: (args) => {
-    const [view, setView] = useState<MainView>(args.view)
-    return (
-      <MainViewToolbarTabs
-        view={view}
-        onChange={setView}
-        hasFileChanges={args.hasFileChanges}
-      />
-    )
-  },
+  render: (args) => <InteractiveTabs {...args} />,
   args: {
     view: 'files' as const,
     onChange: () => {},
@@ -57,22 +62,24 @@ export const WithFileChanges: Story = {
   name: 'ファイルに変更あり',
 }
 
+function DividerPreview(args: { view: MainView }) {
+  const [view, setView] = useState<MainView>(args.view)
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <MainViewToolbarTabs view={view} onChange={setView} />
+      <div
+        aria-hidden
+        style={{
+          width: 1,
+          height: '1.75rem',
+          background: 'var(--color-slate-300)',
+        }}
+      />
+      <span style={{ fontSize: '0.75rem', color: 'var(--color-slate-500)' }}>Pull / Push / Fetch …</span>
+    </div>
+  )
+}
+
 export const WithDividerPreview: Story = {
-  render: (args) => {
-    const [view, setView] = useState<MainView>(args.view)
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <MainViewToolbarTabs view={view} onChange={setView} />
-        <div
-          aria-hidden
-          style={{
-            width: 1,
-            height: '1.75rem',
-            background: 'var(--color-slate-300)',
-          }}
-        />
-        <span style={{ fontSize: '0.75rem', color: 'var(--color-slate-500)' }}>Pull / Push / Fetch …</span>
-      </div>
-    )
-  },
+  render: (args) => <DividerPreview {...args} />,
 }

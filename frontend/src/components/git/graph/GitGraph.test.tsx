@@ -49,7 +49,7 @@ describe('GitGraph', () => {
       { id: 'B', message: 'b', author: 'x', date: '2026-07-02T00:00:00Z', parents: ['C'] },
     ])
     expect(circles).toBe(2)
-    // A→B plus stub B→(missing C) down to the bottom
+    // A→B plus stub BↁEmissing C) down to the bottom
     expect(paths).toHaveLength(2)
     expect(paths.some((d) => d.includes(`L ${padding.left} ${height}`))).toBe(true)
   })

@@ -11,7 +11,15 @@ alwaysApply: true
 
 ```bash
 go test -short ./internal/...
-cd frontend && pnpm exec tsc -b && pnpm test
+cd frontend && pnpm lint && pnpm exec tsc -b && pnpm test
+```
+
+時間短縮するなら Go とフロントを並列実行してよい（両方 exit 0 必須）:
+
+```bash
+go test -short ./internal/... &
+(cd frontend && pnpm lint && pnpm exec tsc -b && pnpm test)
+wait
 ```
 
 本物 Git 統合スモークは `-short` 外。必要時は:
