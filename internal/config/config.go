@@ -17,7 +17,7 @@ type ExternalTool struct {
 	Args   string `json:"args"`
 }
 
-// OpenApp describes an external app that can open a worktree folder.
+// OpenApp describes an external app that can open a worktree folder or file.
 type OpenApp struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`

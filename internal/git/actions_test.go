@@ -178,6 +178,30 @@ func TestFetchCurrentUpstream(t *testing.T) {
 	fake.AssertCalled(t, "fetch", "--progress", "origin", "main")
 }
 
+func TestFetchCurrentUpstreamFromLinkedWorktree(t *testing.T) {
+	dir := initHotpathRepo(t)
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("branch", "linked", "main")
+	run("branch", "--set-upstream-to=origin/main", "linked")
+	wt := addLinkedHotpathWorktree(t, dir, "linked")
+
+	fake := newFakeRunner()
+	fake.On("fetch", "--progress", "origin", "main").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := FetchCurrentUpstream(wt); err != nil {
+		t.Fatalf("FetchCurrentUpstream(linked): %v", err)
+	}
+	fake.AssertCalled(t, "fetch", "--progress", "origin", "main")
+}
+
 func TestFetchCurrentUpstreamNoUpstream(t *testing.T) {
 	dir := initHotpathRepo(t)
 	run := func(args ...string) {
@@ -480,15 +504,15 @@ func TestDeleteUntracked(t *testing.T) {
 	fake.AssertCalled(t, "clean", "-fd", "--", "tmp-untracked.txt")
 }
 
-func TestDiscardAllChanges(t *testing.T) {
+func TestResetWorkingTree(t *testing.T) {
 	dir := t.TempDir()
 	fake := newFakeRunner()
 	fake.On("reset", "--hard").Return("", nil)
 	fake.On("clean", "-fd").Return("", nil)
 	withFakeRunner(t, fake)
 
-	if err := DiscardAllChanges(dir); err != nil {
-		t.Fatalf("DiscardAllChanges: %v", err)
+	if err := ResetWorkingTree(dir); err != nil {
+		t.Fatalf("ResetWorkingTree: %v", err)
 	}
 	fake.AssertCalled(t, "reset", "--hard")
 	fake.AssertCalled(t, "clean", "-fd")

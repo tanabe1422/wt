@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import type { BusyChangeHandler } from '../../hooks/useBusy'
 import { useErrorDialog } from '../../hooks/useErrorDialog'
 import { useResizableSplit } from '../../hooks/useResizableSplit'
 import { useStashCleanup } from '../../hooks/useStashCleanup'
@@ -26,6 +27,7 @@ interface StashCleanupDialogProps {
   worktreePath: string
   onClose: () => void
   onDeleted?: () => void | Promise<void>
+  onBusyChange?: BusyChangeHandler
 }
 
 const VERTICAL_SPLIT_KEY = 'wt-manager.stashCleanupVerticalRatio'
@@ -36,6 +38,7 @@ export function StashCleanupDialog({
   worktreePath,
   onClose,
   onDeleted,
+  onBusyChange,
 }: StashCleanupDialogProps) {
   const {
     stashes,
@@ -53,7 +56,7 @@ export function StashCleanupDialog({
     toggleAll,
     focusRow,
     handleDelete,
-  } = useStashCleanup({ open, worktreePath, onDeleted })
+  } = useStashCleanup({ open, worktreePath, onDeleted, onBusyChange })
 
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const {

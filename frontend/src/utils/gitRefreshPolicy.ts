@@ -39,6 +39,7 @@ export type ToolbarGitOp =
   | 'pull'
   | 'createBranch'
   | 'saveStash'
+  | 'resetWorkingTree'
   | 'manualReload'
 
 /** サイドバー操作 */
@@ -76,6 +77,7 @@ const TOOLBAR_POLICY: Record<ToolbarGitOp, RefreshScope> = {
   createBranch: 'sidebarFull',
   /** 旧 SyncRefreshScope 'light' 相当（作業ツリー + ブランチ表示の再同期） */
   saveStash: 'statusBadgeAndBranches',
+  resetWorkingTree: 'statusAndBadge',
   manualReload: 'statusAndBadge',
 }
 

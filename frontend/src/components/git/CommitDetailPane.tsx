@@ -11,7 +11,7 @@ import {
   prefetchCommitNeighbors,
 } from '../../lib/diffPrefetch'
 import { openCommitDifftool } from '../../lib/wails'
-import type { CommitLogEntry } from '../../types'
+import type { CommitLogEntry, OpenApp } from '../../types'
 import { commitFileMatchesPathQuery } from '../../utils/commitSearchPath'
 import { cx } from '../../utils/cx'
 import { ContextMenu } from '../ui/ContextMenu'
@@ -24,6 +24,7 @@ import styles from './CommitDetailPane.module.css'
 
 interface CommitDetailPaneProps {
   worktreePath: string
+  openApps?: OpenApp[]
   commit: CommitLogEntry | null
   /** Path search query — matching changed files are highlighted. */
   highlightPathQuery?: string
@@ -36,6 +37,7 @@ const DETAIL_SPLIT_MAX_RATIO = 0.75
 
 export function CommitDetailPane({
   worktreePath,
+  openApps = [],
   commit,
   highlightPathQuery = '',
 }: CommitDetailPaneProps) {
@@ -66,6 +68,7 @@ export function CommitDetailPane({
     toolErrorDialog,
   } = useHistoryFileContextMenu({
     worktreePath,
+    openApps,
     selectedPath,
     setSelectedPath,
     openDifftool: openDifftoolForFile,

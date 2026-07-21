@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
 
 import { errorMessage } from '../lib/errorMessage'
@@ -13,6 +13,7 @@ import {
 import type { OpenApp, WorktreeEntry } from '../types'
 import { localBranchFromRemote } from '../utils/branchTree'
 import { worktreePathHint } from '../utils/worktreePathHint'
+import type { BusyChangeHandler } from './useBusy'
 
 interface WorktreeCheckoutTarget {
   branch: string
@@ -28,6 +29,7 @@ interface UseWorktreeDialogsOptions {
   onSelectBranch: (fullName: string) => void
   onReload: () => void | Promise<void>
   onBranchChanged?: () => void
+  onBusyChange?: BusyChangeHandler
 }
 
 export function useWorktreeDialogs({
@@ -39,6 +41,7 @@ export function useWorktreeDialogs({
   onSelectBranch,
   onReload,
   onBranchChanged,
+  onBusyChange,
 }: UseWorktreeDialogsOptions) {
   const [removeWorktreeTarget, setRemoveWorktreeTarget] = useState<WorktreeEntry | null>(null)
   const [forceRemoveWorktree, setForceRemoveWorktree] = useState(false)
@@ -52,6 +55,21 @@ export function useWorktreeDialogs({
   const [worktreeHint, setWorktreeHint] = useState<string | undefined>()
   const [worktreeError, setWorktreeError] = useState<string | null>(null)
   const [worktreeBusy, setWorktreeBusy] = useState(false)
+
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange])
+
+  const beginBusy = useCallback(
+    (message: string) => {
+      setWorktreeBusy(true)
+      onBusyChange?.(true, message)
+    },
+    [onBusyChange],
+  )
+
+  const endBusy = useCallback(() => {
+    setWorktreeBusy(false)
+    onBusyChange?.(false)
+  }, [onBusyChange])
 
   const openWorktreeCheckout = useCallback(
     async (branch: string, isRemote: boolean) => {
@@ -94,7 +112,7 @@ export function useWorktreeDialogs({
       null
     setRemoveWorktreeTarget(null)
     setForceRemoveWorktree(false)
-    setWorktreeBusy(true)
+    beginBusy('ワークツリーを削除しています…')
     setWorktreeError(null)
 
     void (async () => {
@@ -108,11 +126,13 @@ export function useWorktreeDialogs({
       } catch (err) {
         setWorktreeError(errorMessage(err, 'ワークツリーの削除に失敗しました'))
       } finally {
-        setWorktreeBusy(false)
+        endBusy()
       }
     })()
   }, [
     activeRepository,
+    beginBusy,
+    endBusy,
     forceRemoveWorktree,
     onBranchChanged,
     onReload,
@@ -136,7 +156,7 @@ export function useWorktreeDialogs({
 
       const { branch, isRemote } = worktreeTarget
       setWorktreeTarget(null)
-      setWorktreeBusy(true)
+      beginBusy('ワークツリーを作成しています…')
       setWorktreeError(null)
 
       void (async () => {
@@ -150,12 +170,14 @@ export function useWorktreeDialogs({
         } catch (err) {
           setWorktreeError(errorMessage(err, 'ワークツリーの作成に失敗しました'))
         } finally {
-          setWorktreeBusy(false)
+          endBusy()
         }
       })()
     },
     [
       activeRepository,
+      beginBusy,
+      endBusy,
       onBranchChanged,
       onReload,
       onSelectBranch,

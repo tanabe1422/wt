@@ -1,13 +1,19 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { MouseEvent } from 'react'
 
-import type { ContextMenuItem } from '../components/ui/ContextMenu'
+import type { ContextMenuEntry } from '../components/ui/ContextMenu'
+import { buildOpenAppMenuItems, withMenuSeparators } from '../lib/openAppMenu'
+import { openInApp } from '../lib/wails'
+import type { OpenApp } from '../types'
+import { joinWorktreePath } from '../utils/worktreePaths'
 import { useContextMenu } from './useContextMenu'
 import { useErrorDialog } from './useErrorDialog'
+import { useExecutableIcons } from './useExecutableIcons'
 import { useShowFileInExplorer } from './useShowFileInExplorer'
 
 interface UseHistoryFileContextMenuOptions {
   worktreePath: string
+  openApps?: OpenApp[]
   selectedPath: string | null
   setSelectedPath: (path: string) => void
   openDifftool: (path: string) => Promise<void>
@@ -15,6 +21,7 @@ interface UseHistoryFileContextMenuOptions {
 
 export function useHistoryFileContextMenu({
   worktreePath,
+  openApps = [],
   selectedPath,
   setSelectedPath,
   openDifftool,
@@ -23,6 +30,8 @@ export function useHistoryFileContextMenu({
   const { showFileDir, errorDialog: explorerErrorDialog } = useShowFileInExplorer(worktreePath)
   const [toolError, setToolError] = useState<string | null>(null)
   const toolErrorDialog = useErrorDialog(toolError)
+  const openAppPaths = useMemo(() => openApps.map((app) => app.path), [openApps])
+  const openAppIconUrls = useExecutableIcons(openAppPaths)
 
   const handleOpenDifftool = useCallback(
     (path: string) => {
@@ -37,6 +46,19 @@ export function useHistoryFileContextMenu({
     [openDifftool],
   )
 
+  const handleOpenInApp = useCallback(
+    (appID: string, relativePath: string) => {
+      void (async () => {
+        try {
+          await openInApp(appID, joinWorktreePath(worktreePath, relativePath))
+        } catch (err) {
+          setToolError(err instanceof Error ? err.message : 'アプリで開けませんでした')
+        }
+      })()
+    },
+    [worktreePath],
+  )
+
   const handleFileContextMenu = useCallback(
     (entry: { path: string }, event: MouseEvent) => {
       event.preventDefault()
@@ -44,13 +66,19 @@ export function useHistoryFileContextMenu({
       if (selectedPath !== entry.path) {
         setSelectedPath(entry.path)
       }
-      const items: ContextMenuItem[] = [
+      const openItems = buildOpenAppMenuItems(openApps, openAppIconUrls, (appID) => {
+        handleOpenInApp(appID, entry.path)
+      })
+      const diffItems: ContextMenuEntry[] = [
         {
           label: '差分を外部ツールで開く',
           onClick: () => {
             handleOpenDifftool(entry.path)
           },
         },
+      ]
+      const fileItems: ContextMenuEntry[] = [
+        ...openItems,
         {
           label: 'エクスプローラーで表示',
           onClick: () => {
@@ -58,9 +86,18 @@ export function useHistoryFileContextMenu({
           },
         },
       ]
-      openMenu(event.clientX, event.clientY, items)
+      openMenu(event.clientX, event.clientY, withMenuSeparators(diffItems, fileItems))
     },
-    [handleOpenDifftool, openMenu, selectedPath, setSelectedPath, showFileDir],
+    [
+      handleOpenDifftool,
+      handleOpenInApp,
+      openAppIconUrls,
+      openApps,
+      openMenu,
+      selectedPath,
+      setSelectedPath,
+      showFileDir,
+    ],
   )
 
   return {

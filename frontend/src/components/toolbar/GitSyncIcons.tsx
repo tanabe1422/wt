@@ -184,6 +184,27 @@ export function ReloadIcon({ size = 20 }: { size?: number }) {
   )
 }
 
+/** ワーキングツリーを HEAD に戻す（reset --hard + clean） */
+export function ResetWorkingTreeIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M3 12a9 9 0 1 0 2.64-6.36"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+      <path
+        d="M3 3v6h6"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 /** 整理: 一覧から項目を減らす（ListMinus） */
 export function RemoteCleanupIcon({ size = 20 }: { size?: number }) {
   return (

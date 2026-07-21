@@ -3,14 +3,21 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { errorMessage } from '../lib/errorMessage'
 import { dropStash, listStashes } from '../lib/wails'
 import type { StashEntry } from '../types'
+import type { BusyChangeHandler } from './useBusy'
 
 interface UseStashCleanupOptions {
   open: boolean
   worktreePath: string
   onDeleted?: () => void | Promise<void>
+  onBusyChange?: BusyChangeHandler
 }
 
-export function useStashCleanup({ open, worktreePath, onDeleted }: UseStashCleanupOptions) {
+export function useStashCleanup({
+  open,
+  worktreePath,
+  onDeleted,
+  onBusyChange,
+}: UseStashCleanupOptions) {
   const [stashes, setStashes] = useState<StashEntry[]>([])
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null)
@@ -18,6 +25,8 @@ export function useStashCleanup({ open, worktreePath, onDeleted }: UseStashClean
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
+
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange])
 
   const reload = useCallback(async () => {
     if (!worktreePath) {
@@ -111,27 +120,28 @@ export function useStashCleanup({ open, worktreePath, onDeleted }: UseStashClean
     if (selectedIndexes.length === 0 || !worktreePath) {
       return
     }
+    setConfirmOpen(false)
     setBusy(true)
+    onBusyChange?.(true, 'スタッシュを削除しています…')
     setError('')
     try {
       const descending = [...selectedIndexes].sort((a, b) => b - a)
       for (const index of descending) {
         await dropStash(worktreePath, index)
       }
-      setConfirmOpen(false)
       setSelected(new Set())
       await reload()
       await onDeleted?.()
     } catch (err) {
-      setConfirmOpen(false)
       setError(errorMessage(err, 'スタッシュの削除に失敗しました'))
       // 途中まで drop 済みの可能性があるため、失敗時も一覧を再読込する
       await reload()
       await onDeleted?.()
     } finally {
       setBusy(false)
+      onBusyChange?.(false)
     }
-  }, [onDeleted, reload, selectedIndexes, worktreePath])
+  }, [onBusyChange, onDeleted, reload, selectedIndexes, worktreePath])
 
   return {
     stashes,

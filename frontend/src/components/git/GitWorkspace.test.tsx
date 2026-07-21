@@ -36,6 +36,7 @@ import { useGitDestructiveConfirm } from '../../hooks/useGitDestructiveConfirm'
 import { useGitDiff } from '../../hooks/useGitDiff'
 import { useGitStatus } from '../../hooks/useGitStatus'
 import { useGitWorkspaceActions } from '../../hooks/useGitWorkspaceActions'
+import { getByDiffLineText } from '../../test/diffText'
 import { GitWorkspace } from './GitWorkspace'
 
 afterEach(() => {
@@ -182,7 +183,7 @@ describe('GitWorkspace', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'dirty.ts' })).toBeInTheDocument()
-      expect(screen.getByText('dirty·line')).toBeInTheDocument()
+      expect(getByDiffLineText('dirty·line')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Hunkをステージに移動' })).toBeInTheDocument()
     })
   })
@@ -200,7 +201,7 @@ describe('GitWorkspace', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'staged.ts' })).toBeInTheDocument()
-      expect(screen.getByText('staged·line')).toBeInTheDocument()
+      expect(getByDiffLineText('staged·line')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Hunkをアンステージに移動' })).toBeInTheDocument()
     })
 

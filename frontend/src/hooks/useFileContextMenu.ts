@@ -1,15 +1,18 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import type { Dispatch, MouseEvent, SetStateAction } from 'react'
 
 import type { ContextMenuEntry } from '../components/ui/ContextMenu'
 import { invalidateWorktreeDiffs } from '../lib/diffCache'
-import { openDifftool, openMergetool, showInExplorer } from '../lib/wails'
-import type { FileStatus } from '../types'
+import { buildOpenAppMenuItems, withMenuSeparators } from '../lib/openAppMenu'
+import { openDifftool, openInApp, openMergetool, showInExplorer } from '../lib/wails'
+import type { FileStatus, OpenApp } from '../types'
 import { isConflict, isUntracked } from '../utils/gitStatus'
-import { worktreeFileDir } from '../utils/worktreePaths'
+import { joinWorktreePath, worktreeFileDir } from '../utils/worktreePaths'
+import { useExecutableIcons } from './useExecutableIcons'
 
 interface UseFileContextMenuOptions {
   worktreePath: string
+  openApps?: OpenApp[]
   stagedSelectionPaths: Iterable<string>
   unstagedSelectionPaths: Iterable<string>
   setFocus: (section: 'staged' | 'unstaged', path: string) => void
@@ -27,6 +30,7 @@ interface UseFileContextMenuOptions {
 /** Changes パネルのファイルコンテキストメニュー（外部ツール含む）。 */
 export function useFileContextMenu({
   worktreePath,
+  openApps = [],
   stagedSelectionPaths,
   unstagedSelectionPaths,
   setFocus,
@@ -40,6 +44,9 @@ export function useFileContextMenu({
   runBusy,
   setExternalToolError,
 }: UseFileContextMenuOptions) {
+  const openAppPaths = useMemo(() => openApps.map((app) => app.path), [openApps])
+  const openAppIconUrls = useExecutableIcons(openAppPaths)
+
   const handleOpenMergetool = useCallback(
     async (path: string) => {
       setExternalToolError(null)
@@ -98,6 +105,21 @@ export function useFileContextMenu({
     [setExternalToolError, worktreePath],
   )
 
+  const handleOpenInApp = useCallback(
+    (appID: string, relativePath: string) => {
+      void (async () => {
+        try {
+          await openInApp(appID, joinWorktreePath(worktreePath, relativePath))
+        } catch (err) {
+          setExternalToolError(
+            err instanceof Error ? err.message : 'アプリで開けませんでした',
+          )
+        }
+      })()
+    },
+    [setExternalToolError, worktreePath],
+  )
+
   const handleFileContextMenu = useCallback(
     (entry: FileStatus, event: MouseEvent, mode: 'staged' | 'unstaged') => {
       if (entry.isDirectory) {
@@ -114,43 +136,58 @@ export function useFileContextMenu({
       if (!isSelected) {
         setFocus(mode, entry.path)
       }
-      const showInExplorerItem: ContextMenuEntry = {
-        label: 'エクスプローラーで表示',
-        onClick: () => {
-          handleShowInExplorer(entry.path)
-        },
-      }
-      if (isConflict(entry)) {
-        openMenu(event.clientX, event.clientY, [
-          {
-            label: '外部ツールで競合を解決',
-            onClick: () => {
-              void handleOpenMergetool(entry.path)
-            },
+
+      const openItems = buildOpenAppMenuItems(openApps, openAppIconUrls, (appID) => {
+        handleOpenInApp(appID, entry.path)
+      })
+      const fileItems: ContextMenuEntry[] = [
+        ...openItems,
+        {
+          label: 'エクスプローラーで表示',
+          onClick: () => {
+            handleShowInExplorer(entry.path)
           },
-          showInExplorerItem,
-        ])
+        },
+      ]
+
+      if (isConflict(entry)) {
+        openMenu(
+          event.clientX,
+          event.clientY,
+          withMenuSeparators(
+            [
+              {
+                label: '外部ツールで競合を解決',
+                onClick: () => {
+                  void handleOpenMergetool(entry.path)
+                },
+              },
+            ],
+            fileItems,
+          ),
+        )
         return
       }
-      const items: ContextMenuEntry[] = [
+
+      const diffItems: ContextMenuEntry[] = [
         {
           label: '差分を外部ツールで開く',
           onClick: () => {
             void handleOpenDifftool(entry.path, mode === 'staged')
           },
         },
-        showInExplorerItem,
       ]
+      const destructiveItems: ContextMenuEntry[] = []
       if (mode === 'unstaged') {
         if (isUntracked(entry)) {
-          items.push({
+          destructiveItems.push({
             label: 'ファイルを削除',
             onClick: () => {
               requestDeletePaths([entry.path])
             },
           })
         } else {
-          items.push({
+          destructiveItems.push({
             label: '変更を破棄',
             onClick: () => {
               requestDiscardTrackedPaths([entry.path])
@@ -158,12 +195,19 @@ export function useFileContextMenu({
           })
         }
       }
-      openMenu(event.clientX, event.clientY, items)
+      openMenu(
+        event.clientX,
+        event.clientY,
+        withMenuSeparators(diffItems, destructiveItems, fileItems),
+      )
     },
     [
       handleOpenDifftool,
+      handleOpenInApp,
       handleOpenMergetool,
       handleShowInExplorer,
+      openAppIconUrls,
+      openApps,
       openMenu,
       requestDeletePaths,
       requestDiscardTrackedPaths,

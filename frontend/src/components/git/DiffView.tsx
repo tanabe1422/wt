@@ -7,9 +7,19 @@ import { cx } from '../../utils/cx'
 import { Button } from '../ui/Button'
 import styles from './DiffView.module.css'
 
-/** 半角スペースを · で可視化（コピー時は実スペース）。1 行 1 テキストノードで DOM を抑える。 */
+/** 半角スペースを薄い · で可視化（コピー時は実スペース）。連続スペースは 1 span にまとめる。 */
 const DiffLineText = memo(function DiffLineText({ content }: { content: string }) {
-  const display = content.includes(' ') ? content.replaceAll(' ', '·') : content
+  const display = content.includes(' ')
+    ? content.split(/( +)/).map((part, index) =>
+        part.startsWith(' ') ? (
+          <span key={index} className={styles.space}>
+            {part.replaceAll(' ', '·')}
+          </span>
+        ) : (
+          part
+        ),
+      )
+    : content
   return (
     <span
       className={styles.text}

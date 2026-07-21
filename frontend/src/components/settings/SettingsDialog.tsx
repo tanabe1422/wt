@@ -24,7 +24,7 @@ type SettingsSection = 'performance' | 'diagnostics' | 'openApps' | 'diff'
 const SETTINGS_SECTIONS: { id: SettingsSection; label: string }[] = [
   { id: 'performance', label: 'パフォーマンス' },
   { id: 'diagnostics', label: '診断' },
-  { id: 'openApps', label: 'フォルダを開くアプリ' },
+  { id: 'openApps', label: 'アプリで開く' },
   { id: 'diff', label: 'Diff' },
 ]
 
@@ -162,11 +162,11 @@ function OpenAppsSection({
 
   return (
     <section className={styles.section}>
-      <h3 className={styles.sectionTitle}>フォルダを開くアプリ</h3>
+      <h3 className={styles.sectionTitle}>アプリで開く</h3>
       <div className={styles.toolBlock}>
         <p className={styles.toolDesc}>
-          ワークツリーの右クリックメニューから開けるアプリを登録します。引数の{' '}
-          <code>{'{path}'}</code> はフォルダパスに置換されます。Windows では実行ファイルのアイコンを表示します。
+          ワークツリーや変更ファイルの右クリックメニューから開けるアプリを登録します。引数の{' '}
+          <code>{'{path}'}</code> はフォルダ／ファイルパスに置換されます。Windows では実行ファイルのアイコンを表示します。
         </p>
         <div className={styles.presetRow}>
           {OPEN_APP_PRESETS.map((preset) => (

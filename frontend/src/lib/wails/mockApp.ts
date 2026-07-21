@@ -422,12 +422,12 @@ export const mockApp: WailsApp = {
     console.info('[mock] OpenTerminal', path)
   },
 
-  async OpenInApp(appID: string, dirPath: string) {
+  async OpenInApp(appID: string, path: string) {
     const app = (mockSettings.openApps ?? []).find((entry) => entry.id === appID)
     if (!app) {
       throw new Error(`登録アプリが見つかりません: ${appID}`)
     }
-    console.info('[mock] OpenInApp', app.name, dirPath)
+    console.info('[mock] OpenInApp', app.name, path)
   },
 
   async GetExecutableIconDataURL(commandOrPath: string) {
@@ -727,7 +727,7 @@ export const mockApp: WailsApp = {
     )
   },
 
-  async DiscardAllChanges(_worktreePath: string) {
+  async ResetWorkingTree(_worktreePath: string) {
     mockStatus = []
     mockDiscardedHunks.clear()
     mockStagedHunks.clear()

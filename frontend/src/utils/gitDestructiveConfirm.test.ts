@@ -81,9 +81,14 @@ describe('confirm dialog copy', () => {
       'cherry-pick を中止',
     )
 
-    expect(confirmDialogTitle({ kind: 'discardAll' })).toBe('すべて破棄')
-    expect(confirmDialogLabel({ kind: 'discardAll' })).toBe('すべて破棄')
-    expect(confirmDialogMessage({ kind: 'discardAll' })).toContain('すべて破棄')
+    expect(confirmDialogTitle({ kind: 'discardAll', paths: ['a', 'b'] })).toBe('すべて破棄')
+    expect(confirmDialogLabel({ kind: 'discardAll', paths: ['a', 'b'] })).toBe('すべて破棄')
+    expect(confirmDialogMessage({ kind: 'discardAll', paths: ['a', 'b'] })).toContain(
+      '未ステージの変更・削除',
+    )
+    expect(confirmDialogMessage({ kind: 'discardAll', paths: ['a', 'b'] })).toContain(
+      '未追跡ファイルは残ります',
+    )
 
     expect(confirmDialogTitle({ kind: 'delete', paths: ['a'] })).toBe(
       '未追跡ファイルを削除',

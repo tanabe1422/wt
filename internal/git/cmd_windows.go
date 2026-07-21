@@ -7,11 +7,10 @@ import (
 	"syscall"
 )
 
-const createNoWindow = 0x08000000
-
+// HideWindow only: CREATE_NO_WINDOW allocates a hidden conhost per git.exe and
+// makes frequent fetch/status launches slower on Windows.
 func configureCmd(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    true,
-		CreationFlags: createNoWindow,
+		HideWindow: true,
 	}
 }

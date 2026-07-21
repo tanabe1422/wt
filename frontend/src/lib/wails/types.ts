@@ -37,7 +37,7 @@ export interface WailsApp {
   PickFile(): Promise<string>
   ShowInExplorer(path: string): Promise<void>
   OpenTerminal(path: string): Promise<void>
-  OpenInApp(appID: string, dirPath: string): Promise<void>
+  OpenInApp(appID: string, path: string): Promise<void>
   GetExecutableIconDataURL(commandOrPath: string): Promise<string>
   ListBranches(repoPath: string): Promise<BranchEntry[]>
   GetBranchAheadBehind(repoPath: string, branch: string): Promise<AheadBehind>
@@ -74,7 +74,7 @@ export interface WailsApp {
   ): Promise<void>
   DiscardFiles(worktreePath: string, paths: string[]): Promise<void>
   DeleteUntracked(worktreePath: string, paths: string[]): Promise<void>
-  DiscardAllChanges(worktreePath: string): Promise<void>
+  ResetWorkingTree(worktreePath: string): Promise<void>
   AbortMerge(worktreePath: string): Promise<void>
   AbortRebase(worktreePath: string): Promise<void>
   AbortCherryPick(worktreePath: string): Promise<void>

@@ -8,7 +8,7 @@ import { useInfiniteScroll } from '../../hooks/useInfiniteScroll'
 import { useResizableSplit } from '../../hooks/useResizableSplit'
 import { errorMessage } from '../../lib/errorMessage'
 import { cherryPick, getRepoOperationState, resetToCommit } from '../../lib/wails'
-import type { CommitSearchType, HistoryScope, RepoOperationKind } from '../../types'
+import type { CommitSearchType, HistoryScope, OpenApp, RepoOperationKind } from '../../types'
 import { shortSha } from '../../utils/commitGraph'
 import { cx } from '../../utils/cx'
 import { ChoiceDialog, type ChoiceOption } from '../ui/ChoiceDialog'
@@ -52,6 +52,7 @@ const RESET_OPTIONS: ChoiceOption<ResetMode>[] = [
 interface HistoryViewProps {
   worktreePath: string
   currentBranch: string
+  openApps?: OpenApp[]
   compareRequest?: CompareRange | null
   onCompareRequestConsumed?: () => void
   onResetComplete?: () => void | Promise<void>
@@ -162,6 +163,7 @@ function compareBaseRef(currentBranch: string): string {
 export function HistoryView({
   worktreePath,
   currentBranch,
+  openApps = [],
   compareRequest = null,
   onCompareRequestConsumed,
   onResetComplete,
@@ -388,11 +390,13 @@ export function HistoryView({
     detailMode?.kind === 'compare' ? (
       <CompareDetailPane
         worktreePath={worktreePath}
+        openApps={openApps}
         range={{ fromRef: detailMode.fromRef, toRef: detailMode.toRef }}
       />
     ) : (
       <CommitDetailPane
         worktreePath={worktreePath}
+        openApps={openApps}
         commit={detailMode?.kind === 'commit' ? selectedCommit : null}
         highlightPathQuery={highlightPathQuery}
       />

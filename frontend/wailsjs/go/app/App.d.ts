@@ -41,8 +41,6 @@ export function DeleteRemoteBranches(arg1:string,arg2:Array<string>):Promise<voi
 
 export function DeleteUntracked(arg1:string,arg2:Array<string>):Promise<void>;
 
-export function DiscardAllChanges(arg1:string):Promise<void>;
-
 export function DiscardFiles(arg1:string,arg2:Array<string>):Promise<void>;
 
 export function DiscardHunk(arg1:string,arg2:string,arg3:number,arg4:boolean):Promise<void>;
@@ -158,6 +156,8 @@ export function RemoveWorktree(arg1:string,arg2:string,arg3:boolean):Promise<voi
 export function RenameBranch(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function ResetToCommit(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function ResetWorkingTree(arg1:string):Promise<void>;
 
 export function SaveSettings(arg1:config.Settings):Promise<config.Settings>;
 

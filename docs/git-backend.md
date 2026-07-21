@@ -89,7 +89,7 @@ flowchart LR
 | 操作 | コマンド | 分類 | 備考 |
 |------|----------|------|------|
 | Stage / Unstage / Discard | `add` / `restore` / `clean` | `candidate` | |
-| DiscardAll | `reset --hard` + `clean -fd` | `cli` | 破壊的 |
+| ResetWorkingTree | `reset --hard` + `clean -fd` | `cli` | ツールバー「リセット」 |
 | AbortMerge | `merge --abort` / `reset --merge` | `cli` | 判定は hotpath |
 | IsMergeInProgress / IsSquashPending | （なし）`.git/MERGE_HEAD` / `SQUASH_MSG` | `hotpath` | 旧 `rev-parse` |
 | ApplyPatch | `apply` (+ `--cached` / `--reverse`) | `cli` | |

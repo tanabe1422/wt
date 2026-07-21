@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -144,6 +145,62 @@ func TestNativeListBranchHeads(t *testing.T) {
 	}
 	if _, ok := names["origin/HEAD"]; ok {
 		t.Fatal("origin/HEAD should be skipped")
+	}
+}
+
+// addLinkedHotpathWorktree checks out branchName in a real linked worktree.
+func addLinkedHotpathWorktree(t *testing.T, mainDir, branchName string) string {
+	t.Helper()
+	wt := filepath.Join(filepath.Dir(mainDir), "wt-"+filepath.Base(mainDir))
+	cmd := exec.Command("git", "worktree", "add", wt, branchName)
+	cmd.Dir = mainDir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git worktree add: %v\n%s", err, out)
+	}
+	t.Cleanup(func() {
+		// Drop go-git handles before removing worktree dirs (Windows file locks).
+		InvalidateNativeRepoCache()
+		runtime.GC()
+		cmd := exec.Command("git", "worktree", "remove", "--force", wt)
+		cmd.Dir = mainDir
+		_ = cmd.Run()
+	})
+	return wt
+}
+
+func TestNativeListBranchHeadsFromLinkedWorktree(t *testing.T) {
+	dir := initHotpathRepo(t)
+	wt := addLinkedHotpathWorktree(t, dir, "feature")
+
+	heads, err := ListBranchHeads(wt)
+	if err != nil {
+		t.Fatalf("ListBranchHeads(linked): %v", err)
+	}
+	names := map[string]string{}
+	for _, h := range heads {
+		names[h.Name] = h.Commit.SHA
+	}
+	if names["feature"] == "" {
+		t.Fatalf("expected feature head from linked worktree, got %#v", names)
+	}
+	if names["v-light"] == "" || names["v-light"] != names["feature"] {
+		t.Fatalf("lightweight tag missing from linked worktree: %#v", names)
+	}
+	if names["v-annotated"] == "" || names["v-annotated"] != names["feature"] {
+		t.Fatalf("annotated tag missing from linked worktree: %#v", names)
+	}
+}
+
+func TestNativeCurrentBranchFromLinkedWorktree(t *testing.T) {
+	dir := initHotpathRepo(t)
+	wt := addLinkedHotpathWorktree(t, dir, "feature")
+
+	branch, err := CurrentBranch(wt)
+	if err != nil {
+		t.Fatalf("CurrentBranch(linked): %v", err)
+	}
+	if branch != "feature" {
+		t.Fatalf("want feature, got %q", branch)
 	}
 }
 

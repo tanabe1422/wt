@@ -4,7 +4,7 @@ import type { FileStatus, RepoOperationKind } from '../../types'
 import type { SectionMode, SectionSelection } from '../../hooks/useSectionSelection'
 import { cx } from '../../utils/cx'
 import { formatDetachedBannerText } from '../../utils/detachedHead'
-import { sortFileStatuses } from '../../utils/gitStatus'
+import { isConflict, isUntracked, sortFileStatuses } from '../../utils/gitStatus'
 import { FileList } from './FileList'
 import styles from './ChangesPanel.module.css'
 
@@ -109,7 +109,9 @@ export function ChangesPanel({
   const bannerOperation: RepoOperationKind =
     repoOperation !== 'none' ? repoOperation : conflictCount > 0 ? 'merge' : 'none'
   const showDetachedBanner = !showOperationBanner && detachedHeadSha !== undefined
-  const hasAnyChanges = staged.length > 0 || unstaged.length > 0
+  const canDiscardAll = unstaged.some(
+    (entry) => !isConflict(entry) && !isUntracked(entry),
+  )
   const showDiscardActions = Boolean(onDiscardAll || onDiscardSelected)
   const sortedStaged = useMemo(() => sortFileStatuses(staged, 'staged'), [staged])
   const sortedUnstaged = useMemo(() => sortFileStatuses(unstaged, 'unstaged'), [unstaged])
@@ -222,7 +224,7 @@ export function ChangesPanel({
                   <button
                     type="button"
                     className={cx(styles.headingAction, styles.headingActionDanger)}
-                    disabled={!hasAnyChanges}
+                    disabled={!canDiscardAll}
                     onClick={onDiscardAll}
                   >
                     すべて破棄

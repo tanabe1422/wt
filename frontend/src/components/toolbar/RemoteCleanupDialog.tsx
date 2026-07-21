@@ -1,4 +1,5 @@
 import { useRemoteCleanup } from '../../hooks/useRemoteCleanup'
+import type { BusyChangeHandler } from '../../hooks/useBusy'
 import type { RemoteCleanupStatusFilter } from '../../lib/remoteCleanupPrefsStorage'
 import { cx } from '../../utils/cx'
 import { Button } from '../ui/Button'
@@ -22,6 +23,7 @@ interface RemoteCleanupDialogProps {
   worktreePath: string
   onClose: () => void
   onDeleted?: () => void | Promise<void>
+  onBusyChange?: BusyChangeHandler
 }
 
 function formatCommitAt(iso: string): string {
@@ -47,6 +49,7 @@ export function RemoteCleanupDialog({
   worktreePath,
   onClose,
   onDeleted,
+  onBusyChange,
 }: RemoteCleanupDialogProps) {
   const {
     baseRef,
@@ -77,7 +80,7 @@ export function RemoteCleanupDialog({
     handleAddExcluded,
     handleRemoveExcluded,
     handleDelete,
-  } = useRemoteCleanup({ open, repositoryPath, worktreePath, onDeleted })
+  } = useRemoteCleanup({ open, repositoryPath, worktreePath, onDeleted, onBusyChange })
 
   if (!open) {
     return null

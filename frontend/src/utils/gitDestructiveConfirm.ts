@@ -5,7 +5,7 @@ export type ConfirmAction =
   | { kind: 'discard'; paths: string[] }
   | { kind: 'delete'; paths: string[] }
   | { kind: 'mixed'; discardPaths: string[]; deletePaths: string[] }
-  | { kind: 'discardAll' }
+  | { kind: 'discardAll'; paths: string[] }
   | { kind: 'abort'; operation: 'merge' | 'rebase' | 'cherry-pick' }
 
 export function partitionDiscardPaths(
@@ -80,7 +80,7 @@ export function confirmDialogMessage(action: ConfirmAction | null): string {
     return '進行中のマージを中止しますか？競合の解決内容は失われます。'
   }
   if (action.kind === 'discardAll') {
-    return 'ステージ済み・未ステージの変更と未追跡ファイルをすべて破棄します。この操作は取り消せません。'
+    return '未ステージの変更・削除をすべて破棄します。ステージ済みの変更と未追跡ファイルは残ります。'
   }
   if (action.kind === 'delete') {
     const n = action.paths.length

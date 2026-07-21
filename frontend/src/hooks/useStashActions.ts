@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 import { useErrorDialog } from './useErrorDialog'
 import { applyStash, dropStash, listStashes, popStash } from '../lib/wails'
 import type { StashEntry } from '../types'
+import type { BusyChangeHandler } from './useBusy'
 
 type StashConfirmKind = 'pop' | 'drop'
 
@@ -15,12 +16,14 @@ interface UseStashActionsOptions {
   worktreePath: string | null
   reloadToken?: number | string
   onSuccess?: () => void | Promise<void>
+  onBusyChange?: BusyChangeHandler
 }
 
 export function useStashActions({
   worktreePath,
   reloadToken = 0,
   onSuccess,
+  onBusyChange,
 }: UseStashActionsOptions) {
   const [stashes, setStashes] = useState<StashEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -28,6 +31,8 @@ export function useStashActions({
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<StashConfirm | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; stash: StashEntry } | null>(null)
+
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange])
 
   const reload = useCallback(async () => {
     if (!worktreePath) {
@@ -57,6 +62,7 @@ export function useStashActions({
         return
       }
       setBusy(true)
+      onBusyChange?.(true, 'stash を処理しています…')
       setError(null)
       try {
         await fn()
@@ -73,9 +79,10 @@ export function useStashActions({
           // reload / onSuccess の失敗で元エラーを上書きしない
         }
         setBusy(false)
+        onBusyChange?.(false)
       }
     },
-    [busy, onSuccess, reload, worktreePath],
+    [busy, onBusyChange, onSuccess, reload, worktreePath],
   )
 
   const apply = useCallback(

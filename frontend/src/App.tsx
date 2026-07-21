@@ -371,6 +371,7 @@ function AppShell() {
             <GitWorkspace
               key={worktreePath}
               worktreePath={worktreePath}
+              openApps={settings.openApps}
               hasUpstream={hasUpstream}
               pushAfterCommit={pushAfterCommit}
               onPushAfterCommitChange={handlePushAfterCommitChange}
@@ -395,6 +396,7 @@ function AppShell() {
                 key={worktreePath}
                 worktreePath={worktreePath}
                 currentBranch={currentBranch}
+                openApps={settings.openApps}
                 contentRevision={workspaceContentRevision}
                 compareRequest={compareRequest}
                 onCompareRequestConsumed={handleCompareRequestConsumed}

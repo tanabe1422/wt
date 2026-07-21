@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 
 import type { ContextMenuEntry } from '../components/ui/ContextMenu'
-import type { FileStatus } from '../types'
+import type { FileStatus, OpenApp } from '../types'
 import { isConflict } from '../utils/gitStatus'
 import { useCommitRebaseActions } from './useCommitRebaseActions'
 import { useFileContextMenu } from './useFileContextMenu'
@@ -9,6 +9,7 @@ import { useHunkLineActions } from './useHunkLineActions'
 
 interface UseGitWorkspaceActionsOptions {
   worktreePath: string
+  openApps?: OpenApp[]
   hasUpstream: boolean
   staged: FileStatus[]
   unstaged: FileStatus[]
@@ -35,6 +36,7 @@ interface UseGitWorkspaceActionsOptions {
 /** Workspace 操作の薄いファサード（stage 選択系 + 分割フック合成）。 */
 export function useGitWorkspaceActions({
   worktreePath,
+  openApps = [],
   hasUpstream,
   staged,
   unstaged,
@@ -82,6 +84,7 @@ export function useGitWorkspaceActions({
 
   const { handleFileContextMenu } = useFileContextMenu({
     worktreePath,
+    openApps,
     stagedSelectionPaths,
     unstagedSelectionPaths,
     setFocus,

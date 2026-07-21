@@ -147,8 +147,8 @@ export async function openTerminal(path: string): Promise<void> {
   return callApp('OpenTerminal', path)
 }
 
-export async function openInApp(appID: string, dirPath: string): Promise<void> {
-  return callApp('OpenInApp', appID, dirPath)
+export async function openInApp(appID: string, path: string): Promise<void> {
+  return callApp('OpenInApp', appID, path)
 }
 
 export async function getExecutableIconDataURL(commandOrPath: string): Promise<string> {
@@ -297,8 +297,8 @@ export async function deleteUntracked(worktreePath: string, paths: string[]): Pr
   return callApp('DeleteUntracked', worktreePath, paths)
 }
 
-export async function discardAllChanges(worktreePath: string): Promise<void> {
-  return callApp('DiscardAllChanges', worktreePath)
+export async function resetWorkingTree(worktreePath: string): Promise<void> {
+  return callApp('ResetWorkingTree', worktreePath)
 }
 
 export async function abortMerge(worktreePath: string): Promise<void> {

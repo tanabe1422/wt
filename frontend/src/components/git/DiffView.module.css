@@ -182,6 +182,10 @@
   color: var(--color-slate-800);
 }
 
+.space {
+  color: var(--color-slate-400);
+}
+
 .add {
   background: var(--color-green-100);
 }

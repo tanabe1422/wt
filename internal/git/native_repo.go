@@ -204,8 +204,12 @@ func openNativeRepo(path string) (*gogit.Repository, error) {
 	}
 	nativeRepoMu.Unlock()
 
+	// EnableDotGitCommonDir is required for linked worktrees, whose .git is a
+	// file pointing at .git/worktrees/<name>. Refs, config, and objects live in
+	// the common dir; without this option ListBranchHeads/upstream resolve fail.
 	repo, err := gogit.PlainOpenWithOptions(abs, &gogit.PlainOpenOptions{
-		DetectDotGit: true,
+		DetectDotGit:          true,
+		EnableDotGitCommonDir: true,
 	})
 	if err != nil {
 		return nil, err

@@ -196,8 +196,8 @@ func (a *App) DeleteUntracked(worktreePath string, paths []string) error {
 	})
 }
 
-func (a *App) DiscardAllChanges(worktreePath string) error {
-	return mutateWorktree(worktreePath, git.DiscardAllChanges)
+func (a *App) ResetWorkingTree(worktreePath string) error {
+	return mutateWorktree(worktreePath, git.ResetWorkingTree)
 }
 
 func (a *App) AbortMerge(worktreePath string) error {

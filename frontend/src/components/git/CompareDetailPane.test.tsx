@@ -26,6 +26,7 @@ vi.mock('../../lib/wails', () => ({
 
 import { useRangeFileDiff } from '../../hooks/useRangeFileDiff'
 import { useRangeFiles } from '../../hooks/useRangeFiles'
+import { getByDiffLineText } from '../../test/diffText'
 import { CompareDetailPane } from './CompareDetailPane'
 
 afterEach(() => {
@@ -126,7 +127,7 @@ describe('CompareDetailPane', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'b.ts' })).toBeInTheDocument()
-      expect(screen.getByText('export·const·b·=·1')).toBeInTheDocument()
+      expect(getByDiffLineText('export·const·b·=·1')).toBeInTheDocument()
     })
   })
 

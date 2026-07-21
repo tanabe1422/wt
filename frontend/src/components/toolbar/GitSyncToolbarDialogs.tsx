@@ -20,6 +20,7 @@ interface GitSyncToolbarDialogsProps {
   upstreamPushOpen: boolean
   pullOpen: boolean
   pullForceConfirmOpen: boolean
+  resetConfirmOpen: boolean
   actionTitle: string
   actionErrorDialog: ErrorDialogState
   onCreateConfirm: (name: string) => void
@@ -36,6 +37,8 @@ interface GitSyncToolbarDialogsProps {
   onPullCancel: () => void
   onPullForceConfirm: () => void
   onPullForceConfirmCancel: () => void
+  onResetConfirm: () => void
+  onResetCancel: () => void
   onActionErrorDismiss: () => void
 }
 
@@ -49,6 +52,7 @@ export function GitSyncToolbarDialogs({
   upstreamPushOpen,
   pullOpen,
   pullForceConfirmOpen,
+  resetConfirmOpen,
   actionTitle,
   actionErrorDialog,
   onCreateConfirm,
@@ -65,6 +69,8 @@ export function GitSyncToolbarDialogs({
   onPullCancel,
   onPullForceConfirm,
   onPullForceConfirmCancel,
+  onResetConfirm,
+  onResetCancel,
   onActionErrorDismiss,
 }: GitSyncToolbarDialogsProps) {
   return (
@@ -100,6 +106,15 @@ export function GitSyncToolbarDialogs({
         danger
         onConfirm={onPullForceConfirm}
         onCancel={onPullForceConfirmCancel}
+      />
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        title="ワーキングツリーをリセット"
+        message="ステージ済み・未ステージの変更と未追跡ファイルをすべて破棄します。この操作は取り消せません。"
+        confirmLabel="リセット"
+        danger
+        onConfirm={onResetConfirm}
+        onCancel={onResetCancel}
       />
       <PushOptionsDialog
         open={pushOpen}

@@ -4,6 +4,7 @@ import { errorMessage } from '../lib/errorMessage'
 import { removeWorktree } from '../lib/wails'
 import type { WorktreeEntry } from '../types'
 import { formatDetachedLabel, isDetachedWorktree } from '../utils/detachedHead'
+import type { BusyChangeHandler } from './useBusy'
 
 export interface WorktreeCleanupRow {
   path: string
@@ -44,6 +45,7 @@ interface UseWorktreeCleanupOptions {
   selectedWorktree: string | null
   onSelectWorktree?: (path: string) => void
   onDeleted?: () => void | Promise<void>
+  onBusyChange?: BusyChangeHandler
 }
 
 export function useWorktreeCleanup({
@@ -53,12 +55,15 @@ export function useWorktreeCleanup({
   selectedWorktree,
   onSelectWorktree,
   onDeleted,
+  onBusyChange,
 }: UseWorktreeCleanupOptions) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [forceDelete, setForceDelete] = useState(false)
+
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange])
 
   const rows = useMemo(() => buildWorktreeCleanupRows(worktrees), [worktrees])
 
@@ -133,13 +138,14 @@ export function useWorktreeCleanup({
     }
 
     const removing = new Set(selectedPaths)
+    setConfirmOpen(false)
     setBusy(true)
+    onBusyChange?.(true, 'ワークツリーを削除しています…')
     setError('')
     try {
       for (const path of selectedPaths) {
         await removeWorktree(repoPath, path, forceDelete)
       }
-      setConfirmOpen(false)
       setSelected(new Set())
       if (selectedWorktree && removing.has(selectedWorktree)) {
         const fallbackPath =
@@ -153,13 +159,14 @@ export function useWorktreeCleanup({
       await onDeleted?.()
     } catch (err) {
       setError(errorMessage(err, 'ワークツリーの削除に失敗しました'))
-      setConfirmOpen(false)
     } finally {
       setBusy(false)
+      onBusyChange?.(false)
     }
   }, [
     busy,
     forceDelete,
+    onBusyChange,
     onDeleted,
     onSelectWorktree,
     repoPath,

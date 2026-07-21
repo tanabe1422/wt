@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { FileDiff } from '../../types'
+import { getByDiffLineText } from '../../test/diffText'
 import { DiffView } from './DiffView'
 
 afterEach(() => {
@@ -46,7 +47,7 @@ describe('DiffView', () => {
     )
 
     expect(screen.getByText('src/app.ts')).toBeInTheDocument()
-    expect(screen.getByText('const·a·=·1')).toBeInTheDocument()
+    expect(getByDiffLineText('const·a·=·1')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Hunkをステージに移動' })).toBeInTheDocument()
   })
 
@@ -64,7 +65,7 @@ describe('DiffView', () => {
       />,
     )
 
-    const addLine = screen.getByText('const·b·=·3').closest('[role="button"]')
+    const addLine = getByDiffLineText('const·b·=·3').closest('[role="button"]')
     expect(addLine).toBeTruthy()
     await user.click(addLine!)
 
@@ -111,7 +112,7 @@ describe('DiffView', () => {
       />,
     )
 
-    await user.click(screen.getByText('const·b·=·3').closest('[role="button"]')!)
+    await user.click(getByDiffLineText('const·b·=·3').closest('[role="button"]')!)
     await user.click(screen.getByRole('button', { name: '選択をアンステージ' }))
     expect(onUnstageLines).toHaveBeenCalledWith(0, [2])
   })

@@ -26,8 +26,8 @@ func findOpenApp(apps []config.OpenApp, appID string) (config.OpenApp, error) {
 }
 
 // expandOpenAppArgs splits the template first, then substitutes {path} in each
-// token so directory paths with spaces stay a single argv element.
-func expandOpenAppArgs(template, dirPath string) []string {
+// token so paths with spaces stay a single argv element.
+func expandOpenAppArgs(template, targetPath string) []string {
 	template = strings.TrimSpace(template)
 	if template == "" {
 		template = "{path}"
@@ -35,7 +35,7 @@ func expandOpenAppArgs(template, dirPath string) []string {
 	parts := splitQuotedArgs(template)
 	out := make([]string, 0, len(parts))
 	for _, part := range parts {
-		out = append(out, strings.ReplaceAll(part, "{path}", dirPath))
+		out = append(out, strings.ReplaceAll(part, "{path}", targetPath))
 	}
 	return out
 }
@@ -87,36 +87,47 @@ func splitQuotedArgs(s string) []string {
 	return args
 }
 
-func resolveOpenCommand(app config.OpenApp, dirPath string) (string, []string, error) {
+func resolveOpenCommand(app config.OpenApp, targetPath string) (string, []string, error) {
 	exe := strings.TrimSpace(app.Path)
 	if exe == "" {
 		return "", nil, errors.New("アプリのパスが空です")
 	}
-	args := expandOpenAppArgs(app.Args, dirPath)
+	args := expandOpenAppArgs(app.Args, targetPath)
 	if resolved, err := exec.LookPath(exe); err == nil {
 		return resolved, args, nil
 	}
 	return exe, args, nil
 }
 
-func openInApp(app config.OpenApp, dirPath string) error {
-	info, err := os.Stat(dirPath)
-	if err != nil {
+func validateOpenTarget(targetPath string) error {
+	if _, err := os.Stat(targetPath); err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		// Deleted / missing files: still launch if the parent directory exists
+		// so editors can open a buffer at that path.
+		parent := filepath.Dir(targetPath)
+		if _, parentErr := os.Stat(parent); parentErr != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func openInApp(app config.OpenApp, targetPath string) error {
+	if err := validateOpenTarget(targetPath); err != nil {
 		return err
 	}
-	if !info.IsDir() {
-		return errors.New("not a directory")
-	}
 
-	exe, args, err := resolveOpenCommand(app, dirPath)
+	exe, args, err := resolveOpenCommand(app, targetPath)
 	if err != nil {
 		return err
 	}
 	return exec.Command(exe, args...).Start()
 }
 
-// OpenInApp launches a registered open-apps entry on the given directory.
-func (a *App) OpenInApp(appID string, dirPath string) error {
+// OpenInApp launches a registered open-apps entry on a file or directory path.
+func (a *App) OpenInApp(appID string, targetPath string) error {
 	settings, err := config.Load()
 	if err != nil {
 		return err
@@ -125,7 +136,7 @@ func (a *App) OpenInApp(appID string, dirPath string) error {
 	if err != nil {
 		return err
 	}
-	abs, err := filepath.Abs(filepath.Clean(dirPath))
+	abs, err := filepath.Abs(filepath.Clean(targetPath))
 	if err != nil {
 		return err
 	}

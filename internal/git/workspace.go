@@ -102,9 +102,9 @@ func DeleteUntracked(worktreePath string, paths []string) error {
 	return runGitPaths(worktreePath, []string{"clean", "-fd", "--"}, paths)
 }
 
-// DiscardAllChanges discards all tracked changes and removes all untracked files
-// (git reset --hard && git clean -fd).
-func DiscardAllChanges(worktreePath string) error {
+// ResetWorkingTree discards all tracked changes and removes all untracked files
+// (git reset --hard && git clean -fd). Used by the toolbar "リセット" action.
+func ResetWorkingTree(worktreePath string) error {
 	dir, err := filepath.Abs(filepath.Clean(worktreePath))
 	if err != nil {
 		return err

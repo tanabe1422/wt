@@ -133,6 +133,12 @@ export function useBranchContextMenu({
           },
           { type: 'separator' },
           {
+            label: 'ブランチ名をコピー',
+            onClick: () => {
+              void navigator.clipboard.writeText(branchName)
+            },
+          },
+          {
             label: 'ブランチ名を変更',
             disabled: !onRename,
             onClick: () => onRename?.(branchName),
@@ -150,6 +156,13 @@ export function useBranchContextMenu({
             label: 'リベース',
             disabled: checkedOut || !onRebase,
             onClick: () => onRebase?.(branchName),
+          },
+          { type: 'separator' },
+          {
+            label: 'ブランチ名をコピー',
+            onClick: () => {
+              void navigator.clipboard.writeText(branchName)
+            },
           },
         )
       }

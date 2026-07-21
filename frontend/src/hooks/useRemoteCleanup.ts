@@ -17,12 +17,14 @@ import {
 import type { MergeCheckMode, RemoteMergeEntry } from '../types'
 import { localBranchFromRemote } from '../utils/branchTree'
 import { isRemoteCleanupExcluded } from '../utils/remoteCleanupExcluded'
+import type { BusyChangeHandler } from './useBusy'
 
 interface UseRemoteCleanupOptions {
   open: boolean
   repositoryPath: string
   worktreePath: string
   onDeleted?: () => void | Promise<void>
+  onBusyChange?: BusyChangeHandler
 }
 
 /** リモート整理ダイアログの取得・フィルタ・除外・削除ロジック。 */
@@ -31,6 +33,7 @@ export function useRemoteCleanup({
   repositoryPath,
   worktreePath,
   onDeleted,
+  onBusyChange,
 }: UseRemoteCleanupOptions) {
   const prefsKey = repositoryPath || worktreePath
   const [baseRef, setBaseRef] = useState('')
@@ -50,6 +53,8 @@ export function useRemoteCleanup({
   const [error, setError] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [excludedOpen, setExcludedOpen] = useState(false)
+
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange])
 
   const persistPrefs = useCallback(
     (patch: Parameters<typeof setRemoteCleanupPrefs>[1]) => {
@@ -266,11 +271,12 @@ export function useRemoteCleanup({
       setError(`除外リストのブランチは削除できません: ${blocked.join(', ')}`)
       return
     }
+    setConfirmOpen(false)
     setDeleting(true)
+    onBusyChange?.(true, 'リモートブランチを削除しています…')
     setError('')
     try {
       await deleteRemoteBranches(worktreePath, selectedNames)
-      setConfirmOpen(false)
       setSelected(new Set())
       const result = await listRemoteMergeStatus(worktreePath, baseRef, mode)
       setEntries(result)
@@ -279,12 +285,12 @@ export function useRemoteCleanup({
       )
       await onDeleted?.()
     } catch (err) {
-      setConfirmOpen(false)
       setError(err instanceof Error ? err.message : 'リモートブランチの削除に失敗しました')
     } finally {
       setDeleting(false)
+      onBusyChange?.(false)
     }
-  }, [baseRef, excluded, mode, onDeleted, selectedNames, worktreePath])
+  }, [baseRef, excluded, mode, onBusyChange, onDeleted, selectedNames, worktreePath])
 
   const updateBaseRef = useCallback(
     (next: string) => {

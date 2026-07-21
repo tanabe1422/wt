@@ -121,6 +121,7 @@ export function BranchSidebar({
     worktreePath: actionWorktreePath,
     onSuccess: handleLightSuccess,
     onStructureChanged: handleStructureSuccess,
+    onBusyChange,
   })
   const actionErrorDialog = useErrorDialog(branchActions.error)
 
@@ -133,6 +134,7 @@ export function BranchSidebar({
     onSelectBranch,
     onReload,
     onBranchChanged: onWorkspaceContentChanged,
+    onBusyChange,
   })
   const openAppPaths = useMemo(() => openApps.map((app) => app.path), [openApps])
   const openAppIconUrls = useExecutableIcons(openAppPaths)
@@ -142,15 +144,10 @@ export function BranchSidebar({
     worktreePath: actionWorktreePath,
     reloadToken: `${activeRepository}:${actionWorktreePath ?? ''}:${contentRevision}`,
     onSuccess: handleLightSuccess,
+    onBusyChange,
   })
 
-  const sidebarBusy =
-    branchActions.busy || worktreeDialogs.worktreeBusy || stashActions.busy
-
-  useEffect(() => {
-    onBusyChange?.(sidebarBusy)
-    return () => onBusyChange?.(false)
-  }, [onBusyChange, sidebarBusy])
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange])
 
   const handleSelectWorktree = useCallback(
     (path: string) => {
@@ -435,6 +432,7 @@ export function BranchSidebar({
         onSelectWorktree={onSelectWorktree}
         onClose={() => setWtCleanupOpen(false)}
         onDeleted={handleStructureSuccess}
+        onBusyChange={onBusyChange}
       />
       <LocalBranchCleanupDialog
         open={cleanupOpen}
@@ -444,6 +442,7 @@ export function BranchSidebar({
         worktreeBranches={worktreeBranches}
         onClose={() => setCleanupOpen(false)}
         onDeleted={handleStructureSuccess}
+        onBusyChange={onBusyChange}
       />
       <RemoteCleanupDialog
         open={remoteCleanupOpen}
@@ -451,6 +450,7 @@ export function BranchSidebar({
         worktreePath={actionWorktreePath ?? ''}
         onClose={() => setRemoteCleanupOpen(false)}
         onDeleted={handleStructureSuccess}
+        onBusyChange={onBusyChange}
       />
       <StashCleanupDialog
         open={stashCleanupOpen}
@@ -459,6 +459,7 @@ export function BranchSidebar({
         onDeleted={async () => {
           await stashActions.reload()
         }}
+        onBusyChange={onBusyChange}
       />
       <BranchSidebarDialogs
         loadError={errorDialog}

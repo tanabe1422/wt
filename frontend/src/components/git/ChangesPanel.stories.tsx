@@ -3,8 +3,9 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { MouseEvent } from 'react'
 
 import type { SectionSelection } from '../../hooks/useSectionSelection'
+import { withMenuSeparators } from '../../lib/openAppMenu'
 import { isConflict } from '../../lib/wails'
-import { ContextMenu } from '../ui/ContextMenu'
+import { ContextMenu, type ContextMenuEntry } from '../ui/ContextMenu'
 import { ChangesPanel } from './ChangesPanel'
 import {
   conflictFiles,
@@ -121,50 +122,61 @@ function ChangesPanelDemo({
         <ContextMenu
           x={menu.x}
           y={menu.y}
-          items={
-            menu.conflict
-              ? [
+          items={(() => {
+            const fileItems: ContextMenuEntry[] = [
+              {
+                label: 'Cursorで開く',
+                onClick: () => {
+                  console.info('[story] OpenInApp cursor', menu.path)
+                },
+              },
+              {
+                label: 'エクスプローラーで表示',
+                onClick: () => {
+                  console.info('[story] ShowInExplorer', menu.path)
+                },
+              },
+            ]
+            if (menu.conflict) {
+              return withMenuSeparators(
+                [
                   {
                     label: '外部ツールで競合を解決',
                     onClick: () => {
                       console.info('[story] OpenMergetool', menu.path)
                     },
                   },
-                  {
-                    label: 'エクスプローラーで表示',
-                    onClick: () => {
-                      console.info('[story] ShowInExplorer', menu.path)
-                    },
+                ],
+                fileItems,
+              )
+            }
+            return withMenuSeparators(
+              [
+                {
+                  label: '差分を外部ツールで開く',
+                  onClick: () => {
+                    console.info('[story] OpenDifftool', menu.path)
                   },
-                ]
-              : [
-                  {
-                    label: '差分を外部ツールで開く',
-                    onClick: () => {
-                      console.info('[story] OpenDifftool', menu.path)
-                    },
-                  },
-                  {
-                    label: 'エクスプローラーで表示',
-                    onClick: () => {
-                      console.info('[story] ShowInExplorer', menu.path)
-                    },
-                  },
-                  menu.untracked
-                    ? {
-                        label: 'ファイルを削除',
-                        onClick: () => {
-                          console.info('[story] DeleteUntracked', menu.path)
-                        },
-                      }
-                    : {
-                        label: '変更を破棄',
-                        onClick: () => {
-                          console.info('[story] DiscardFiles', menu.path)
-                        },
+                },
+              ],
+              [
+                menu.untracked
+                  ? {
+                      label: 'ファイルを削除',
+                      onClick: () => {
+                        console.info('[story] DeleteUntracked', menu.path)
                       },
-                ]
-          }
+                    }
+                  : {
+                      label: '変更を破棄',
+                      onClick: () => {
+                        console.info('[story] DiscardFiles', menu.path)
+                      },
+                    },
+              ],
+              fileItems,
+            )
+          })()}
           onClose={() => setMenu(null)}
         />
       )}

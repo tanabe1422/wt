@@ -1,4 +1,5 @@
 import { useWorktreeCleanup } from '../../hooks/useWorktreeCleanup'
+import type { BusyChangeHandler } from '../../hooks/useBusy'
 import type { WorktreeEntry } from '../../types'
 import { cx } from '../../utils/cx'
 import { Button } from '../ui/Button'
@@ -23,6 +24,7 @@ interface WorktreeCleanupDialogProps {
   onSelectWorktree?: (path: string) => void
   onClose: () => void
   onDeleted?: () => void | Promise<void>
+  onBusyChange?: BusyChangeHandler
 }
 
 export function WorktreeCleanupDialog({
@@ -33,6 +35,7 @@ export function WorktreeCleanupDialog({
   onSelectWorktree,
   onClose,
   onDeleted,
+  onBusyChange,
 }: WorktreeCleanupDialogProps) {
   const {
     rows,
@@ -56,6 +59,7 @@ export function WorktreeCleanupDialog({
     selectedWorktree,
     onSelectWorktree,
     onDeleted,
+    onBusyChange,
   })
 
   if (!open) {

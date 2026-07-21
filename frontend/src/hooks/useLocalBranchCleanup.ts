@@ -4,6 +4,7 @@ import { errorMessage } from '../lib/errorMessage'
 import { deleteBranch } from '../lib/wails'
 import type { BranchEntry } from '../types'
 import { getBranchMarkFlags } from '../utils/branchMarks'
+import type { BusyChangeHandler } from './useBusy'
 
 export interface LocalCleanupRow {
   name: string
@@ -21,6 +22,7 @@ interface UseLocalBranchCleanupOptions {
   checkedOutBranch: string | null
   worktreeBranches: Set<string>
   onDeleted?: () => void | Promise<void>
+  onBusyChange?: BusyChangeHandler
 }
 
 export function useLocalBranchCleanup({
@@ -30,12 +32,15 @@ export function useLocalBranchCleanup({
   checkedOutBranch,
   worktreeBranches,
   onDeleted,
+  onBusyChange,
 }: UseLocalBranchCleanupOptions) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [forceDelete, setForceDelete] = useState(false)
+
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange])
 
   const rows = useMemo((): LocalCleanupRow[] => {
     return branches
@@ -123,23 +128,24 @@ export function useLocalBranchCleanup({
       return
     }
 
+    setConfirmOpen(false)
     setBusy(true)
+    onBusyChange?.(true, 'ブランチを削除しています…')
     setError('')
     try {
       for (const name of selectedNames) {
         await deleteBranch(worktreePath, name, forceDelete)
       }
-      setConfirmOpen(false)
       setSelected(new Set())
       await onDeleted?.()
     } catch (err) {
       setError(errorMessage(err, 'ブランチの削除に失敗しました'))
-      setConfirmOpen(false)
       await onDeleted?.()
     } finally {
       setBusy(false)
+      onBusyChange?.(false)
     }
-  }, [busy, forceDelete, onDeleted, selectedNames, worktreePath])
+  }, [busy, forceDelete, onBusyChange, onDeleted, selectedNames, worktreePath])
 
   return {
     rows,

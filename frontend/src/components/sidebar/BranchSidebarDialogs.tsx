@@ -1,10 +1,10 @@
+import { buildOpenAppMenuItems, withMenuSeparators } from '../../lib/openAppMenu'
+import type { OpenApp, StashEntry, WorktreeEntry } from '../../types'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { ContextMenu, type ContextMenuEntry } from '../ui/ContextMenu'
 import { ErrorDialog } from '../ui/ErrorDialog'
 import { PromptDialog } from '../ui/PromptDialog'
 import { WorktreeCheckoutDialog } from '../ui/WorktreeCheckoutDialog'
-import { openAppIcon } from '../icons/openAppIcons'
-import type { OpenApp, StashEntry, WorktreeEntry } from '../../types'
 
 interface ErrorDialogState {
   open: boolean
@@ -110,25 +110,10 @@ function buildWorktreeMenuItems({
   onOpenTerminal: (path: string) => void
   onRequestRemoveWorktree: (worktree: WorktreeEntry) => void
 }): ContextMenuEntry[] {
-  const items: ContextMenuEntry[] = []
-
-  const launchableApps = openApps.filter((app) => app.path.trim() !== '')
-  for (const app of launchableApps) {
-    const name = app.name.trim() || app.path.trim() || 'アプリ'
-    items.push({
-      icon: openAppIcon(app.icon, iconDataUrls[app.path.trim()] ?? null),
-      label: `${name}で開く`,
-      onClick: () => {
-        onOpenInApp(app.id, worktree.path)
-      },
-    })
-  }
-
-  if (launchableApps.length > 0) {
-    items.push({ type: 'separator' })
-  }
-
-  items.push(
+  const openItems = buildOpenAppMenuItems(openApps, iconDataUrls, (appID) => {
+    onOpenInApp(appID, worktree.path)
+  })
+  const systemItems: ContextMenuEntry[] = [
     {
       label: 'エクスプローラで開く',
       onClick: () => {
@@ -141,21 +126,18 @@ function buildWorktreeMenuItems({
         onOpenTerminal(worktree.path)
       },
     },
-  )
-
-  if (!worktree.isMain) {
-    items.push(
-      { type: 'separator' },
-      {
-        label: 'ワークツリーを削除',
-        onClick: () => {
-          onRequestRemoveWorktree(worktree)
+  ]
+  const destructiveItems: ContextMenuEntry[] = worktree.isMain
+    ? []
+    : [
+        {
+          label: 'ワークツリーを削除',
+          onClick: () => {
+            onRequestRemoveWorktree(worktree)
+          },
         },
-      },
-    )
-  }
-
-  return items
+      ]
+  return withMenuSeparators(openItems, systemItems, destructiveItems)
 }
 
 

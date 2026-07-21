@@ -8,6 +8,7 @@ import { GitSyncActionButton } from './GitSyncActionButton'
 import {
   ExplorerIcon,
   ReloadIcon,
+  ResetWorkingTreeIcon,
   SettingsIcon,
   type GitSyncAction,
 } from './GitSyncIcons'
@@ -82,6 +83,7 @@ export function GitSyncToolbar({
     pullOpen,
     setPullOpen,
     pullForceConfirmOpen,
+    resetConfirmOpen,
     actionTitle,
     actionErrorDialog,
     run,
@@ -92,6 +94,9 @@ export function GitSyncToolbar({
     handleCreateBranch,
     handleSaveStash,
     handleOpenExplorer,
+    handleResetWorkingTreeRequest,
+    handleResetWorkingTreeConfirm,
+    handleResetWorkingTreeCancel,
     handlePushOptionsConfirm,
     handlePushForceConfirm,
     handlePushForceConfirmCancel,
@@ -100,6 +105,7 @@ export function GitSyncToolbar({
   } = useGitSyncActions({
     worktreePath,
     hasUpstream,
+    hasUncommittedChanges: changedFileCount > 0,
     onActionComplete,
     onReload,
     onBusyChange,
@@ -168,6 +174,12 @@ export function GitSyncToolbar({
               disabled={isDisabled}
               onClick={() => setStashOpen(true)}
             />
+            <ToolbarActionButton
+              label="リセット"
+              icon={<ResetWorkingTreeIcon size={20} />}
+              disabled={isDisabled || changedFileCount === 0}
+              onClick={handleResetWorkingTreeRequest}
+            />
             {onReload && (
               <ToolbarActionButton
                 label="再読込"
@@ -210,6 +222,7 @@ export function GitSyncToolbar({
         upstreamPushOpen={upstreamPushOpen}
         pullOpen={pullOpen}
         pullForceConfirmOpen={pullForceConfirmOpen}
+        resetConfirmOpen={resetConfirmOpen}
         actionTitle={actionTitle}
         actionErrorDialog={actionErrorDialog}
         onCreateConfirm={(value) => {
@@ -232,6 +245,10 @@ export function GitSyncToolbar({
         onPullCancel={() => setPullOpen(false)}
         onPullForceConfirm={handlePullForceConfirm}
         onPullForceConfirmCancel={handlePullForceConfirmCancel}
+        onResetConfirm={() => {
+          void handleResetWorkingTreeConfirm()
+        }}
+        onResetCancel={handleResetWorkingTreeCancel}
         onActionErrorDismiss={actionErrorDialog.dismiss}
       />
     </header>

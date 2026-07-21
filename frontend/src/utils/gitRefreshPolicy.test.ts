@@ -15,6 +15,7 @@ describe('gitRefreshPolicy', () => {
   it('maps workspace ops to lightweight scopes (no sidebarFull)', () => {
     expect(refreshScopeFor('stage')).toBe('statusAndBadge')
     expect(refreshScopeFor('discardAll')).toBe('statusAndBadge')
+    expect(refreshScopeFor('resetWorkingTree')).toBe('statusAndBadge')
     expect(refreshScopeFor('hunkOrLine')).toBe('statusAndBadge')
     expect(refreshScopeFor('commit')).toBe('statusBadgeAndBranches')
     expect(refreshScopeFor('difftool')).toBe('none')

@@ -51,15 +51,29 @@ func TestFindOpenApp(t *testing.T) {
 	}
 }
 
-func TestOpenInAppRejectsNonDirectory(t *testing.T) {
+func TestValidateOpenTargetAcceptsFile(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "file.txt")
 	if err := os.WriteFile(filePath, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	err := openInApp(config.OpenApp{Path: "echo", Args: "{path}"}, filePath)
-	if err == nil || err.Error() != "not a directory" {
-		t.Fatalf("want not a directory, got %v", err)
+	if err := validateOpenTarget(filePath); err != nil {
+		t.Fatalf("file: %v", err)
+	}
+	if err := validateOpenTarget(dir); err != nil {
+		t.Fatalf("dir: %v", err)
+	}
+}
+
+func TestValidateOpenTargetAcceptsMissingFileWhenParentExists(t *testing.T) {
+	dir := t.TempDir()
+	missing := filepath.Join(dir, "deleted.txt")
+	if err := validateOpenTarget(missing); err != nil {
+		t.Fatalf("missing file: %v", err)
+	}
+	orphan := filepath.Join(dir, "no-such-dir", "file.txt")
+	if err := validateOpenTarget(orphan); err == nil {
+		t.Fatal("expected error for missing parent")
 	}
 }
 

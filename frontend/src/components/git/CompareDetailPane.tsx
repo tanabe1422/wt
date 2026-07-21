@@ -11,6 +11,7 @@ import {
   prefetchRangeNeighbors,
 } from '../../lib/diffPrefetch'
 import { openRangeDifftool } from '../../lib/wails'
+import type { OpenApp } from '../../types'
 import { cx } from '../../utils/cx'
 import { ContextMenu } from '../ui/ContextMenu'
 import { ErrorDialog } from '../ui/ErrorDialog'
@@ -27,6 +28,7 @@ export interface CompareRange {
 
 interface CompareDetailPaneProps {
   worktreePath: string
+  openApps?: OpenApp[]
   range: CompareRange
 }
 
@@ -35,7 +37,11 @@ const DETAIL_SPLIT_DEFAULT_RATIO = 0.35
 const DETAIL_SPLIT_MIN_RATIO = 0.2
 const DETAIL_SPLIT_MAX_RATIO = 0.75
 
-export function CompareDetailPane({ worktreePath, range }: CompareDetailPaneProps) {
+export function CompareDetailPane({
+  worktreePath,
+  openApps = [],
+  range,
+}: CompareDetailPaneProps) {
   const { fromRef, toRef } = range
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const { files, loading: filesLoading, error: filesError } = useRangeFiles(
@@ -64,6 +70,7 @@ export function CompareDetailPane({ worktreePath, range }: CompareDetailPaneProp
     toolErrorDialog,
   } = useHistoryFileContextMenu({
     worktreePath,
+    openApps,
     selectedPath,
     setSelectedPath,
     openDifftool: openDifftoolForFile,

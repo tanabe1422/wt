@@ -24,10 +24,12 @@ import { CommitBar } from './CommitBar'
 import { DiffView } from './DiffView'
 import { GitWorkspaceDialogs } from './GitWorkspaceDialogs'
 import type { FetchPhase } from '../toolbar/GitSyncToolbar'
+import type { OpenApp } from '../../types'
 import styles from './GitWorkspace.module.css'
 
 interface GitWorkspaceProps {
   worktreePath: string
+  openApps?: OpenApp[]
   hasUpstream: boolean
   pushAfterCommit: boolean
   onPushAfterCommitChange: (enabled: boolean) => void
@@ -67,6 +69,7 @@ const FILES_SPLIT_MAX_RATIO = 0.75
 
 export function GitWorkspace({
   worktreePath,
+  openApps = [],
   hasUpstream,
   pushAfterCommit,
   onPushAfterCommitChange,
@@ -243,10 +246,7 @@ export function GitWorkspace({
   const destructive = useGitDestructiveConfirm({
     worktreePath,
     unstaged,
-    stagedCount: staged.length,
-    unstagedCount: unstaged.length,
     runBusy,
-    clearAll,
     clearUnstaged,
     afterDestructive: async () => {
       invalidateWorktreeDiffs(worktreePath)
@@ -262,6 +262,7 @@ export function GitWorkspace({
 
   const actions = useGitWorkspaceActions({
     worktreePath,
+    openApps,
     hasUpstream,
     staged,
     unstaged,

@@ -26,6 +26,7 @@ vi.mock('../../lib/wails', () => ({
 
 import { useCommitFileDiff } from '../../hooks/useCommitFileDiff'
 import { useCommitFiles } from '../../hooks/useCommitFiles'
+import { getByDiffLineText } from '../../test/diffText'
 import { CommitDetailPane } from './CommitDetailPane'
 
 afterEach(() => {
@@ -120,7 +121,7 @@ describe('CommitDetailPane', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'src/two.ts' })).toBeInTheDocument()
-      expect(screen.getByText('export·const·two·=·2')).toBeInTheDocument()
+      expect(getByDiffLineText('export·const·two·=·2')).toBeInTheDocument()
     })
   })
 })

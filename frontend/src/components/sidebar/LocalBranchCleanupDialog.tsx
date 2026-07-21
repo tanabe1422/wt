@@ -1,4 +1,5 @@
 import { useLocalBranchCleanup } from '../../hooks/useLocalBranchCleanup'
+import type { BusyChangeHandler } from '../../hooks/useBusy'
 import type { BranchEntry } from '../../types'
 import { cx } from '../../utils/cx'
 import { Button } from '../ui/Button'
@@ -24,6 +25,7 @@ interface LocalBranchCleanupDialogProps {
   worktreeBranches: Set<string>
   onClose: () => void
   onDeleted?: () => void | Promise<void>
+  onBusyChange?: BusyChangeHandler
 }
 
 function toneClass(row: {
@@ -47,6 +49,7 @@ export function LocalBranchCleanupDialog({
   worktreeBranches,
   onClose,
   onDeleted,
+  onBusyChange,
 }: LocalBranchCleanupDialogProps) {
   const {
     rows,
@@ -70,6 +73,7 @@ export function LocalBranchCleanupDialog({
     checkedOutBranch,
     worktreeBranches,
     onDeleted,
+    onBusyChange,
   })
 
   if (!open) {

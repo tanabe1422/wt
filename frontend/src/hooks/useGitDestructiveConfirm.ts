@@ -5,7 +5,6 @@ import {
   abortMerge,
   abortRebase,
   deleteUntracked,
-  discardAllChanges,
   discardFiles,
 } from '../lib/wails'
 import type { FileStatus } from '../types'
@@ -21,10 +20,7 @@ import {
 interface UseGitDestructiveConfirmOptions {
   worktreePath: string
   unstaged: FileStatus[]
-  stagedCount: number
-  unstagedCount: number
   runBusy: (action: () => Promise<void>) => Promise<void>
-  clearAll: () => void
   clearUnstaged: () => void
   afterDestructive: () => Promise<void>
 }
@@ -32,10 +28,7 @@ interface UseGitDestructiveConfirmOptions {
 export function useGitDestructiveConfirm({
   worktreePath,
   unstaged,
-  stagedCount,
-  unstagedCount,
   runBusy,
-  clearAll,
   clearUnstaged,
   afterDestructive,
 }: UseGitDestructiveConfirmOptions) {
@@ -53,11 +46,15 @@ export function useGitDestructiveConfirm({
   )
 
   const requestDiscardAll = useCallback(() => {
-    if (stagedCount === 0 && unstagedCount === 0) {
+    const { discardPaths } = partitionDiscardPaths(
+      unstaged.map((entry) => entry.path),
+      unstaged,
+    )
+    if (discardPaths.length === 0) {
       return
     }
-    setConfirmAction({ kind: 'discardAll' })
-  }, [stagedCount, unstagedCount])
+    setConfirmAction({ kind: 'discardAll', paths: discardPaths })
+  }, [unstaged])
 
   const requestAbortOperation = useCallback(
     (operation: 'merge' | 'rebase' | 'cherry-pick') => {
@@ -98,8 +95,8 @@ export function useGitDestructiveConfirm({
           await abortMerge(worktreePath)
         }
       } else if (action.kind === 'discardAll') {
-        await discardAllChanges(worktreePath)
-        clearAll()
+        await discardFiles(worktreePath, action.paths)
+        clearUnstaged()
       } else if (action.kind === 'discard') {
         await discardFiles(worktreePath, action.paths)
         clearUnstaged()
@@ -119,7 +116,6 @@ export function useGitDestructiveConfirm({
     await afterDestructive()
   }, [
     afterDestructive,
-    clearAll,
     clearUnstaged,
     confirmAction,
     runBusy,

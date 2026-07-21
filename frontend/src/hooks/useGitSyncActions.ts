@@ -15,6 +15,7 @@ import {
   push,
   pushForce,
   pushSetUpstream,
+  resetWorkingTree,
   saveStash,
   showInExplorer,
 } from '../lib/wails'
@@ -34,6 +35,8 @@ const actionTitles: Record<GitSyncAction, string> = {
 interface UseGitSyncActionsOptions {
   worktreePath: string
   hasUpstream: boolean
+  /** 未コミット変更があるときだけリセットを有効化 */
+  hasUncommittedChanges?: boolean
   onActionComplete?: (op?: GitOp) => void | Promise<void>
   onReload?: () => void | Promise<void>
   onBusyChange?: BusyChangeHandler
@@ -44,6 +47,7 @@ interface UseGitSyncActionsOptions {
 export function useGitSyncActions({
   worktreePath,
   hasUpstream,
+  hasUncommittedChanges = false,
   onActionComplete,
   onReload,
   onBusyChange,
@@ -62,6 +66,7 @@ export function useGitSyncActions({
   const [pullOpen, setPullOpen] = useState(false)
   const [pullForceConfirmOpen, setPullForceConfirmOpen] = useState(false)
   const [pendingPullOptions, setPendingPullOptions] = useState<PullOptions | null>(null)
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const actionErrorDialog = useErrorDialog(actionError)
 
   const setOverlay = useCallback(
@@ -102,7 +107,8 @@ export function useGitSyncActions({
     pushForceConfirmOpen ||
     upstreamPushOpen ||
     pullOpen ||
-    pullForceConfirmOpen
+    pullForceConfirmOpen ||
+    resetConfirmOpen
 
   const runFetch = useCallback(
     async (prune: boolean) => {
@@ -371,6 +377,32 @@ export function useGitSyncActions({
     }
   }, [worktreePath])
 
+  const handleResetWorkingTreeRequest = useCallback(() => {
+    if (acting || dialogOpen || !hasUncommittedChanges) {
+      return
+    }
+    setResetConfirmOpen(true)
+  }, [acting, dialogOpen, hasUncommittedChanges])
+
+  const handleResetWorkingTreeConfirm = useCallback(async () => {
+    setResetConfirmOpen(false)
+    setActionError(null)
+    setActing(true)
+    setOverlay(true, 'リセットしています…')
+    try {
+      await resetWorkingTree(worktreePath)
+    } catch (err) {
+      setActionTitle('リセットに失敗しました')
+      setActionError(err instanceof Error ? err.message : 'リセットに失敗しました')
+    } finally {
+      await finishAction('resetWorkingTree')
+    }
+  }, [finishAction, setOverlay, worktreePath])
+
+  const handleResetWorkingTreeCancel = useCallback(() => {
+    setResetConfirmOpen(false)
+  }, [])
+
   return {
     acting,
     dialogOpen,
@@ -387,6 +419,7 @@ export function useGitSyncActions({
     pullOpen,
     setPullOpen,
     pullForceConfirmOpen,
+    resetConfirmOpen,
     actionTitle,
     actionErrorDialog,
     run,
@@ -397,6 +430,9 @@ export function useGitSyncActions({
     handleCreateBranch,
     handleSaveStash,
     handleOpenExplorer,
+    handleResetWorkingTreeRequest,
+    handleResetWorkingTreeConfirm,
+    handleResetWorkingTreeCancel,
     handlePushOptionsConfirm,
     handlePushForceConfirm,
     handlePushForceConfirmCancel,

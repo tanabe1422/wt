@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { errorMessage } from '../lib/errorMessage'
 import {
@@ -12,6 +12,7 @@ import {
   squashMergeBranch,
   switchBranch,
 } from '../lib/wails'
+import type { BusyChangeHandler } from './useBusy'
 
 interface UseBranchActionsOptions {
   worktreePath: string | null
@@ -19,27 +20,45 @@ interface UseBranchActionsOptions {
   onSuccess: () => void | Promise<void>
   /** リネーム・削除・作成: サイドバー構造のフル更新 */
   onStructureChanged?: () => void | Promise<void>
+  onBusyChange?: BusyChangeHandler
 }
 
 export function useBranchActions({
   worktreePath,
   onSuccess,
   onStructureChanged,
+  onBusyChange,
 }: UseBranchActionsOptions) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange])
+
+  const beginBusy = useCallback(
+    (message: string) => {
+      setBusy(true)
+      onBusyChange?.(true, message)
+    },
+    [onBusyChange],
+  )
+
+  const endBusy = useCallback(() => {
+    setBusy(false)
+    onBusyChange?.(false)
+  }, [onBusyChange])
 
   const runAction = useCallback(
     async (
       action: () => Promise<void>,
       fallbackMessage: string,
+      busyMessage: string,
       after: () => void | Promise<void> = onSuccess,
     ): Promise<boolean> => {
       if (!worktreePath || busy) {
         return false
       }
 
-      setBusy(true)
+      beginBusy(busyMessage)
       setError(null)
       try {
         await action()
@@ -48,14 +67,14 @@ export function useBranchActions({
         return false
       } finally {
         // Git 完了時点でオーバーレイ解除。リフレッシュは裏で続行。
-        setBusy(false)
+        endBusy()
       }
       void Promise.resolve(after()).catch(() => {
         // リフレッシュ失敗は非致命（次回操作や手動再読込で回復）
       })
       return true
     },
-    [busy, onSuccess, worktreePath],
+    [beginBusy, busy, endBusy, onSuccess, worktreePath],
   )
 
   const afterStructure = useCallback(
@@ -68,6 +87,7 @@ export function useBranchActions({
       runAction(
         () => switchBranch(worktreePath!, branch),
         'ブランチの切り替えに失敗しました',
+        'ブランチを切り替えています…',
       ),
     [runAction, worktreePath],
   )
@@ -77,17 +97,22 @@ export function useBranchActions({
       runAction(
         () => checkoutRemoteBranch(worktreePath!, remoteRef),
         'ブランチのチェックアウトに失敗しました',
+        'ブランチをチェックアウトしています…',
       ),
     [runAction, worktreePath],
   )
 
   const runMergeAction = useCallback(
-    async (action: () => Promise<void>, fallbackMessage: string): Promise<boolean> => {
+    async (
+      action: () => Promise<void>,
+      fallbackMessage: string,
+      busyMessage: string,
+    ): Promise<boolean> => {
       if (!worktreePath || busy) {
         return false
       }
 
-      setBusy(true)
+      beginBusy(busyMessage)
       setError(null)
       let failed = false
       try {
@@ -97,12 +122,12 @@ export function useBranchActions({
         failed = true
         setError(errorMessage(err, fallbackMessage))
       } finally {
-        setBusy(false)
+        endBusy()
       }
       void Promise.resolve(onSuccess()).catch(() => {})
       return !failed
     },
-    [busy, onSuccess, worktreePath],
+    [beginBusy, busy, endBusy, onSuccess, worktreePath],
   )
 
   const merge = useCallback(
@@ -110,6 +135,7 @@ export function useBranchActions({
       runMergeAction(
         () => mergeBranch(worktreePath!, source, allowFastForward),
         'マージに失敗しました',
+        'マージしています…',
       ),
     [runMergeAction, worktreePath],
   )
@@ -119,6 +145,7 @@ export function useBranchActions({
       runMergeAction(
         () => squashMergeBranch(worktreePath!, source),
         'スカッシュマージに失敗しました',
+        'スカッシュマージしています…',
       ),
     [runMergeAction, worktreePath],
   )
@@ -129,7 +156,7 @@ export function useBranchActions({
         return false
       }
 
-      setBusy(true)
+      beginBusy('リベースしています…')
       setError(null)
       let ok = false
       try {
@@ -147,14 +174,14 @@ export function useBranchActions({
           setError(errorMessage(err, 'リベースに失敗しました'))
         }
       } finally {
-        setBusy(false)
+        endBusy()
       }
       if (ok) {
         void Promise.resolve(onSuccess()).catch(() => {})
       }
       return ok
     },
-    [busy, onSuccess, worktreePath],
+    [beginBusy, busy, endBusy, onSuccess, worktreePath],
   )
 
   const removeBranch = useCallback(
@@ -162,6 +189,7 @@ export function useBranchActions({
       runAction(
         () => deleteBranch(worktreePath!, branch, force),
         'ブランチの削除に失敗しました',
+        'ブランチを削除しています…',
         afterStructure,
       ),
     [afterStructure, runAction, worktreePath],
@@ -172,6 +200,7 @@ export function useBranchActions({
       runAction(
         () => renameBranch(worktreePath!, oldName, newName),
         'ブランチのリネームに失敗しました',
+        'ブランチをリネームしています…',
         afterStructure,
       ),
     [afterStructure, runAction, worktreePath],
@@ -182,6 +211,7 @@ export function useBranchActions({
       runAction(
         () => createBranch(worktreePath!, name),
         'ブランチの作成に失敗しました',
+        'ブランチを作成しています…',
         afterStructure,
       ),
     [afterStructure, runAction, worktreePath],
