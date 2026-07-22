@@ -35,7 +35,8 @@ describe('gitRefreshPolicy', () => {
     expect(needsSidebarFull(refreshScopeFor('worktreeAddOrRemove'))).toBe(true)
     expect(needsSidebarFull(refreshScopeFor('createBranch'))).toBe(true)
     expect(needsSidebarFull(refreshScopeFor('manualReload'))).toBe(false)
-    expect(refreshScopeFor('manualReload')).toBe('statusAndBadge')
+    expect(refreshScopeFor('manualReload')).toBe('statusBadgeAndBranches')
+    expect(needsBranches(refreshScopeFor('manualReload'))).toBe(true)
     expect(needsSidebarFull(refreshScopeFor('stashApplyOrPop'))).toBe(false)
   })
 

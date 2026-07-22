@@ -215,7 +215,7 @@ function AppShell() {
     await refreshWorktreeBadge(worktreePath)
   }, [refreshWorktreeBadge, worktreePath])
 
-  /** フォーカス復帰: カレント WT のローカル変更 + 他 WT バッジは裏で（busy なし） */
+  /** フォーカス復帰: カレント WT のローカル変更 + ahead/behind + 他 WT バッジ（busy なし） */
   const handleWindowActivate = useCallback(() => {
     if (!activeRepository || !worktreePath || overlayBusy) {
       return
@@ -229,6 +229,7 @@ function AppShell() {
           // キャッシュ温存失敗は非致命
         })
     }
+    void reloadBranches()
     refreshWorktreeBadges()
   }, [
     activeRepository,
@@ -236,6 +237,7 @@ function AppShell() {
     overlayBusy,
     mainView,
     refreshWorktreeBadges,
+    reloadBranches,
   ])
 
   useWindowActivateRefresh(handleWindowActivate, Boolean(activeRepository))
@@ -295,13 +297,14 @@ function AppShell() {
     [applyRefreshScope],
   )
 
-  /** 手動再読込: カレント status + バッジ。サイドバーは WT/branch ズレ時のみ選択修正。 */
+  /** 手動再読込: カレント status + バッジ + ahead/behind。WT/branch ズレ時は選択修正。 */
   const handleManualReload = useCallback(async () => {
     if (!activeRepository) {
       return
     }
     setStatusRefreshRevision((value) => value + 1)
     void handleRefreshBadge()
+    void reloadBranches()
 
     const meta = await reloadWorktreesMeta()
     if (!meta) {
@@ -323,6 +326,7 @@ function AppShell() {
   }, [
     activeRepository,
     handleRefreshBadge,
+    reloadBranches,
     reloadWorktreesMeta,
     selectedBranch,
     selectedWorktree,

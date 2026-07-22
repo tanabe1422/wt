@@ -78,7 +78,8 @@ const TOOLBAR_POLICY: Record<ToolbarGitOp, RefreshScope> = {
   /** 旧 SyncRefreshScope 'light' 相当（作業ツリー + ブランチ表示の再同期） */
   saveStash: 'statusBadgeAndBranches',
   resetWorkingTree: 'statusAndBadge',
-  manualReload: 'statusAndBadge',
+  /** 外部コミット等で ahead/behind も進むのでブランチも取り直す */
+  manualReload: 'statusBadgeAndBranches',
 }
 
 const SIDEBAR_POLICY: Record<SidebarGitOp, RefreshScope> = {
