@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 
 import { useCommitHistory } from '../../hooks/useCommitHistory'
@@ -55,6 +55,8 @@ interface HistoryViewProps {
   openApps?: OpenApp[]
   compareRequest?: CompareRange | null
   onCompareRequestConsumed?: () => void
+  revealCommitRequest?: { sha: string } | null
+  onRevealRequestConsumed?: () => void
   onResetComplete?: () => void | Promise<void>
   /** 同一 WT 内のコンテンツ変更（ブランチ切替など）。履歴を再取得する。 */
   contentRevision?: number
@@ -166,6 +168,8 @@ export function HistoryView({
   openApps = [],
   compareRequest = null,
   onCompareRequestConsumed,
+  revealCommitRequest = null,
+  onRevealRequestConsumed,
   onResetComplete,
   contentRevision = 0,
 }: HistoryViewProps) {
@@ -268,6 +272,106 @@ export function HistoryView({
     loading: loading || loadingMore,
     onLoadMore: handleLoadMore,
   })
+
+  /** scope/search 変更後、古い commits で誤って match しないためのフラグ */
+  const revealStaleRef = useRef(false)
+  const revealSawLoadingRef = useRef(false)
+
+  useEffect(() => {
+    if (!revealCommitRequest) {
+      revealStaleRef.current = false
+      revealSawLoadingRef.current = false
+      return
+    }
+    const sha = revealCommitRequest.sha
+
+    if (searchQuery.trim() !== '') {
+      revealStaleRef.current = true
+      revealSawLoadingRef.current = false
+      setSearchQuery('')
+      return
+    }
+    if (activeSearchQuery !== '') {
+      revealStaleRef.current = true
+      revealSawLoadingRef.current = false
+      return
+    }
+
+    if (scope !== 'all') {
+      revealStaleRef.current = true
+      revealSawLoadingRef.current = false
+      setScope('all')
+      return
+    }
+
+    if (revealStaleRef.current) {
+      if (loading) {
+        revealSawLoadingRef.current = true
+        return
+      }
+      if (!revealSawLoadingRef.current) {
+        // setScope/setSearch 直後で resetAndLoad の state がまだ反映されていない
+        return
+      }
+      revealStaleRef.current = false
+      revealSawLoadingRef.current = false
+    }
+
+    if (loading) {
+      return
+    }
+
+    const index = commits.findIndex((commit) => commit.sha === sha)
+    if (index >= 0) {
+      setSelectedSha(sha)
+      setDetailMode({ kind: 'commit', sha })
+      onCompareRequestConsumed?.()
+      onRevealRequestConsumed?.()
+      requestAnimationFrame(() => {
+        const scroller = scrollRef.current
+        if (!scroller) {
+          return
+        }
+        const row = scroller.querySelector(
+          `[data-commit-sha="${sha}"]`,
+        ) as HTMLElement | null
+        if (!row) {
+          return
+        }
+        const scrollerRect = scroller.getBoundingClientRect()
+        const rowRect = row.getBoundingClientRect()
+        const rowTopInContent = rowRect.top - scrollerRect.top + scroller.scrollTop
+        const target =
+          rowTopInContent - scroller.clientHeight / 2 + rowRect.height / 2
+        scroller.scrollTop = Math.max(0, target)
+      })
+      return
+    }
+
+    if (hasMore) {
+      if (!loadingMore) {
+        void loadMore()
+      }
+      return
+    }
+
+    onRevealRequestConsumed?.()
+  }, [
+    activeSearchQuery,
+    commits,
+    hasMore,
+    loadMore,
+    loading,
+    loadingMore,
+    onCompareRequestConsumed,
+    onRevealRequestConsumed,
+    revealCommitRequest,
+    scope,
+    scrollRef,
+    searchQuery,
+    setScope,
+    setSearchQuery,
+  ])
 
   const handleCherryPick = useCallback(
     async (sha: string) => {

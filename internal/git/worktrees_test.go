@@ -1,6 +1,8 @@
 package git
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -27,6 +29,16 @@ func TestListWorktrees(t *testing.T) {
 func TestListWorktreesChangedFileCount(t *testing.T) {
 	dir := t.TempDir()
 	other := dir + "-other"
+	if err := os.Mkdir(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitdir := filepath.Join(dir, ".git", "worktrees", "other")
+	if err := os.WriteFile(filepath.Join(other, ".git"), []byte("gitdir: "+gitdir+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(other, "tracked.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	porcelain := "worktree " + dir + "\nHEAD abc\nbranch refs/heads/main\n\n" +
 		"worktree " + other + "\nHEAD def\nbranch refs/heads/feature\n"
 	fake := newFakeRunner()
@@ -44,6 +56,9 @@ func TestListWorktreesChangedFileCount(t *testing.T) {
 			continue
 		}
 		found = true
+		if entry.IsBroken {
+			t.Fatalf("feature worktree should not be broken: %+v", entry)
+		}
 		if entry.ChangedFileCount != 1 {
 			t.Fatalf("expected ChangedFileCount=1, got %d", entry.ChangedFileCount)
 		}

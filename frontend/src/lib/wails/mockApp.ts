@@ -470,6 +470,7 @@ export const mockApp: WailsApp = {
           isMain: true,
           isBare: false,
           isLocked: false,
+          isBroken: false,
           changedFileCount: mockStatus.length,
         },
         {
@@ -478,6 +479,7 @@ export const mockApp: WailsApp = {
           isMain: false,
           isBare: false,
           isLocked: false,
+          isBroken: false,
           changedFileCount: 0,
         },
       ]
@@ -569,6 +571,7 @@ export const mockApp: WailsApp = {
         isMain: false,
         isBare: false,
         isLocked: false,
+        isBroken: false,
         changedFileCount: 0,
       },
     ]

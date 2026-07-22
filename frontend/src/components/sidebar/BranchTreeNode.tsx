@@ -43,6 +43,8 @@ interface BranchTreeNodeProps {
   /** 展開状態の永続化スコープ */
   expansionScope?: string | null
   onActivate?: (fullName: string) => void
+  /** 左クリック時のみ（履歴 tip へのジャンプなど）。右クリックでは呼ばない */
+  onRevealInHistory?: (fullName: string) => void
   onContextMenu?: (fullName: string, event: MouseEvent) => void
 }
 
@@ -91,6 +93,7 @@ function renderBranchRow(
   showWorktreeBadge: boolean,
   onSelect: (fullName: string) => void,
   onActivate?: (fullName: string) => void,
+  onRevealInHistory?: (fullName: string) => void,
   onContextMenu?: (fullName: string, event: MouseEvent) => void,
 ) {
   const isSelected = selectedBranch === fullName
@@ -107,7 +110,10 @@ function renderBranchRow(
       )}
       style={{ paddingLeft }}
       title={fullName}
-      onClick={() => onSelect(fullName)}
+      onClick={() => {
+        onSelect(fullName)
+        onRevealInHistory?.(fullName)
+      }}
       onDoubleClick={(event) => {
         event.stopPropagation()
         onActivate?.(fullName)
@@ -159,6 +165,7 @@ export function BranchTreeNode({
   nodePath,
   expansionScope = null,
   onActivate,
+  onRevealInHistory,
   onContextMenu,
 }: BranchTreeNodeProps) {
   const paddingLeft = indentForDepth(depth)
@@ -185,6 +192,7 @@ export function BranchTreeNode({
       showWorktreeBadge,
       onSelect,
       onActivate,
+      onRevealInHistory,
       onContextMenu,
     )
   }
@@ -227,6 +235,7 @@ export function BranchTreeNode({
               showWorktreeBadge={showWorktreeBadge}
               expansionThreshold={expansionThreshold}
               onActivate={onActivate}
+              onRevealInHistory={onRevealInHistory}
               onContextMenu={onContextMenu}
             />
           ))}
@@ -250,6 +259,7 @@ export function BranchTreeNode({
       showWorktreeBadge,
       onSelect,
       onActivate,
+      onRevealInHistory,
       onContextMenu,
     )
   }

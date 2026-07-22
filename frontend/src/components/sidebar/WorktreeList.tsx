@@ -33,9 +33,12 @@ export function WorktreeList({
     <>
       {worktrees.map((worktree) => {
         const isSelected = selectedWorktree === worktree.path
-        const branchLabel = isDetachedWorktree(worktree)
-          ? formatDetachedLabel(worktree.head)
-          : worktree.branch
+        const branchLabel =
+          worktree.isBroken && !worktree.branch
+            ? '破損'
+            : isDetachedWorktree(worktree)
+              ? formatDetachedLabel(worktree.head)
+              : worktree.branch
 
         return (
           <Button
@@ -43,7 +46,11 @@ export function WorktreeList({
             variant="plain"
             className={cx(styles.item, isSelected && styles.selected)}
             style={{ paddingLeft: INDENT_BASE }}
-            title={worktree.path}
+            title={
+              worktree.isBroken
+                ? `${worktree.path}（破損: 削除に失敗した残骸の可能性があります）`
+                : worktree.path
+            }
             onClick={() => onSelect(worktree.path)}
             onContextMenu={(event) => onContextMenu?.(worktree, event)}
           >
@@ -59,6 +66,9 @@ export function WorktreeList({
               <span className={styles.nameRow}>
                 <span className={styles.name}>{baseName(worktree.path)}</span>
                 {worktree.isMain && <span className={styles.badge}>メイン</span>}
+                {worktree.isBroken && (
+                  <span className={cx(styles.badge, styles.brokenBadge)}>破損</span>
+                )}
               </span>
               <span className={styles.branch}>{branchLabel}</span>
             </span>

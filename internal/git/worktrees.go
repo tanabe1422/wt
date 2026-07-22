@@ -17,7 +17,11 @@ type WorktreeEntry struct {
 	IsMain           bool   `json:"isMain"`
 	IsBare           bool   `json:"isBare"`
 	IsLocked         bool   `json:"isLocked"`
-	ChangedFileCount int    `json:"changedFileCount"`
+	// IsBroken is true when the worktree is registered (or recovered as an orphan)
+	// but its directory is missing, empty, or missing a valid .git worktree link.
+	// Typical cause: git worktree remove failed halfway (e.g. folder locked on Windows).
+	IsBroken         bool `json:"isBroken"`
+	ChangedFileCount int  `json:"changedFileCount"`
 }
 
 // ListWorktrees returns all worktrees for the repository at repoPath,
@@ -87,7 +91,13 @@ func listWorktreesMeta(repoPath string) ([]WorktreeEntry, error) {
 		return nil, err
 	}
 
-	return parseWorktreePorcelain(out, repoRoot)
+	entries, err := parseWorktreePorcelain(out, repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	annotateBrokenWorktrees(entries)
+	entries = append(entries, findOrphanWorktreeEntries(repoRoot, entries)...)
+	return entries, nil
 }
 
 // fillChangedFileCounts sets ChangedFileCount for each entry in parallel.
@@ -101,6 +111,10 @@ func fillChangedFileCounts(entries []WorktreeEntry) {
 	for i := range entries {
 		go func(i int) {
 			defer wg.Done()
+			if entries[i].IsBroken {
+				entries[i].ChangedFileCount = 0
+				return
+			}
 			n, err := countChangedFiles(entries[i].Path)
 			if err != nil {
 				entries[i].ChangedFileCount = 0
@@ -191,6 +205,14 @@ func AddWorktree(repoRoot, targetPath, branch string, isRemote bool) (string, er
 
 // RemoveWorktree removes a linked worktree. The main worktree cannot be removed.
 // When force is true, dirty worktrees are removed with git worktree remove --force.
+//
+// On Windows (and similar), git may delete the contents then fail to remove the
+// directory itself when another process holds it open. In that case this tries
+// to finish cleanup: remove an empty remnant folder and prune stale admin files.
+//
+// Broken / orphan paths (empty remnant, missing .git link, or leftover directory
+// no longer registered with git) can also be cleaned up here so they remain
+// deletable from the worktree list.
 func RemoveWorktree(repoRoot, worktreePath string, force bool) error {
 	absRoot, err := filepath.Abs(filepath.Clean(repoRoot))
 	if err != nil {
@@ -214,6 +236,9 @@ func RemoveWorktree(repoRoot, worktreePath string, force bool) error {
 		}
 	}
 	if target == nil {
+		if looksLikeOrphanWorktreePath(absRoot, absPath) {
+			return cleanupWorktreeRemnant(absRoot, absPath, force, errors.New("登録のないワークツリー残骸"))
+		}
 		return fmt.Errorf("ワークツリーが見つかりません: %s", absPath)
 	}
 	if target.IsMain {
@@ -226,7 +251,192 @@ func RemoveWorktree(repoRoot, worktreePath string, force bool) error {
 	}
 	args = append(args, absPath)
 	_, err = runGit(absRoot, args...)
+	if err == nil {
+		return nil
+	}
+	// Includes broken / orphan leftovers: empty remnant cleanup, optional force
+	// delete of remaining files, then prune stale git admin entries.
+	return recoverPartialWorktreeRemoval(absRoot, absPath, force, err)
+}
+
+// recoverPartialWorktreeRemoval finishes cleanup when git worktree remove left a
+// remnant (typically an empty directory) or already dropped the admin entry.
+func recoverPartialWorktreeRemoval(repoRoot, worktreePath string, force bool, removeErr error) error {
+	return cleanupWorktreeRemnant(repoRoot, worktreePath, force, removeErr)
+}
+
+// cleanupWorktreeRemnant removes leftover directories and prunes stale registrations.
+// Empty remnants are always removed. Non-empty remnants require force=true.
+func cleanupWorktreeRemnant(repoRoot, worktreePath string, force bool, removeErr error) error {
+	state, err := inspectWorktreeRemnant(worktreePath)
+	if err != nil {
+		return fmt.Errorf("%w\n残骸の確認にも失敗しました: %v", removeErr, err)
+	}
+
+	switch state {
+	case remnantMissing:
+		if pruneErr := pruneWorktrees(repoRoot); pruneErr != nil {
+			return fmt.Errorf("%w\n空の登録の整理にも失敗しました: %v", removeErr, pruneErr)
+		}
+		if worktreeRegistered(repoRoot, worktreePath) {
+			return wrapWorktreeRemoveError(removeErr, worktreePath, false)
+		}
+		return nil
+	case remnantEmpty:
+		if rmErr := os.RemoveAll(worktreePath); rmErr != nil {
+			return wrapWorktreeRemoveError(removeErr, worktreePath, true)
+		}
+		if pruneErr := pruneWorktrees(repoRoot); pruneErr != nil {
+			return fmt.Errorf("%w\n空フォルダは削除しましたが、登録の整理に失敗しました: %v", removeErr, pruneErr)
+		}
+		if worktreeRegistered(repoRoot, worktreePath) {
+			return wrapWorktreeRemoveError(removeErr, worktreePath, false)
+		}
+		return nil
+	default:
+		if !force {
+			return fmt.Errorf(
+				"%w\nフォルダにファイルが残っています。強制削除を有効にするか、中身を確認してから再試行してください",
+				removeErr,
+			)
+		}
+		if rmErr := os.RemoveAll(worktreePath); rmErr != nil {
+			return wrapWorktreeRemoveError(removeErr, worktreePath, false)
+		}
+		if pruneErr := pruneWorktrees(repoRoot); pruneErr != nil {
+			return fmt.Errorf("%w\nフォルダは削除しましたが、登録の整理に失敗しました: %v", removeErr, pruneErr)
+		}
+		if worktreeRegistered(repoRoot, worktreePath) {
+			return wrapWorktreeRemoveError(removeErr, worktreePath, false)
+		}
+		return nil
+	}
+}
+
+type remnantState int
+
+const (
+	remnantMissing remnantState = iota
+	remnantEmpty
+	remnantHasContent
+)
+
+func inspectWorktreeRemnant(path string) (remnantState, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return remnantMissing, nil
+		}
+		return remnantMissing, err
+	}
+	if !info.IsDir() {
+		return remnantHasContent, nil
+	}
+	empty, err := isEffectivelyEmptyDir(path)
+	if err != nil {
+		return remnantMissing, err
+	}
+	if empty {
+		return remnantEmpty, nil
+	}
+	return remnantHasContent, nil
+}
+
+func isEffectivelyEmptyDir(path string) (bool, error) {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false, err
+	}
+	for _, entry := range entries {
+		child := filepath.Join(path, entry.Name())
+		if entry.IsDir() {
+			empty, err := isEffectivelyEmptyDir(child)
+			if err != nil || !empty {
+				return false, err
+			}
+			continue
+		}
+		// A lone gitdir link is remnant metadata, not user content. Orphan /
+		// half-removed worktrees often keep only this file; treat as empty so
+		// cleanup does not require the force checkbox.
+		if entry.Name() == ".git" && isGitdirLinkFile(child) {
+			continue
+		}
+		return false, nil
+	}
+	return true, nil
+}
+
+func isGitdirLinkFile(path string) bool {
+	info, err := os.Lstat(path)
+	if err != nil || info.IsDir() {
+		return false
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return strings.HasPrefix(strings.TrimSpace(string(data)), "gitdir:")
+}
+
+func pruneWorktrees(repoRoot string) error {
+	_, err := runGit(repoRoot, "worktree", "prune")
 	return err
+}
+
+func worktreeRegistered(repoRoot, worktreePath string) bool {
+	out, err := runGit(repoRoot, "worktree", "list", "--porcelain")
+	if err != nil {
+		return true
+	}
+	entries, err := parseWorktreePorcelain(out, repoRoot)
+	if err != nil {
+		return true
+	}
+	for _, entry := range entries {
+		if pathsEqual(entry.Path, worktreePath) {
+			return true
+		}
+	}
+	return false
+}
+
+func wrapWorktreeRemoveError(removeErr error, worktreePath string, emptyRemnantLocked bool) error {
+	if emptyRemnantLocked {
+		return fmt.Errorf(
+			"%w\n中身は削除済みですが、空フォルダ「%s」を削除できません。ターミナルやエディタでこのフォルダを開いている場合は閉じてから再試行してください",
+			removeErr,
+			worktreePath,
+		)
+	}
+	if looksLikePathInUseError(removeErr) {
+		return fmt.Errorf(
+			"%w\nフォルダが他のアプリで使用中の可能性があります。ターミナルやエディタを閉じてから再試行してください",
+			removeErr,
+		)
+	}
+	return removeErr
+}
+
+func looksLikePathInUseError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := strings.ToLower(err.Error())
+	needles := []string{
+		"being used by another process",
+		"access is denied",
+		"permission denied",
+		"device or resource busy",
+		"resource busy",
+		"ebusy",
+	}
+	for _, n := range needles {
+		if strings.Contains(s, n) {
+			return true
+		}
+	}
+	return false
 }
 
 func resolveWorktreeTargetPath(repoRoot, targetPath string) (string, error) {

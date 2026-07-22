@@ -10,6 +10,7 @@ function worktree(partial: Partial<WorktreeEntry> & Pick<WorktreeEntry, 'path'>)
     isMain: false,
     isBare: false,
     isLocked: false,
+    isBroken: false,
     changedFileCount: 0,
     ...partial,
   }
@@ -39,6 +40,7 @@ describe('buildWorktreeCleanupRows', () => {
         changedFileCount: 2,
         locked: true,
         isMain: true,
+        isBroken: false,
       },
       {
         path: 'C:/dev/sample-repo-wt-feature',
@@ -47,8 +49,31 @@ describe('buildWorktreeCleanupRows', () => {
         changedFileCount: 5,
         locked: false,
         isMain: false,
+        isBroken: false,
       },
     ])
+  })
+
+  it('marks broken worktrees in cleanup rows', () => {
+    const rows = buildWorktreeCleanupRows([
+      worktree({
+        path: 'C:/dev/sample-repo',
+        branch: 'main',
+        isMain: true,
+      }),
+      worktree({
+        path: 'C:/dev/sample-repo-wt-broken',
+        branch: '',
+        isBroken: true,
+      }),
+    ])
+
+    expect(rows[1]).toMatchObject({
+      name: 'sample-repo-wt-broken',
+      branchLabel: '破損',
+      isBroken: true,
+      locked: false,
+    })
   })
 
   it('uses detached label when branch is empty', () => {

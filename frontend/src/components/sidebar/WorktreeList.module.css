@@ -78,6 +78,15 @@
   color: var(--branch-tone-active, var(--color-blue-600));
 }
 
+.brokenBadge {
+  color: var(--color-orange-800);
+  border-color: var(--color-orange-800);
+}
+
+.selected .brokenBadge {
+  color: var(--color-orange-800);
+}
+
 .branch {
   overflow: hidden;
   text-overflow: ellipsis;

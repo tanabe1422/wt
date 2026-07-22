@@ -43,6 +43,7 @@ export function CommitList({
             key={commit.sha}
             type="button"
             role="listitem"
+            data-commit-sha={commit.sha}
             className={cx(styles.row, isSelected && styles.selected)}
             style={{ height: rowHeight, gridTemplateColumns: rowGridTemplateColumns }}
             onClick={() => onSelect(commit.sha)}

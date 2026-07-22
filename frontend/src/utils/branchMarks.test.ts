@@ -24,6 +24,7 @@ const sampleWorktrees: WorktreeEntry[] = [
     isMain: true,
     isBare: false,
     isLocked: false,
+    isBroken: false,
     changedFileCount: 3,
   },
   {
@@ -32,6 +33,7 @@ const sampleWorktrees: WorktreeEntry[] = [
     isMain: false,
     isBare: false,
     isLocked: false,
+    isBroken: false,
     changedFileCount: 0,
   },
 ]

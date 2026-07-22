@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 
 import { MainLayout } from './components/layout/MainLayout'
 import { seedBusyOverlayMessage } from './components/layout/BusyOverlay'
@@ -20,7 +20,7 @@ import { useWindowActivateRefresh } from './hooks/useWindowActivateRefresh'
 import { invalidateRepoCaches, setStatusCache } from './lib/repoDataCache'
 import { prefetchRepo } from './lib/repoPrefetch'
 import { reconcileSelectionAfterMeta } from './lib/sidebarSelection'
-import { getStatus } from './lib/wails'
+import { getStatus, listBranchHeads } from './lib/wails'
 import { isDetachedWorktree, resolveCurrentBranch } from './utils/detachedHead'
 import type { GitOp } from './utils/gitRefreshPolicy'
 import styles from './App.module.css'
@@ -48,7 +48,10 @@ function AppShell() {
   const [gitDebugOpen, setGitDebugOpen] = useState(false)
   const [fetchPhase, setFetchPhase] = useState<FetchPhase | null>(null)
   const [compareRequest, setCompareRequest] = useState<CompareRange | null>(null)
+  const [revealCommitRequest, setRevealCommitRequest] = useState<{ sha: string } | null>(null)
   const [createBranchRequestKey, setCreateBranchRequestKey] = useState(0)
+  const mainViewRef = useRef(mainView)
+  mainViewRef.current = mainView
   const handleWorkspaceBusyChange = useCallback<BusyChangeHandler>((busy, message) => {
     setWorkspaceBusy(busy)
     if (busy && message) {
@@ -69,6 +72,10 @@ function AppShell() {
   }, [])
   const handleCompareRequestConsumed = useCallback(() => {
     setCompareRequest(null)
+  }, [])
+
+  const handleRevealRequestConsumed = useCallback(() => {
+    setRevealCommitRequest(null)
   }, [])
 
   const handleFetchPhaseChange = useCallback((phase: FetchPhase | null) => {
@@ -99,6 +106,12 @@ function AppShell() {
   useEffect(() => {
     setFetchPhase(null)
   }, [activeRepository])
+
+  useEffect(() => {
+    if (mainView !== 'history') {
+      setRevealCommitRequest(null)
+    }
+  }, [mainView])
 
   const handleCloseRepo = useCallback(
     async (path: string) => {
@@ -157,6 +170,29 @@ function AppShell() {
       setMainView('history')
     },
     [compareFromRef],
+  )
+
+  const handleRevealBranch = useCallback(
+    (branch: string) => {
+      setSelectedBranch(branch)
+      if (mainView !== 'history' || !worktreePath) {
+        return
+      }
+      void listBranchHeads(worktreePath)
+        .then((heads) => {
+          if (mainViewRef.current !== 'history') {
+            return
+          }
+          const tip = heads.find((head) => head.name === branch)?.commit.sha
+          if (tip) {
+            setRevealCommitRequest({ sha: tip })
+          }
+        })
+        .catch(() => {
+          // tip 解決失敗時は選択ハイライトのみ
+        })
+    },
+    [mainView, setSelectedBranch, worktreePath],
   )
 
   const bumpWorkspaceContent = useCallback(() => {
@@ -349,6 +385,7 @@ function AppShell() {
             onSelectBranch={setSelectedBranch}
             selectedWorktree={selectedWorktree}
             onSelectWorktree={setSelectedWorktree}
+            onRevealBranch={handleRevealBranch}
             openApps={settings.openApps}
             mergeAllowFastForward={mergeAllowFastForward}
             onMergeAllowFastForwardChange={handleMergeAllowFastForwardChange}
@@ -400,6 +437,8 @@ function AppShell() {
                 contentRevision={workspaceContentRevision}
                 compareRequest={compareRequest}
                 onCompareRequestConsumed={handleCompareRequestConsumed}
+                revealCommitRequest={revealCommitRequest}
+                onRevealRequestConsumed={handleRevealRequestConsumed}
                 onResetComplete={handleResetComplete}
               />
             </Suspense>

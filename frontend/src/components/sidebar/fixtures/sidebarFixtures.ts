@@ -14,6 +14,7 @@ function worktree(
     isMain,
     isBare: false,
     isLocked: false,
+    isBroken: false,
     changedFileCount: 0,
     ...options,
   }
@@ -74,6 +75,14 @@ export const worktreesDetached: WorktreeEntry[] = [
     changedFileCount: 3,
     head: DETACHED_HEAD_SHA,
   }),
+]
+
+/** 削除失敗などでディレクトリが空／欠落した破損ワークツリー */
+export const worktreesBroken: WorktreeEntry[] = [
+  worktree('', 'main', { isMain: true }),
+  worktree('wt-feature-ok', 'feature/ok'),
+  worktree('wt-broken-empty', 'feature/broken', { isBroken: true }),
+  worktree('wt-orphan', '', { isBroken: true }),
 ]
 
 /** detached 時: どのローカルも isCurrent でない */

@@ -14,6 +14,7 @@ const wt = (path: string, branch: string, isMain = false): WorktreeEntry => ({
   isMain,
   isBare: false,
   isLocked: false,
+  isBroken: false,
   changedFileCount: 0,
 })
 

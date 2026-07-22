@@ -120,6 +120,11 @@ export interface WorktreeEntry {
   isMain: boolean
   isBare: boolean
   isLocked: boolean
+  /**
+   * 削除失敗などでディレクトリが空／欠落／.git リンク不正のとき true。
+   * リストに残して削除できるようにする。
+   */
+  isBroken: boolean
   changedFileCount: number
   /** HEAD のフル SHA。detached 表示用。未取得時は空 */
   head?: string

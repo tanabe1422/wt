@@ -13,6 +13,7 @@ export interface WorktreeCleanupRow {
   changedFileCount: number
   locked: boolean
   isMain: boolean
+  isBroken: boolean
 }
 
 function baseName(path: string): string {
@@ -21,6 +22,9 @@ function baseName(path: string): string {
 }
 
 function branchLabelFor(worktree: WorktreeEntry): string {
+  if (worktree.isBroken && !worktree.branch) {
+    return '破損'
+  }
   if (isDetachedWorktree(worktree)) {
     return formatDetachedLabel(worktree.head)
   }
@@ -35,6 +39,7 @@ export function buildWorktreeCleanupRows(worktrees: WorktreeEntry[]): WorktreeCl
     changedFileCount: entry.changedFileCount,
     locked: entry.isMain,
     isMain: entry.isMain,
+    isBroken: entry.isBroken,
   }))
 }
 
@@ -139,6 +144,16 @@ export function useWorktreeCleanup({
 
     const removing = new Set(selectedPaths)
     setConfirmOpen(false)
+    // Switch away before delete so this app is less likely to hold the folder open.
+    if (selectedWorktree && removing.has(selectedWorktree)) {
+      const fallbackPath =
+        worktrees.find((entry) => entry.isMain && !removing.has(entry.path))?.path ??
+        worktrees.find((entry) => !removing.has(entry.path))?.path ??
+        null
+      if (fallbackPath) {
+        onSelectWorktree?.(fallbackPath)
+      }
+    }
     setBusy(true)
     onBusyChange?.(true, 'ワークツリーを削除しています…')
     setError('')
@@ -147,15 +162,6 @@ export function useWorktreeCleanup({
         await removeWorktree(repoPath, path, forceDelete)
       }
       setSelected(new Set())
-      if (selectedWorktree && removing.has(selectedWorktree)) {
-        const fallbackPath =
-          worktrees.find((entry) => entry.isMain && !removing.has(entry.path))?.path ??
-          worktrees.find((entry) => !removing.has(entry.path))?.path ??
-          null
-        if (fallbackPath) {
-          onSelectWorktree?.(fallbackPath)
-        }
-      }
       await onDeleted?.()
     } catch (err) {
       setError(errorMessage(err, 'ワークツリーの削除に失敗しました'))

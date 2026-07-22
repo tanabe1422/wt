@@ -615,6 +615,7 @@ export namespace git {
 	    isMain: boolean;
 	    isBare: boolean;
 	    isLocked: boolean;
+	    isBroken: boolean;
 	    changedFileCount: number;
 	
 	    static createFrom(source: any = {}) {
@@ -629,6 +630,7 @@ export namespace git {
 	        this.isMain = source["isMain"];
 	        this.isBare = source["isBare"];
 	        this.isLocked = source["isLocked"];
+	        this.isBroken = source["isBroken"];
 	        this.changedFileCount = source["changedFileCount"];
 	    }
 	}

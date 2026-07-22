@@ -146,6 +146,9 @@ export function WorktreeCleanupDialog({
                       <span className={styles.nameCell}>
                         <span className={cx(st.mono, st.truncate)}>{row.name}</span>
                         {row.isMain ? <span className={styles.badge}>メイン</span> : null}
+                        {row.isBroken ? (
+                          <span className={cx(styles.badge, styles.brokenBadge)}>破損</span>
+                        ) : null}
                       </span>
                     </td>
                     <td className={styles.colBranch}>

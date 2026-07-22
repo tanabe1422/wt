@@ -282,7 +282,9 @@ export function BranchSidebarDialogs({
         title="ワークツリーを削除"
         message={
           removeWorktreeTarget
-            ? `ワークツリー「${removeWorktreeTarget.path}」を削除しますか？`
+            ? removeWorktreeTarget.isBroken
+              ? `破損したワークツリー「${removeWorktreeTarget.path}」を削除しますか？\n空フォルダや Git の古い登録もまとめて片付けます。`
+              : `ワークツリー「${removeWorktreeTarget.path}」を削除しますか？`
             : ''
         }
         confirmLabel="削除"

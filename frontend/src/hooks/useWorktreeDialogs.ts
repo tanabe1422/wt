@@ -112,15 +112,16 @@ export function useWorktreeDialogs({
       null
     setRemoveWorktreeTarget(null)
     setForceRemoveWorktree(false)
+    // Switch away before delete so this app is less likely to hold the folder open.
+    if (wasSelected && fallbackPath) {
+      onSelectWorktree(fallbackPath)
+    }
     beginBusy('ワークツリーを削除しています…')
     setWorktreeError(null)
 
     void (async () => {
       try {
         await removeWorktree(activeRepository, target.path, force)
-        if (wasSelected && fallbackPath) {
-          onSelectWorktree(fallbackPath)
-        }
         await onReload()
         onBranchChanged?.()
       } catch (err) {

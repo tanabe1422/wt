@@ -31,6 +31,7 @@ interface BranchSectionProps {
   /** 見出し右端のアクション */
   headerAction?: ReactNode
   onActivate?: (fullName: string) => void
+  onRevealInHistory?: (fullName: string) => void
   onContextMenu?: (fullName: string, event: MouseEvent) => void
 }
 
@@ -52,6 +53,7 @@ export function BranchSection({
   leading = null,
   headerAction = null,
   onActivate,
+  onRevealInHistory,
   onContextMenu,
 }: BranchSectionProps) {
   const resolvedHideIdleIcons = hideIdleIcons ?? showWorktreeMarks
@@ -84,6 +86,7 @@ export function BranchSection({
           showWorktreeBadge={showWorktreeBadge}
           expansionThreshold={expansionThreshold}
           onActivate={onActivate}
+          onRevealInHistory={onRevealInHistory}
           onContextMenu={onContextMenu}
         />
       ))}

@@ -1,6 +1,6 @@
 # wt-manager 機能リスト（未実装）
 
-最終更新: 2026-07-19
+最終更新: 2026-07-22
 
 状態: `[ ]` 未実装のみ。完了分は [`FEATURES_DONE.md`](./FEATURES_DONE.md)
 
@@ -29,7 +29,7 @@
 
 ## 3. Worktree 管理
 
-- [ ] **P1** `git worktree prune` / 孤児ディレクトリ検知・整理
+- [ ] **P1** `git worktree prune` / 孤児ディレクトリ検知・整理（破損 WT のリスト表示・削除は対応済み。専用 prune UI / 空フォルダ孤児の網羅検知は未）
 - [ ] **P2** worktree 間のファイル比較
 - [ ] **P2** worktree 作成時のパステンプレート（設定可能・ブランチ名展開）
 - [ ] **P2** 全 worktree の一括 fetch / status 同期

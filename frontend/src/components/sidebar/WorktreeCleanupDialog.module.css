@@ -31,6 +31,11 @@
   background: var(--color-slate-200);
 }
 
+.brokenBadge {
+  color: var(--color-orange-800);
+  background: var(--color-orange-100);
+}
+
 .colBranch {
   width: 40%;
 }

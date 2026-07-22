@@ -37,6 +37,8 @@ interface BranchSidebarProps {
   onSelectBranch: (fullName: string) => void
   selectedWorktree: string | null
   onSelectWorktree: (path: string) => void
+  /** ブランチ左クリック時（履歴 tip ジャンプ）。WT 選択では呼ばない */
+  onRevealBranch?: (fullName: string) => void
   openApps?: OpenApp[]
   mergeAllowFastForward?: boolean
   onMergeAllowFastForwardChange?: (enabled: boolean) => void
@@ -63,6 +65,7 @@ export function BranchSidebar({
   onSelectBranch,
   selectedWorktree,
   onSelectWorktree,
+  onRevealBranch,
   openApps = [],
   mergeAllowFastForward = true,
   onMergeAllowFastForwardChange,
@@ -359,6 +362,7 @@ export function BranchSidebar({
             filterQuery={filterQuery}
             onSelectBranch={onSelectBranch}
             onSelectWorktree={handleSelectWorktree}
+            onRevealBranch={onRevealBranch}
             onActivateLocal={handleActivateLocal}
             onActivateRemote={handleActivateRemote}
             onLocalContextMenu={localContextMenu.openBranchMenu}

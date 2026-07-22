@@ -39,6 +39,7 @@ const sampleWorktree = (path: string, branch: string, isMain = false): WorktreeE
   isMain,
   isBare: false,
   isLocked: false,
+  isBroken: false,
   changedFileCount: 0,
 })
 

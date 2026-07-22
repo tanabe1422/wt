@@ -55,6 +55,8 @@ export interface RepoSidebarContentProps {
   selectedWorktree: string | null
   onSelectBranch: (fullName: string) => void
   onSelectWorktree: (path: string) => void
+  /** ブランチ左クリック時（履歴 tip ジャンプなど）。WT 選択では呼ばない */
+  onRevealBranch?: (fullName: string) => void
   showWorktreeMarks?: boolean
   filterQuery?: string
   /** 展開状態の永続化スコープ（通常はリポジトリパス） */
@@ -83,6 +85,7 @@ export function RepoSidebarContent({
   selectedWorktree,
   onSelectBranch,
   onSelectWorktree,
+  onRevealBranch,
   showWorktreeMarks = true,
   filterQuery = '',
   expansionScope = null,
@@ -174,6 +177,7 @@ export function RepoSidebarContent({
                 ) : null
               }
               onActivate={onActivateLocal}
+              onRevealInHistory={onRevealBranch}
               onContextMenu={onLocalContextMenu}
             />
           )}
@@ -190,6 +194,7 @@ export function RepoSidebarContent({
               expansionScope={expansionScope}
               headerAction={remoteBranchHeaderAction}
               onActivate={onActivateRemote}
+              onRevealInHistory={onRevealBranch}
               onContextMenu={onRemoteContextMenu}
             />
           )}

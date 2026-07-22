@@ -72,8 +72,12 @@ const commits: CommitLogEntry[] = [
 
 function HistoryHarness({
   initialScope = 'all' as HistoryScope,
+  revealCommitRequest = null as { sha: string } | null,
+  onRevealRequestConsumed,
 }: {
   initialScope?: HistoryScope
+  revealCommitRequest?: { sha: string } | null
+  onRevealRequestConsumed?: () => void
 }) {
   const [scope, setScope] = useState<HistoryScope>(initialScope)
 
@@ -95,7 +99,14 @@ function HistoryHarness({
     reload: vi.fn(),
   })
 
-  return <HistoryView worktreePath="/repo" currentBranch="main" />
+  return (
+    <HistoryView
+      worktreePath="/repo"
+      currentBranch="main"
+      revealCommitRequest={revealCommitRequest}
+      onRevealRequestConsumed={onRevealRequestConsumed}
+    />
+  )
 }
 
 describe('HistoryView', () => {
@@ -176,6 +187,82 @@ describe('HistoryView', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('commit-detail')).toHaveTextContent('no-detail')
+    })
+  })
+
+  it('selects commit from revealCommitRequest', async () => {
+    const onRevealRequestConsumed = vi.fn()
+    render(
+      <HistoryHarness
+        revealCommitRequest={{ sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' }}
+        onRevealRequestConsumed={onRevealRequestConsumed}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('commit-detail')).toHaveTextContent(
+        'detail:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      )
+    })
+    expect(onRevealRequestConsumed).toHaveBeenCalled()
+  })
+
+  it('switches scope to all when revealing while scoped to branch', async () => {
+    function ScopeRevealHarness() {
+      const [scope, setScope] = useState<HistoryScope>('branch')
+      const [loading, setLoading] = useState(false)
+      const [pageCommits, setPageCommits] = useState([commits[0]])
+      const [reveal, setReveal] = useState<{ sha: string } | null>({
+        sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      })
+
+      mockUseCommitHistory.mockReturnValue({
+        scope,
+        setScope: (next: HistoryScope) => {
+          setScope(next)
+          if (next === 'all') {
+            setLoading(true)
+            setPageCommits([])
+            queueMicrotask(() => {
+              setLoading(false)
+              setPageCommits(commits)
+            })
+          }
+        },
+        searchType: 'path',
+        setSearchType: vi.fn(),
+        searchQuery: '',
+        setSearchQuery: vi.fn(),
+        activeSearchQuery: '',
+        commits: pageCommits,
+        labels: [],
+        hasMore: false,
+        loading,
+        loadingMore: false,
+        error: null,
+        loadMore: vi.fn(),
+        reload: vi.fn(),
+      })
+
+      return (
+        <HistoryView
+          worktreePath="/repo"
+          currentBranch="main"
+          revealCommitRequest={reveal}
+          onRevealRequestConsumed={() => setReveal(null)}
+        />
+      )
+    }
+
+    render(<ScopeRevealHarness />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', { name: /すべてのブランチを表示する/ })).toBeChecked()
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('commit-detail')).toHaveTextContent(
+        'detail:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      )
     })
   })
 })

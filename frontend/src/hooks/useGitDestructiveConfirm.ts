@@ -85,6 +85,7 @@ export function useGitDestructiveConfirm({
     if (!action) {
       return
     }
+    // 破棄〜ステータス再取得完了まで busy を維持し、古い一覧が一瞬見えるのを防ぐ
     await runBusy(async () => {
       if (action.kind === 'abort') {
         if (action.operation === 'rebase') {
@@ -112,8 +113,8 @@ export function useGitDestructiveConfirm({
         }
         clearUnstaged()
       }
+      await afterDestructive()
     })
-    await afterDestructive()
   }, [
     afterDestructive,
     clearUnstaged,

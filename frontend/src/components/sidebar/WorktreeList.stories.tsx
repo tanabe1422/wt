@@ -4,6 +4,7 @@ import { WorktreeList } from './WorktreeList'
 import { SidebarStoryFrame } from './fixtures/sidebarStoryHelpers'
 import {
   FIXTURE_REPO_ROOT,
+  worktreesBroken,
   worktreesChangeCounts,
   worktreesClean,
   worktreesDetached,
@@ -61,5 +62,13 @@ export const Detached: Story = {
   args: {
     worktrees: worktreesDetached,
     selectedWorktree: `${FIXTURE_REPO_ROOT}-wt-detached`,
+  },
+}
+
+export const Broken: Story = {
+  name: '破損ワークツリー',
+  args: {
+    worktrees: worktreesBroken,
+    selectedWorktree: FIXTURE_REPO_ROOT,
   },
 }

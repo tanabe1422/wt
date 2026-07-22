@@ -38,6 +38,7 @@ const worktree = (
   isMain: false,
   isBare: false,
   isLocked: false,
+  isBroken: false,
   changedFileCount: 0,
   ...partial,
 })
