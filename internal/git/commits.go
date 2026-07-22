@@ -50,8 +50,10 @@ type BranchHeadCommit struct {
 
 // BranchHead matches the commit-graph Branch type shape.
 type BranchHead struct {
-	Name   string           `json:"name"`
-	Commit BranchHeadCommit `json:"commit"`
+	Name     string           `json:"name"`
+	IsRemote bool             `json:"isRemote"`
+	IsTag    bool             `json:"isTag"`
+	Commit   BranchHeadCommit `json:"commit"`
 }
 
 // ListCommitsParams configures paginated commit log retrieval.

@@ -454,7 +454,9 @@ func nativeListBranchHeads(worktreePath string) ([]BranchHead, error) {
 		}
 
 		heads = append(heads, BranchHead{
-			Name: short,
+			Name:     short,
+			IsRemote: name.IsRemote(),
+			IsTag:    name.IsTag(),
 			Commit: BranchHeadCommit{
 				SHA: sha,
 			},

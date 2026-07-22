@@ -130,20 +130,39 @@ func TestNativeListBranchHeads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListBranchHeads: %v", err)
 	}
-	names := map[string]string{}
+	byName := map[string]BranchHead{}
 	for _, h := range heads {
-		names[h.Name] = h.Commit.SHA
+		byName[h.Name] = h
 	}
-	if names["feature"] == "" {
-		t.Fatalf("expected feature head, got %#v", names)
+	feature, ok := byName["feature"]
+	if !ok || feature.Commit.SHA == "" {
+		t.Fatalf("expected feature head, got %#v", byName)
 	}
-	if names["v-light"] == "" || names["v-light"] != names["feature"] {
-		t.Fatalf("lightweight tag should point at feature tip: %#v", names)
+	if feature.IsRemote || feature.IsTag {
+		t.Fatalf("feature should be local branch: %#v", feature)
 	}
-	if names["v-annotated"] == "" || names["v-annotated"] != names["feature"] {
-		t.Fatalf("annotated tag should peel to feature tip: %#v", names)
+	vLight, ok := byName["v-light"]
+	if !ok || vLight.Commit.SHA != feature.Commit.SHA {
+		t.Fatalf("lightweight tag should point at feature tip: %#v", byName)
 	}
-	if _, ok := names["origin/HEAD"]; ok {
+	if !vLight.IsTag || vLight.IsRemote {
+		t.Fatalf("v-light should be a tag: %#v", vLight)
+	}
+	vAnnotated, ok := byName["v-annotated"]
+	if !ok || vAnnotated.Commit.SHA != feature.Commit.SHA {
+		t.Fatalf("annotated tag should peel to feature tip: %#v", byName)
+	}
+	if !vAnnotated.IsTag || vAnnotated.IsRemote {
+		t.Fatalf("v-annotated should be a tag: %#v", vAnnotated)
+	}
+	originMain, ok := byName["origin/main"]
+	if !ok || originMain.Commit.SHA == "" {
+		t.Fatalf("expected origin/main head, got %#v", byName)
+	}
+	if !originMain.IsRemote || originMain.IsTag {
+		t.Fatalf("origin/main should be remote branch: %#v", originMain)
+	}
+	if _, ok := byName["origin/HEAD"]; ok {
 		t.Fatal("origin/HEAD should be skipped")
 	}
 }

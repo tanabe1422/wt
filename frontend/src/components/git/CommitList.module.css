@@ -86,7 +86,10 @@
 }
 
 .label {
+  display: inline-flex;
   flex: none;
+  align-items: center;
+  gap: 0.2rem;
   max-width: 100%;
   overflow: hidden;
   white-space: nowrap;
@@ -97,9 +100,28 @@
   color: var(--color-cyan-600);
 }
 
+.labelIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.labelName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .labelsPopover .label {
   max-width: none;
   overflow: visible;
+}
+
+.labelsPopover .labelName {
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .labelMore {

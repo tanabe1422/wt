@@ -43,6 +43,7 @@ afterEach(() => {
 
 beforeEach(() => {
   mockUseCommitHistory.mockReset()
+  localStorage.clear()
   class MockIntersectionObserver {
     observe() {}
     unobserve() {}
@@ -188,6 +189,57 @@ describe('HistoryView', () => {
     await waitFor(() => {
       expect(screen.getByTestId('commit-detail')).toHaveTextContent('no-detail')
     })
+  })
+
+  it('toggles remote branch label visibility', async () => {
+    const user = userEvent.setup()
+    const labels = [
+      {
+        name: 'feature/local',
+        isRemote: false,
+        isTag: false,
+        commit: { sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
+      },
+      {
+        name: 'origin/main',
+        isRemote: true,
+        isTag: false,
+        commit: { sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
+      },
+    ]
+
+    function RemoteLabelHarness() {
+      const [scope, setScope] = useState<HistoryScope>('all')
+      mockUseCommitHistory.mockReturnValue({
+        scope,
+        setScope,
+        searchType: 'path',
+        setSearchType: vi.fn(),
+        searchQuery: '',
+        setSearchQuery: vi.fn(),
+        activeSearchQuery: '',
+        commits,
+        labels,
+        hasMore: false,
+        loading: false,
+        loadingMore: false,
+        error: null,
+        loadMore: vi.fn(),
+        reload: vi.fn(),
+      })
+      return <HistoryView worktreePath="/repo" currentBranch="feature/local" />
+    }
+
+    render(<RemoteLabelHarness />)
+
+    const remoteToggle = screen.getByRole('checkbox', { name: /リモートブランチを表示/ })
+    expect(remoteToggle).not.toBeChecked()
+    expect(screen.getAllByText('feature/local').length).toBeGreaterThan(0)
+    expect(screen.queryByText('origin/main')).toBeNull()
+
+    await user.click(remoteToggle)
+    expect(remoteToggle).toBeChecked()
+    expect(screen.getAllByText('origin/main').length).toBeGreaterThan(0)
   })
 
   it('selects commit from revealCommitRequest', async () => {

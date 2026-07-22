@@ -153,6 +153,8 @@ export namespace git {
 	}
 	export class BranchHead {
 	    name: string;
+	    isRemote: boolean;
+	    isTag: boolean;
 	    commit: BranchHeadCommit;
 	
 	    static createFrom(source: any = {}) {
@@ -162,6 +164,8 @@ export namespace git {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
+	        this.isRemote = source["isRemote"];
+	        this.isTag = source["isTag"];
 	        this.commit = this.convertValues(source["commit"], BranchHeadCommit);
 	    }
 	

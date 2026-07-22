@@ -126,10 +126,10 @@ const mockCommitCatalog: CommitLogEntry[] = [
 ]
 
 const mockBranchHeads: BranchHead[] = [
-  { name: 'feature/hoge', commit: { sha: 'c1000004' } },
-  { name: 'feature/bar', commit: { sha: 'c1000003' } },
-  { name: 'origin/main', commit: { sha: 'c1000005' } },
-  { name: 'v1.0.0', commit: { sha: 'c1000005' } },
+  { name: 'feature/hoge', isRemote: false, isTag: false, commit: { sha: 'c1000004' } },
+  { name: 'feature/bar', isRemote: false, isTag: false, commit: { sha: 'c1000003' } },
+  { name: 'origin/main', isRemote: true, isTag: false, commit: { sha: 'c1000005' } },
+  { name: 'v1.0.0', isRemote: false, isTag: true, commit: { sha: 'c1000005' } },
 ]
 
 function mockCommitsForScope(scope: string, branch: string): CommitLogEntry[] {

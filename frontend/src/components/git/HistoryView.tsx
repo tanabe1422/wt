@@ -7,6 +7,10 @@ import { useErrorDialog } from '../../hooks/useErrorDialog'
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll'
 import { useResizableSplit } from '../../hooks/useResizableSplit'
 import { errorMessage } from '../../lib/errorMessage'
+import {
+  getHistoryShowRemoteBranches,
+  setHistoryShowRemoteBranches,
+} from '../../lib/historyShowRemoteStorage'
 import { cherryPick, getRepoOperationState, resetToCommit } from '../../lib/wails'
 import type { CommitSearchType, HistoryScope, OpenApp, RepoOperationKind } from '../../types'
 import { shortSha } from '../../utils/commitGraph'
@@ -66,6 +70,8 @@ interface HistoryScopeBarProps {
   scope: HistoryScope
   branchAvailable: boolean
   onScopeChange: (scope: HistoryScope) => void
+  showRemoteBranches: boolean
+  onShowRemoteBranchesChange: (show: boolean) => void
   searchType: CommitSearchType
   onSearchTypeChange: (type: CommitSearchType) => void
   searchQuery: string
@@ -96,6 +102,8 @@ function HistoryScopeBar({
   scope,
   branchAvailable,
   onScopeChange,
+  showRemoteBranches,
+  onShowRemoteBranchesChange,
   searchType,
   onSearchTypeChange,
   searchQuery,
@@ -109,29 +117,40 @@ function HistoryScopeBar({
 
   return (
     <div className={styles.scopeBar}>
-      <label
-        className={styles.scopeToggle}
-        title={
-          disabled
-            ? 'ブランチにチェックアウトされていません'
-            : undefined
-        }
-      >
-        <input
-          type="checkbox"
-          className={styles.scopeCheckbox}
-          checked={showAll}
-          disabled={disabled}
-          onChange={(event) => {
-            if (event.target.checked) {
-              onScopeChange('all')
-            } else if (canTurnOff) {
-              onScopeChange('branch')
-            }
-          }}
-        />
-        すべてのブランチを表示する
-      </label>
+      <div className={styles.scopeToggles}>
+        <label
+          className={styles.scopeToggle}
+          title={
+            disabled
+              ? 'ブランチにチェックアウトされていません'
+              : undefined
+          }
+        >
+          <input
+            type="checkbox"
+            className={styles.scopeCheckbox}
+            checked={showAll}
+            disabled={disabled}
+            onChange={(event) => {
+              if (event.target.checked) {
+                onScopeChange('all')
+              } else if (canTurnOff) {
+                onScopeChange('branch')
+              }
+            }}
+          />
+          すべてのブランチを表示する
+        </label>
+        <label className={styles.scopeToggle}>
+          <input
+            type="checkbox"
+            className={styles.scopeCheckbox}
+            checked={showRemoteBranches}
+            onChange={(event) => onShowRemoteBranchesChange(event.target.checked)}
+          />
+          リモートブランチを表示
+        </label>
+      </div>
       <div className={styles.searchControls}>
         <select
           className={styles.searchType}
@@ -180,6 +199,7 @@ export function HistoryView({
   const [repoOperation, setRepoOperation] = useState<RepoOperationKind>('none')
   const [actionError, setActionError] = useState<string | null>(null)
   const [acting, setActing] = useState(false)
+  const [showRemoteBranches, setShowRemoteBranchesState] = useState(getHistoryShowRemoteBranches)
   const { ratio: treeRatio, resizing, splitRef, handleResizeStart } = useResizableSplit({
     storageKey: STORAGE_KEY_TREE_RATIO,
     defaultRatio: DEFAULT_TREE_RATIO,
@@ -211,6 +231,16 @@ export function HistoryView({
   const searching = activeSearchQuery !== ''
   const highlightPathQuery =
     searchType === 'path' && activeSearchQuery !== '' ? activeSearchQuery : ''
+
+  const handleShowRemoteBranchesChange = useCallback((show: boolean) => {
+    setShowRemoteBranchesState(show)
+    setHistoryShowRemoteBranches(show)
+  }, [])
+
+  const visibleLabels = useMemo(
+    () => (showRemoteBranches ? labels : labels.filter((head) => !head.isRemote)),
+    [labels, showRemoteBranches],
+  )
 
   useEffect(() => {
     if (contentRevision === 0) {
@@ -512,6 +542,8 @@ export function HistoryView({
         scope={scope}
         branchAvailable={branchAvailable}
         onScopeChange={setScope}
+        showRemoteBranches={showRemoteBranches}
+        onShowRemoteBranchesChange={handleShowRemoteBranchesChange}
         searchType={searchType}
         onSearchTypeChange={setSearchType}
         searchQuery={searchQuery}
@@ -525,7 +557,7 @@ export function HistoryView({
           <div ref={scrollRef} className={styles.scroll}>
             <CommitHistoryTable
               commits={commits}
-              labels={labels}
+              labels={visibleLabels}
               selectedSha={selectedSha}
               onSelect={handleSelectCommit}
               onContextMenu={handleContextMenu}

@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 
 import type { BranchHead, CommitLogEntry } from '../../types'
 import {
@@ -7,6 +7,7 @@ import {
   shortSha,
 } from '../../utils/commitGraph'
 import { cx } from '../../utils/cx'
+import { CloudIcon, GitBranchIcon, TagIcon } from '../sidebar/BranchIcons'
 import styles from './CommitList.module.css'
 
 interface CommitListProps {
@@ -19,8 +20,29 @@ interface CommitListProps {
   onContextMenu?: (sha: string, event: MouseEvent) => void
 }
 
-function labelNamesForCommit(labels: BranchHead[], sha: string): string[] {
-  return labels.filter((head) => head.commit.sha === sha).map((head) => head.name)
+function labelsForCommit(labels: BranchHead[], sha: string): BranchHead[] {
+  return labels.filter((head) => head.commit.sha === sha)
+}
+
+function LabelIcon({ head }: { head: BranchHead }): ReactNode {
+  if (head.isTag) {
+    return <TagIcon size={10} />
+  }
+  if (head.isRemote) {
+    return <CloudIcon size={10} />
+  }
+  return <GitBranchIcon size={10} />
+}
+
+function CommitLabel({ head }: { head: BranchHead }) {
+  return (
+    <span className={styles.label}>
+      <span className={styles.labelIcon}>
+        <LabelIcon head={head} />
+      </span>
+      <span className={styles.labelName}>{head.name}</span>
+    </span>
+  )
 }
 
 export function CommitList({
@@ -35,7 +57,7 @@ export function CommitList({
   return (
     <div className={styles.list} role="list">
       {commits.map((commit) => {
-        const commitLabels = labelNamesForCommit(labels, commit.sha)
+        const commitLabels = labelsForCommit(labels, commit.sha)
         const isSelected = selectedSha === commit.sha
 
         return (
@@ -54,20 +76,16 @@ export function CommitList({
               {commitLabels.length > 0 ? (
                 <>
                   <span className={styles.labelsVisible}>
-                    {commitLabels.slice(0, 2).map((name) => (
-                      <span key={name} className={styles.label}>
-                        {name}
-                      </span>
+                    {commitLabels.slice(0, 2).map((head) => (
+                      <CommitLabel key={head.name} head={head} />
                     ))}
                     {commitLabels.length > 2 && (
                       <span className={styles.labelMore}>+{commitLabels.length - 2}</span>
                     )}
                   </span>
                   <span className={styles.labelsPopover} aria-hidden="true">
-                    {commitLabels.map((name) => (
-                      <span key={name} className={styles.label}>
-                        {name}
-                      </span>
+                    {commitLabels.map((head) => (
+                      <CommitLabel key={head.name} head={head} />
                     ))}
                   </span>
                 </>

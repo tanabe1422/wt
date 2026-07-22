@@ -194,6 +194,8 @@ export interface CommitLogEntry {
 
 export interface BranchHead {
   name: string
+  isRemote: boolean
+  isTag: boolean
   commit: { sha: string }
 }
 
