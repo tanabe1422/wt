@@ -11,7 +11,7 @@ import {
   getHistoryShowRemoteBranches,
   setHistoryShowRemoteBranches,
 } from '../../lib/historyShowRemoteStorage'
-import { cherryPick, getRepoOperationState, resetToCommit } from '../../lib/wails'
+import { cherryPick, getRepoOperationState, getStatus, resetToCommit, skipCherryPick } from '../../lib/wails'
 import type { CommitSearchType, HistoryScope, OpenApp, RepoOperationKind } from '../../types'
 import { shortSha } from '../../utils/commitGraph'
 import { cx } from '../../utils/cx'
@@ -28,6 +28,11 @@ const STORAGE_KEY_TREE_RATIO = 'wt-manager.historyTreeRatio'
 const DEFAULT_TREE_RATIO = 0.55
 const MIN_TREE_RATIO = 0.25
 const MAX_TREE_RATIO = 0.75
+
+const CHERRY_PICK_EMPTY_MESSAGE =
+  'このコミットの変更は既に取り込まれているため、cherry-pick をスキップしました'
+const CHERRY_PICK_CONFLICT_MESSAGE =
+  '競合が発生しました。変更タブで解決してください'
 
 type ResetMode = 'soft' | 'mixed' | 'hard'
 
@@ -418,7 +423,25 @@ export function HistoryView({
         try {
           const state = await getRepoOperationState(worktreePath)
           if (state.kind === 'cherry-pick') {
+            const status = await getStatus(worktreePath)
+            if (status.length === 0) {
+              try {
+                await skipCherryPick(worktreePath)
+              } catch (skipErr) {
+                setActionError(errorMessage(skipErr, 'cherry-pick のスキップに失敗しました'))
+                setRepoOperation('cherry-pick')
+                await reload()
+                await onResetComplete?.()
+                return
+              }
+              setRepoOperation('none')
+              setActionError(CHERRY_PICK_EMPTY_MESSAGE)
+              await reload()
+              await onResetComplete?.()
+              return
+            }
             setRepoOperation('cherry-pick')
+            setActionError(CHERRY_PICK_CONFLICT_MESSAGE)
             await reload()
             await onResetComplete?.()
             return

@@ -83,6 +83,7 @@ export interface WailsApp {
   GetRepoOperationState(worktreePath: string): Promise<RepoOperationState>
   ContinueRebase(worktreePath: string): Promise<void>
   ContinueCherryPick(worktreePath: string): Promise<void>
+  SkipCherryPick(worktreePath: string): Promise<void>
   CherryPick(worktreePath: string, sha: string): Promise<void>
   RebaseBranch(worktreePath: string, upstream: string): Promise<void>
   Commit(worktreePath: string, message: string): Promise<void>

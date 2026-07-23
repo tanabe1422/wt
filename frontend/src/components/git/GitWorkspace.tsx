@@ -316,6 +316,9 @@ export function GitWorkspace({
   const onContinueRebase = useCallback(() => {
     void actions.handleContinueRebase()
   }, [actions])
+  const onSkipCherryPick = useCallback(() => {
+    void actions.handleSkipCherryPick()
+  }, [actions])
   const onStageHunk = useCallback(
     (index: number) => {
       void actions.handleStageHunk(index)
@@ -393,6 +396,7 @@ export function GitWorkspace({
             conflictCount={conflictCount}
             repoOperation={actions.repoOperation}
             canContinueRebase={actions.canContinueRebase}
+            canSkipCherryPick={actions.canSkipCherryPick}
             onFileClick={handleClick}
             onFileHover={handleFileHover}
             onFileContextMenu={actions.handleFileContextMenu}
@@ -405,6 +409,7 @@ export function GitWorkspace({
             onDiscardSelected={onDiscardSelected}
             onDiscardAll={destructive.requestDiscardAll}
             onContinueRebase={onContinueRebase}
+            onSkipCherryPick={onSkipCherryPick}
             onAbortOperation={handleAbortOperation}
             detachedHeadSha={detachedHeadSha}
             onCreateBranchFromDetached={onCreateBranchFromDetached}

@@ -15,7 +15,9 @@ vi.mock('../../hooks/useCommitHistory', () => ({
 
 vi.mock('../../lib/wails', () => ({
   getRepoOperationState: vi.fn(async () => ({ kind: 'none' })),
+  getStatus: vi.fn(async () => []),
   cherryPick: vi.fn(),
+  skipCherryPick: vi.fn(),
   resetToCommit: vi.fn(),
 }))
 
@@ -35,6 +37,12 @@ vi.mock('./CompareDetailPane', () => ({
   ),
 }))
 
+import {
+  cherryPick,
+  getRepoOperationState,
+  getStatus,
+  skipCherryPick,
+} from '../../lib/wails'
 import { HistoryView } from './HistoryView'
 
 afterEach(() => {
@@ -43,6 +51,12 @@ afterEach(() => {
 
 beforeEach(() => {
   mockUseCommitHistory.mockReset()
+  vi.mocked(getRepoOperationState).mockReset()
+  vi.mocked(getRepoOperationState).mockResolvedValue({ kind: 'none' })
+  vi.mocked(getStatus).mockReset()
+  vi.mocked(getStatus).mockResolvedValue([])
+  vi.mocked(cherryPick).mockReset()
+  vi.mocked(skipCherryPick).mockReset()
   localStorage.clear()
   class MockIntersectionObserver {
     observe() {}
@@ -316,5 +330,120 @@ describe('HistoryView', () => {
         'detail:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
       )
     })
+  })
+
+  it('skips empty cherry-pick and shows explanation', async () => {
+    const user = userEvent.setup()
+    const reload = vi.fn()
+    const onResetComplete = vi.fn()
+    let picking = false
+    vi.mocked(getRepoOperationState).mockImplementation(async () => ({
+      kind: picking ? 'cherry-pick' : 'none',
+    }))
+    vi.mocked(cherryPick).mockImplementation(async () => {
+      picking = true
+      throw new Error('empty patch')
+    })
+    vi.mocked(getStatus).mockResolvedValue([])
+    vi.mocked(skipCherryPick).mockImplementation(async () => {
+      picking = false
+    })
+
+    mockUseCommitHistory.mockReturnValue({
+      scope: 'all',
+      setScope: vi.fn(),
+      searchType: 'path',
+      setSearchType: vi.fn(),
+      searchQuery: '',
+      setSearchQuery: vi.fn(),
+      activeSearchQuery: '',
+      commits,
+      labels: [],
+      hasMore: false,
+      loading: false,
+      loadingMore: false,
+      error: null,
+      loadMore: vi.fn(),
+      reload,
+    })
+
+    render(
+      <HistoryView
+        worktreePath="/repo"
+        currentBranch="main"
+        onResetComplete={onResetComplete}
+      />,
+    )
+
+    await user.pointer({
+      keys: '[MouseRight>]',
+      target: screen.getByText('beta change').closest('button')!,
+    })
+    await user.click(screen.getByRole('menuitem', { name: 'このコミットを cherry-pick' }))
+
+    await waitFor(() => {
+      expect(skipCherryPick).toHaveBeenCalledWith('/repo')
+    })
+    expect(
+      await screen.findByText(
+        'このコミットの変更は既に取り込まれているため、cherry-pick をスキップしました',
+      ),
+    ).toBeInTheDocument()
+    expect(reload).toHaveBeenCalled()
+    expect(onResetComplete).toHaveBeenCalled()
+  })
+
+  it('keeps cherry-pick in progress on conflict and shows guidance', async () => {
+    const user = userEvent.setup()
+    const reload = vi.fn()
+    let picking = false
+    vi.mocked(getRepoOperationState).mockImplementation(async () => ({
+      kind: picking ? 'cherry-pick' : 'none',
+    }))
+    vi.mocked(cherryPick).mockImplementation(async () => {
+      picking = true
+      throw new Error('conflict')
+    })
+    vi.mocked(getStatus).mockResolvedValue([
+      {
+        path: 'a.txt',
+        index: 'U',
+        workTree: 'U',
+        staged: false,
+        isDirectory: false,
+      },
+    ])
+
+    mockUseCommitHistory.mockReturnValue({
+      scope: 'all',
+      setScope: vi.fn(),
+      searchType: 'path',
+      setSearchType: vi.fn(),
+      searchQuery: '',
+      setSearchQuery: vi.fn(),
+      activeSearchQuery: '',
+      commits,
+      labels: [],
+      hasMore: false,
+      loading: false,
+      loadingMore: false,
+      error: null,
+      loadMore: vi.fn(),
+      reload,
+    })
+
+    render(<HistoryView worktreePath="/repo" currentBranch="main" />)
+
+    await user.pointer({
+      keys: '[MouseRight>]',
+      target: screen.getByText('beta change').closest('button')!,
+    })
+    await user.click(screen.getByRole('menuitem', { name: 'このコミットを cherry-pick' }))
+
+    expect(
+      await screen.findByText('競合が発生しました。変更タブで解決してください'),
+    ).toBeInTheDocument()
+    expect(skipCherryPick).not.toHaveBeenCalled()
+    expect(reload).toHaveBeenCalled()
   })
 })

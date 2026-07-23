@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 
 import { invalidateWorktreeDiffs } from '../lib/diffCache'
+import { errorMessage } from '../lib/errorMessage'
 import {
   amendCommit,
   commit,
@@ -11,6 +12,7 @@ import {
   getRepoOperationState,
   push,
   pushSetUpstream,
+  skipCherryPick,
 } from '../lib/wails'
 import type { AmendInfo, FileStatus, RepoOperationKind } from '../types'
 import { amendInfoEqual } from '../utils/amendInfo'
@@ -96,12 +98,35 @@ export function useCommitRebaseActions({
     (repoOperation === 'rebase' || repoOperation === 'cherry-pick') &&
     conflictCount === 0 &&
     staged.length > 0
+  const canSkipCherryPick =
+    repoOperation === 'cherry-pick' &&
+    conflictCount === 0 &&
+    staged.length === 0 &&
+    unstaged.length === 0
   const commitBlockReason =
     repoOperation === 'rebase'
       ? 'リベース中はバナーの「続行」を使ってください'
       : repoOperation === 'cherry-pick'
         ? 'cherry-pick 中はバナーの「続行」を使ってください'
         : null
+
+  const refreshAfterOperation = useCallback(async () => {
+    await Promise.all([
+      reload(),
+      refreshBadge(),
+      refreshBranches(),
+      reloadDiff(),
+      refreshOperationState(),
+      refreshAmendInfo(),
+    ])
+  }, [
+    refreshAmendInfo,
+    refreshBadge,
+    refreshBranches,
+    refreshOperationState,
+    reload,
+    reloadDiff,
+  ])
 
   const handleCommit = useCallback(
     async (message: string, options: { amend: boolean; pushAfterCommit: boolean }) => {
@@ -163,46 +188,65 @@ export function useCommitRebaseActions({
         invalidateWorktreeDiffs(worktreePath)
       } catch (err) {
         const state = await getRepoOperationState(worktreePath)
-        if (
-          state.kind === 'rebase' ||
-          state.kind === 'cherry-pick'
-        ) {
+        if (state.kind === 'rebase' || state.kind === 'cherry-pick') {
+          if (
+            continuingCherryPick &&
+            state.kind === 'cherry-pick' &&
+            staged.length === 0 &&
+            unstaged.length === 0
+          ) {
+            setExternalToolError(
+              'このコミットの変更は既に取り込まれています。バナーの「スキップ」で終了できます。',
+            )
+          }
           return
         }
         keepRefreshing = false
         setExternalToolError(
-          err instanceof Error
-            ? err.message
-            : continuingCherryPick
+          errorMessage(
+            err,
+            continuingCherryPick
               ? 'cherry-pick の続行に失敗しました'
               : 'リベースの続行に失敗しました',
+          ),
         )
       }
     })
     if (!keepRefreshing) {
       return
     }
-    await Promise.all([
-      reload(),
-      refreshBadge(),
-      refreshBranches(),
-      reloadDiff(),
-      refreshOperationState(),
-      refreshAmendInfo(),
-    ])
+    await refreshAfterOperation()
   }, [
     canContinueOperation,
-    refreshAmendInfo,
-    refreshBadge,
-    refreshBranches,
-    refreshOperationState,
-    reload,
-    reloadDiff,
+    refreshAfterOperation,
     repoOperation,
     runBusy,
     setExternalToolError,
+    staged.length,
+    unstaged.length,
     worktreePath,
   ])
+
+  const handleSkipCherryPick = useCallback(async () => {
+    if (!canSkipCherryPick) {
+      return
+    }
+    setExternalToolError(null)
+    let keepRefreshing = true
+    await runBusy(async () => {
+      try {
+        await skipCherryPick(worktreePath)
+        invalidateWorktreeDiffs(worktreePath)
+      } catch (err) {
+        keepRefreshing = false
+        setExternalToolError(errorMessage(err, 'cherry-pick のスキップに失敗しました'))
+      }
+    })
+    if (!keepRefreshing) {
+      return
+    }
+    await refreshAfterOperation()
+  }, [canSkipCherryPick, refreshAfterOperation, runBusy, setExternalToolError, worktreePath])
 
   return {
     repoOperation,
@@ -210,12 +254,14 @@ export function useCommitRebaseActions({
     rebasing: repoOperation === 'rebase',
     canContinueRebase: canContinueOperation,
     canContinueOperation,
+    canSkipCherryPick,
     commitBlockReason,
     amendInfo,
     refreshOperationState,
     refreshMergeState: refreshOperationState,
     handleContinueRebase: handleContinueOperation,
     handleContinueOperation,
+    handleSkipCherryPick,
     handleCommit,
   }
 }

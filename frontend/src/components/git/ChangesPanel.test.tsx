@@ -157,6 +157,38 @@ describe('ChangesPanel', () => {
     expect(onContinueRebase).toHaveBeenCalledTimes(1)
   })
 
+  it('shows skip for empty cherry-pick in progress', async () => {
+    const user = userEvent.setup()
+    const onSkipCherryPick = vi.fn()
+
+    render(
+      <ChangesPanel
+        staged={[]}
+        unstaged={[]}
+        loading={false}
+        stagedSelection={emptySelection}
+        unstagedSelection={emptySelection}
+        repoOperation="cherry-pick"
+        canContinueRebase={false}
+        canSkipCherryPick
+        onFileClick={vi.fn()}
+        onStage={vi.fn()}
+        onUnstage={vi.fn()}
+        onStageSelected={vi.fn()}
+        onUnstageSelected={vi.fn()}
+        onStageAll={vi.fn()}
+        onUnstageAll={vi.fn()}
+        onContinueRebase={vi.fn()}
+        onSkipCherryPick={onSkipCherryPick}
+        onAbortOperation={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: '続行' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'スキップ' }))
+    expect(onSkipCherryPick).toHaveBeenCalledTimes(1)
+  })
+
   it('shows merge abort when only conflictCount is set', async () => {
     const user = userEvent.setup()
     const onAbortOperation = vi.fn()

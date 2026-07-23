@@ -808,6 +808,11 @@ export const mockApp: WailsApp = {
     console.info('[mock] ContinueCherryPick')
   },
 
+  async SkipCherryPick(_worktreePath: string) {
+    mockCherryPicking = false
+    console.info('[mock] SkipCherryPick')
+  },
+
   async CherryPick(_worktreePath: string, sha: string) {
     if (!sha.trim()) {
       throw new Error('コミットが空です')

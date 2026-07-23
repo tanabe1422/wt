@@ -32,6 +32,7 @@ function ChangesPanelDemo({
   repoOperation,
   conflictCount,
   canContinueRebase,
+  canSkipCherryPick,
 }: {
   staged: typeof conflictStagedFiles
   unstaged: typeof conflictUnstagedNormal
@@ -40,6 +41,7 @@ function ChangesPanelDemo({
   repoOperation?: 'none' | 'merge' | 'rebase' | 'cherry-pick'
   conflictCount?: number
   canContinueRebase?: boolean
+  canSkipCherryPick?: boolean
 }) {
   const [focusPath, setFocusPath] = useState<string | null>(
     unstaged.find((entry) => isConflict(entry))?.path ?? unstaged[0]?.path ?? null,
@@ -107,7 +109,13 @@ function ChangesPanelDemo({
           conflictCount={resolvedConflictCount}
           repoOperation={resolvedOperation}
           canContinueRebase={canContinueRebase}
-          onContinueRebase={resolvedOperation === 'rebase' ? noop : undefined}
+          canSkipCherryPick={canSkipCherryPick}
+          onContinueRebase={
+            resolvedOperation === 'rebase' || resolvedOperation === 'cherry-pick'
+              ? noop
+              : undefined
+          }
+          onSkipCherryPick={canSkipCherryPick ? noop : undefined}
           detachedHeadSha={detachedHeadSha}
           onCreateBranchFromDetached={
             detachedHeadSha !== undefined
@@ -244,6 +252,19 @@ export const CherryPickConflict: Story = {
     repoOperation: 'cherry-pick',
     conflictCount: conflictFiles.length,
     canContinueRebase: false,
+  },
+}
+
+export const CherryPickEmpty: Story = {
+  name: 'cherry-pick 空パッチ',
+  args: {
+    staged: [],
+    unstaged: [],
+    hint: 'already applied などで差分ゼロのとき。スキップで終了。',
+    repoOperation: 'cherry-pick',
+    conflictCount: 0,
+    canContinueRebase: false,
+    canSkipCherryPick: true,
   },
 }
 

@@ -297,16 +297,18 @@ function AppShell() {
     [applyRefreshScope],
   )
 
-  /** 手動再読込: カレント status + バッジ + ahead/behind。WT/branch ズレ時は選択修正。 */
+  /** 手動再読込: カレント status + WT 一覧 + ahead/behind。WT/branch ズレ時は選択修正。 */
   const handleManualReload = useCallback(async () => {
     if (!activeRepository) {
       return
     }
     setStatusRefreshRevision((value) => value + 1)
-    void handleRefreshBadge()
-    void reloadBranches()
 
+    // WT 一覧を先に確定（detached→branch など）。branches は後続で上書き世代を進めないよう直列。
     const meta = await reloadWorktreesMeta()
+    await reloadBranches()
+    refreshWorktreeBadges()
+
     if (!meta) {
       return
     }
@@ -325,7 +327,7 @@ function AppShell() {
     }
   }, [
     activeRepository,
-    handleRefreshBadge,
+    refreshWorktreeBadges,
     reloadBranches,
     reloadWorktreesMeta,
     selectedBranch,

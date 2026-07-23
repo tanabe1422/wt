@@ -112,6 +112,18 @@ func TestAbortCherryPick(t *testing.T) {
 	fake.AssertCalled(t, "cherry-pick", "--abort")
 }
 
+func TestSkipCherryPick(t *testing.T) {
+	dir := t.TempDir()
+	fake := newFakeRunner()
+	fake.On("cherry-pick", "--skip").Return("", nil)
+	withFakeRunner(t, fake)
+
+	if err := SkipCherryPick(dir); err != nil {
+		t.Fatalf("SkipCherryPick: %v", err)
+	}
+	fake.AssertCalled(t, "cherry-pick", "--skip")
+}
+
 func TestAmendBlockReasonWhileCherryPicking(t *testing.T) {
 	dir := initHotpathRepo(t)
 	writeGitStateFile(t, dir, "CHERRY_PICK_HEAD", "def\n")

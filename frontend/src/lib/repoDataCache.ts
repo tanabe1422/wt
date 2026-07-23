@@ -172,7 +172,13 @@ export function patchSidebarWorktreesMeta(
       ? { ...entry, changedFileCount: prev.changedFileCount }
       : entry
   })
-  touch(sidebarCache, repoPath, { ...current, worktrees }, MAX_SIDEBAR_ENTRIES)
+  // 再読込直後に mount effect が古いキャッシュ扱いしないよう fetchedAt も更新する
+  touch(
+    sidebarCache,
+    repoPath,
+    { ...current, worktrees, fetchedAt: Date.now() },
+    MAX_SIDEBAR_ENTRIES,
+  )
 }
 
 export function invalidateSidebarCache(repoPath: string): void {

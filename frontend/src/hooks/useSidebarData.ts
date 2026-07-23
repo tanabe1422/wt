@@ -380,18 +380,21 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
     if (!activeRepository) {
       return
     }
+    // in-flight の loadSidebar が古い結果で上書きしないよう世代を進める。
+    // 自身の完了判定は activeRepo のみ（並列の reloadWorktreesMeta と相殺しない）。
+    ++requestIdRef.current
+    const repoPath = activeRepository
     setError(null)
     try {
-      const branchEntries = await listBranches(activeRepository)
-      if (activeRepoRef.current !== activeRepository) {
+      const branchEntries = await listBranches(repoPath)
+      if (activeRepoRef.current !== repoPath) {
         return
       }
       const mergedBranches = mergeBranchTracks(branchEntries, branchesRef.current)
       setBranches(mergedBranches)
-      patchSidebarBranches(activeRepository, mergedBranches)
+      patchSidebarBranches(repoPath, mergedBranches)
 
       const requestId = requestIdRef.current
-      const repoPath = activeRepository
       const isCurrent = () =>
         requestId === requestIdRef.current && activeRepoRef.current === repoPath
       void fillBranchTracks(repoPath, mergedBranches, isCurrent, (tracks) => {
@@ -410,14 +413,18 @@ export function useSidebarData(activeRepository: string, selection: SidebarSelec
     if (!activeRepository) {
       return undefined
     }
+    // in-flight の loadSidebar が古い WT 一覧で上書きしないよう世代を進める。
+    // 自身の完了判定は activeRepo のみ（並列の reloadBranches と相殺しない）。
+    ++requestIdRef.current
+    const repoPath = activeRepository
     setError(null)
     try {
-      const meta = await listWorktreesMeta(activeRepository)
-      if (activeRepoRef.current !== activeRepository) {
+      const meta = await listWorktreesMeta(repoPath)
+      if (activeRepoRef.current !== repoPath) {
         return undefined
       }
       setWorktrees((current) => mergeWorktreeBadgeCounts(meta, current))
-      patchSidebarWorktreesMeta(activeRepository, meta)
+      patchSidebarWorktreesMeta(repoPath, meta)
       return meta
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ワークツリー情報の取得に失敗しました')

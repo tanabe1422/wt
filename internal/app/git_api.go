@@ -244,6 +244,10 @@ func (a *App) AbortCherryPick(worktreePath string) error {
 	return mutateWorktree(worktreePath, git.AbortCherryPick)
 }
 
+func (a *App) SkipCherryPick(worktreePath string) error {
+	return mutateWorktree(worktreePath, git.SkipCherryPick)
+}
+
 func (a *App) Commit(worktreePath, message string) error {
 	return mutateWorktree(worktreePath, func(dir string) error {
 		return git.Commit(dir, message)

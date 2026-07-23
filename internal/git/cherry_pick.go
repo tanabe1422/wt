@@ -91,3 +91,14 @@ func AbortCherryPick(worktreePath string) error {
 	_, err = runGit(dir, "cherry-pick", "--abort")
 	return err
 }
+
+// SkipCherryPick skips the current commit in an in-progress cherry-pick
+// (e.g. when the patch is empty / already applied).
+func SkipCherryPick(worktreePath string) error {
+	dir, err := filepath.Abs(filepath.Clean(worktreePath))
+	if err != nil {
+		return err
+	}
+	_, err = runGit(dir, "cherry-pick", "--skip")
+	return err
+}

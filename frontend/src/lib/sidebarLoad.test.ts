@@ -58,6 +58,22 @@ describe('sidebarSnapshotEqual', () => {
     expect(sidebarSnapshotEqual(branchesA, worktreesA, branchesB, worktreesA)).toBe(false)
     expect(sidebarSnapshotEqual(branchesA, worktreesA, branchesA, worktreesB)).toBe(false)
   })
+
+  it('detects worktree head / broken flag changes', () => {
+    const branches = [branch({ name: 'main', isCurrent: true })]
+    const base = worktree({ path: '/r', branch: '', isMain: true, head: 'aaa' })
+    const headChanged = worktree({ path: '/r', branch: '', isMain: true, head: 'bbb' })
+    const broken = worktree({ path: '/r', branch: 'feat', isMain: true, isBroken: true })
+    expect(sidebarSnapshotEqual(branches, [base], branches, [headChanged])).toBe(false)
+    expect(
+      sidebarSnapshotEqual(
+        branches,
+        [worktree({ path: '/r', branch: 'feat', isMain: true })],
+        branches,
+        [broken],
+      ),
+    ).toBe(false)
+  })
 })
 
 describe('mergeBranchTracks', () => {

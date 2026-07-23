@@ -35,7 +35,11 @@ export function sidebarSnapshotEqual(
     if (
       a.path !== b.path ||
       a.branch !== b.branch ||
+      a.head !== b.head ||
       a.isMain !== b.isMain ||
+      a.isBare !== b.isBare ||
+      a.isLocked !== b.isLocked ||
+      a.isBroken !== b.isBroken ||
       a.changedFileCount !== b.changedFileCount
     ) {
       return false

@@ -189,6 +189,7 @@ describe('repoDataCache', () => {
       selectedBranch: 'main',
       selectedWorktree: '/repo-a',
     })
+    const before = getSidebarCache('/repo-a')?.fetchedAt ?? 0
     patchSidebarWorktreesMeta('/repo-a', [
       { ...sampleWorktree('/repo-a', 'main', true), changedFileCount: 0 },
       sampleWorktree('/repo-a-new', 'feature'),
@@ -197,6 +198,7 @@ describe('repoDataCache', () => {
     expect(cached?.worktrees).toHaveLength(2)
     expect(cached?.worktrees[0]?.changedFileCount).toBe(5)
     expect(cached?.worktrees[1]?.changedFileCount).toBe(0)
+    expect(cached?.fetchedAt ?? 0).toBeGreaterThanOrEqual(before)
   })
 
   it('reports sidebar/status freshness for skip-refetch', () => {

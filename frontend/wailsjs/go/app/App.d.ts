@@ -173,6 +173,8 @@ export function SetPushAfterCommit(arg1:string,arg2:boolean):Promise<config.Sett
 
 export function ShowInExplorer(arg1:string):Promise<void>;
 
+export function SkipCherryPick(arg1:string):Promise<void>;
+
 export function SquashMergeBranch(arg1:string,arg2:string):Promise<void>;
 
 export function StageAll(arg1:string):Promise<void>;

@@ -41,6 +41,9 @@ interface ChangesPanelProps {
   onDiscardSelected?: () => void
   onDiscardAll?: () => void
   onContinueRebase?: () => void
+  /** 空パッチの cherry-pick 進行中のみ表示 */
+  canSkipCherryPick?: boolean
+  onSkipCherryPick?: () => void
   onAbortOperation?: () => void
   onFileHover?: (path: string, mode: 'staged' | 'unstaged') => void
   onFileContextMenu?: (
@@ -89,6 +92,7 @@ export function ChangesPanel({
   repoOperation = 'none',
   conflictCount = 0,
   canContinueRebase = false,
+  canSkipCherryPick = false,
   detachedHeadSha,
   onCreateBranchFromDetached,
   onFileClick,
@@ -101,6 +105,7 @@ export function ChangesPanel({
   onDiscardSelected,
   onDiscardAll,
   onContinueRebase,
+  onSkipCherryPick,
   onAbortOperation,
   onFileHover,
   onFileContextMenu,
@@ -133,6 +138,15 @@ export function ChangesPanel({
                 onClick={onContinueRebase}
               >
                 続行
+              </button>
+            )}
+            {bannerOperation === 'cherry-pick' && canSkipCherryPick && onSkipCherryPick && (
+              <button
+                type="button"
+                className={styles.bannerContinue}
+                onClick={onSkipCherryPick}
+              >
+                スキップ
               </button>
             )}
             {onAbortOperation && (

@@ -327,6 +327,10 @@ export async function continueCherryPick(worktreePath: string): Promise<void> {
   return callApp('ContinueCherryPick', worktreePath)
 }
 
+export async function skipCherryPick(worktreePath: string): Promise<void> {
+  return callApp('SkipCherryPick', worktreePath)
+}
+
 export async function cherryPick(worktreePath: string, sha: string): Promise<void> {
   return callApp('CherryPick', worktreePath, sha)
 }

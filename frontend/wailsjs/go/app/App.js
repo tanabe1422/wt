@@ -342,6 +342,10 @@ export function ShowInExplorer(arg1) {
   return window['go']['app']['App']['ShowInExplorer'](arg1);
 }
 
+export function SkipCherryPick(arg1) {
+  return window['go']['app']['App']['SkipCherryPick'](arg1);
+}
+
 export function SquashMergeBranch(arg1, arg2) {
   return window['go']['app']['App']['SquashMergeBranch'](arg1, arg2);
 }
