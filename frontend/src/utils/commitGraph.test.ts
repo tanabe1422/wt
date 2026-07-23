@@ -27,6 +27,24 @@ describe('commitGraph utils', () => {
     ])
   })
 
+  it('tolerates null parents from Wails/Go nil slices', () => {
+    const withNullParents = [
+      {
+        ...sample[0],
+        parents: null as unknown as CommitLogEntry['parents'],
+      },
+    ]
+    expect(toGraphCommits(withNullParents)).toEqual([
+      {
+        id: 'abc123def456',
+        message: 'fix: bug\n\ndetails',
+        author: 'Alice',
+        date: '2026-07-07T12:00:00+09:00',
+        parents: [],
+      },
+    ])
+  })
+
   it('formats sha and subject', () => {
     expect(shortSha('abc123def456')).toBe('abc123d')
     expect(commitSubject('feat: add\n\nbody')).toBe('feat: add')

@@ -7,8 +7,13 @@ interface CommitInfoPanelProps {
 }
 
 export function CommitInfoPanel({ commit }: CommitInfoPanelProps) {
-  const { author, message } = commit.commit
-  const parents = commit.parents.map((parent) => shortSha(parent.sha)).join(', ')
+  const author = commit.commit?.author
+  const message = commit.commit?.message ?? ''
+  const parents = (commit.parents ?? [])
+    .map((parent) => parent?.sha)
+    .filter((sha): sha is string => Boolean(sha))
+    .map((sha) => shortSha(sha))
+    .join(', ')
 
   return (
     <div className={styles.panel}>
@@ -20,13 +25,13 @@ export function CommitInfoPanel({ commit }: CommitInfoPanelProps) {
         <div className={styles.row}>
           <dt>作者</dt>
           <dd>
-            {author.name}
-            {author.email ? ` <${author.email}>` : ''}
+            {author?.name ?? ''}
+            {author?.email ? ` <${author.email}>` : ''}
           </dd>
         </div>
         <div className={styles.row}>
           <dt>日付</dt>
-          <dd>{formatCommitDate(author.date)}</dd>
+          <dd>{formatCommitDate(author?.date ?? '')}</dd>
         </div>
         {parents && (
           <div className={styles.row}>

@@ -262,7 +262,7 @@ export function DiffView({
           <p className={styles.placeholder}>読み込み中…</p>
         ) : error ? (
           <p className={styles.placeholder}>差分を表示できません</p>
-        ) : !diffMatchesFile || diff.hunks.length === 0 ? (
+        ) : !diffMatchesFile || !diff.hunks || diff.hunks.length === 0 ? (
           <p className={styles.placeholder}>
             {conflict
               ? '競合中のファイルです。右クリックから「外部ツールで競合を解決」を選んでください。'

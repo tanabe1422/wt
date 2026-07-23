@@ -229,7 +229,7 @@ function buildGraph(
       )
     }
 
-    if (commit.parents.length === 0) {
+    if ((commit.parents?.length ?? 0) === 0) {
       compactLanes()
       return
     }

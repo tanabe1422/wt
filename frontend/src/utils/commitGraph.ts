@@ -7,10 +7,12 @@ export const GRAPH_NODE_RADIUS = 4
 export function toGraphCommits(commits: CommitLogEntry[]): GraphCommitItem[] {
   return commits.map((commit) => ({
     id: commit.sha,
-    message: commit.commit.message,
-    author: commit.commit.author.name,
-    date: commit.commit.author.date,
-    parents: commit.parents.map((parent) => parent.sha),
+    message: commit.commit?.message ?? '',
+    author: commit.commit?.author?.name ?? '',
+    date: commit.commit?.author?.date ?? '',
+    parents: (commit.parents ?? [])
+      .map((parent) => parent?.sha)
+      .filter((sha): sha is string => Boolean(sha)),
   }))
 }
 

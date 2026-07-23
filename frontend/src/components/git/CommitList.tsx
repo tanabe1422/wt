@@ -21,7 +21,7 @@ interface CommitListProps {
 }
 
 function labelsForCommit(labels: BranchHead[], sha: string): BranchHead[] {
-  return labels.filter((head) => head.commit.sha === sha)
+  return labels.filter((head) => head.commit?.sha === sha)
 }
 
 function LabelIcon({ head }: { head: BranchHead }): ReactNode {
@@ -71,7 +71,7 @@ export function CommitList({
             onClick={() => onSelect(commit.sha)}
             onContextMenu={(event) => onContextMenu?.(commit.sha, event)}
           >
-            <span className={styles.message}>{commitSubject(commit.commit.message)}</span>
+            <span className={styles.message}>{commitSubject(commit.commit?.message ?? '')}</span>
             <span className={styles.labels}>
               {commitLabels.length > 0 ? (
                 <>
@@ -91,8 +91,10 @@ export function CommitList({
                 </>
               ) : null}
             </span>
-            <span className={styles.date}>{formatCommitDateYmd(commit.commit.author.date)}</span>
-            <span className={styles.author}>{commit.commit.author.name}</span>
+            <span className={styles.date}>
+              {formatCommitDateYmd(commit.commit?.author?.date ?? '')}
+            </span>
+            <span className={styles.author}>{commit.commit?.author?.name ?? ''}</span>
             <span className={styles.sha}>{shortSha(commit.sha)}</span>
           </button>
         )

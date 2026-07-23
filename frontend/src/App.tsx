@@ -183,7 +183,7 @@ function AppShell() {
           if (mainViewRef.current !== 'history') {
             return
           }
-          const tip = heads.find((head) => head.name === branch)?.commit.sha
+          const tip = (heads ?? []).find((head) => head.name === branch)?.commit?.sha
           if (tip) {
             setRevealCommitRequest({ sha: tip })
           }

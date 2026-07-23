@@ -89,20 +89,21 @@ export function useCommitHistory({ worktreePath, currentBranch }: UseCommitHisto
           if (gen !== loadGenRef.current) {
             return
           }
-          setLabels(heads)
-          setCommits(first.commits)
+          setLabels(Array.isArray(heads) ? heads : [])
+          const firstCommits = Array.isArray(first.commits) ? first.commits : []
+          setCommits(firstCommits)
           setHasMore(first.hasMore)
           nextSkipRef.current = first.nextSkip
           setLoading(false)
 
-          if (!first.hasMore || first.commits.length === 0) {
+          if (!first.hasMore || firstCommits.length === 0) {
             loadingRef.current = false
             return
           }
 
           // 2) Fill the rest of the first page while the first hit is already visible.
           setLoadingMore(true)
-          const restLimit = PAGE_SIZE - first.commits.length
+          const restLimit = PAGE_SIZE - firstCommits.length
           const rest = await listCommits(
             worktreePath,
             nextScope,
@@ -115,7 +116,8 @@ export function useCommitHistory({ worktreePath, currentBranch }: UseCommitHisto
           if (gen !== loadGenRef.current) {
             return
           }
-          setCommits((prev) => [...prev, ...rest.commits])
+          const restCommits = Array.isArray(rest.commits) ? rest.commits : []
+          setCommits((prev) => [...prev, ...restCommits])
           setHasMore(rest.hasMore)
           nextSkipRef.current = rest.nextSkip
           setLoadingMore(false)
@@ -130,8 +132,8 @@ export function useCommitHistory({ worktreePath, currentBranch }: UseCommitHisto
         if (gen !== loadGenRef.current) {
           return
         }
-        setLabels(heads)
-        setCommits(page.commits)
+        setLabels(Array.isArray(heads) ? heads : [])
+        setCommits(Array.isArray(page.commits) ? page.commits : [])
         setHasMore(page.hasMore)
         nextSkipRef.current = page.nextSkip
       } catch (err) {
@@ -190,7 +192,7 @@ export function useCommitHistory({ worktreePath, currentBranch }: UseCommitHisto
       if (gen !== loadGenRef.current) {
         return
       }
-      setCommits((prev) => [...prev, ...page.commits])
+      setCommits((prev) => [...prev, ...(Array.isArray(page.commits) ? page.commits : [])])
       setHasMore(page.hasMore)
       nextSkipRef.current = page.nextSkip
     } catch (err) {

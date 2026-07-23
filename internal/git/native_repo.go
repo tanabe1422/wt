@@ -17,25 +17,23 @@ import (
 // nativeIsUntracked reports whether file exists on disk and is absent from the index.
 // Ignore rules are not re-checked (GetStatus already filters with --exclude-standard).
 func nativeIsUntracked(dir, file string) (bool, error) {
-	repo, err := openNativeRepo(dir)
-	if err != nil {
-		return false, err
-	}
-	idx, err := repo.Storer.Index()
-	if err != nil {
-		return false, err
-	}
-	rel := filepath.ToSlash(filepath.Clean(file))
-	rel = strings.TrimPrefix(rel, "./")
-	if _, err := idx.Entry(rel); err == nil {
-		return false, nil
-	}
-	abs := filepath.Join(dir, filepath.FromSlash(rel))
-	fi, err := os.Stat(abs)
-	if err != nil || fi.IsDir() {
-		return false, nil
-	}
-	return true, nil
+	return withNativeRepoResult(dir, func(repo *gogit.Repository) (bool, error) {
+		idx, err := repo.Storer.Index()
+		if err != nil {
+			return false, err
+		}
+		rel := filepath.ToSlash(filepath.Clean(file))
+		rel = strings.TrimPrefix(rel, "./")
+		if _, err := idx.Entry(rel); err == nil {
+			return false, nil
+		}
+		abs := filepath.Join(dir, filepath.FromSlash(rel))
+		fi, err := os.Stat(abs)
+		if err != nil || fi.IsDir() {
+			return false, nil
+		}
+		return true, nil
+	})
 }
 
 // nativeGitDir resolves the worktree's git directory (handles `.git` file for linked worktrees).
@@ -87,105 +85,101 @@ func nativeHasGitFile(worktreePath, name string) (bool, error) {
 }
 
 func nativeIsOnBranch(dir string) (bool, error) {
-	repo, err := openNativeRepo(dir)
-	if err != nil {
-		return false, err
-	}
-	head, err := repo.Head()
-	if err != nil {
-		return false, err
-	}
-	return head.Name().IsBranch(), nil
+	return withNativeRepoResult(dir, func(repo *gogit.Repository) (bool, error) {
+		head, err := repo.Head()
+		if err != nil {
+			return false, err
+		}
+		return head.Name().IsBranch(), nil
+	})
 }
 
 // nativeUpstreamShortName returns "remote/branch" like
 // `git rev-parse --abbrev-ref --symbolic-full-name @{upstream}`.
 func nativeUpstreamShortName(dir string) (string, error) {
-	repo, err := openNativeRepo(dir)
-	if err != nil {
-		return "", err
-	}
-	cfg, err := repo.Config()
-	if err != nil {
-		return "", err
-	}
-	head, err := repo.Head()
-	if err != nil {
-		return "", err
-	}
-	if !head.Name().IsBranch() {
-		return "", errors.New("upstream が設定されていません")
-	}
-	branch := head.Name().Short()
-	b := cfg.Branches[branch]
-	if b == nil || b.Remote == "" || b.Merge == "" {
-		return "", errors.New("upstream が設定されていません")
-	}
-	mergeShort := strings.TrimPrefix(b.Merge.String(), "refs/heads/")
-	if mergeShort == "" {
-		return "", errors.New("upstream の形式が不正です")
-	}
-	return b.Remote + "/" + mergeShort, nil
+	return withNativeRepoResult(dir, func(repo *gogit.Repository) (string, error) {
+		cfg, err := repo.Config()
+		if err != nil {
+			return "", err
+		}
+		head, err := repo.Head()
+		if err != nil {
+			return "", err
+		}
+		if !head.Name().IsBranch() {
+			return "", errors.New("upstream が設定されていません")
+		}
+		branch := head.Name().Short()
+		b := cfg.Branches[branch]
+		if b == nil || b.Remote == "" || b.Merge == "" {
+			return "", errors.New("upstream が設定されていません")
+		}
+		mergeShort := strings.TrimPrefix(b.Merge.String(), "refs/heads/")
+		if mergeShort == "" {
+			return "", errors.New("upstream の形式が不正です")
+		}
+		return b.Remote + "/" + mergeShort, nil
+	})
 }
 
 // nativeAheadOfUpstream counts commits reachable from HEAD but not from upstream.
 // hasUpstream is false when no upstream is configured (amend should not block).
 func nativeAheadOfUpstream(dir string) (ahead int, hasUpstream bool, err error) {
-	repo, err := openNativeRepo(dir)
-	if err != nil {
-		return 0, false, err
+	type result struct {
+		ahead       int
+		hasUpstream bool
 	}
-	cfg, err := repo.Config()
-	if err != nil {
-		return 0, false, err
-	}
-	head, err := repo.Head()
-	if err != nil {
-		return 0, false, err
-	}
-	if !head.Name().IsBranch() {
-		return 0, false, nil
-	}
-	branch := head.Name().Short()
-	b := cfg.Branches[branch]
-	if b == nil || b.Remote == "" || b.Merge == "" {
-		return 0, false, nil
-	}
-	mergeShort := strings.TrimPrefix(b.Merge.String(), "refs/heads/")
-	remoteRef, err := repo.Reference(plumbing.NewRemoteReferenceName(b.Remote, mergeShort), true)
-	if err != nil {
-		return 0, false, nil
-	}
-	ahead, err = countExclusiveCommits(repo, head.Hash(), remoteRef.Hash())
-	if err != nil {
-		return 0, true, err
-	}
-	return ahead, true, nil
+	out, err := withNativeRepoResult(dir, func(repo *gogit.Repository) (result, error) {
+		cfg, err := repo.Config()
+		if err != nil {
+			return result{}, err
+		}
+		head, err := repo.Head()
+		if err != nil {
+			return result{}, err
+		}
+		if !head.Name().IsBranch() {
+			return result{}, nil
+		}
+		branch := head.Name().Short()
+		b := cfg.Branches[branch]
+		if b == nil || b.Remote == "" || b.Merge == "" {
+			return result{}, nil
+		}
+		mergeShort := strings.TrimPrefix(b.Merge.String(), "refs/heads/")
+		remoteRef, err := repo.Reference(plumbing.NewRemoteReferenceName(b.Remote, mergeShort), true)
+		if err != nil {
+			return result{}, nil
+		}
+		ahead, err := countExclusiveCommits(repo, head.Hash(), remoteRef.Hash())
+		if err != nil {
+			return result{hasUpstream: true}, err
+		}
+		return result{ahead: ahead, hasUpstream: true}, nil
+	})
+	return out.ahead, out.hasUpstream, err
 }
 
 func nativeHeadCommitMessage(dir string) (string, error) {
-	repo, err := openNativeRepo(dir)
-	if err != nil {
-		return "", err
-	}
-	head, err := repo.Head()
-	if err != nil {
-		return "", err
-	}
-	commit, err := repo.CommitObject(head.Hash())
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimRight(commit.Message, "\r\n"), nil
+	return withNativeRepoResult(dir, func(repo *gogit.Repository) (string, error) {
+		head, err := repo.Head()
+		if err != nil {
+			return "", err
+		}
+		commit, err := repo.CommitObject(head.Hash())
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimRight(commit.Message, "\r\n"), nil
+	})
 }
 
 func nativeHasHEAD(dir string) bool {
-	repo, err := openNativeRepo(dir)
-	if err != nil {
-		return false
-	}
-	_, err = repo.Head()
-	return err == nil
+	ok, err := withNativeRepoResult(dir, func(repo *gogit.Repository) (bool, error) {
+		_, err := repo.Head()
+		return err == nil, nil
+	})
+	return err == nil && ok
 }
 
 func openNativeRepo(path string) (*gogit.Repository, error) {
@@ -230,6 +224,30 @@ func openNativeRepo(path string) (*gogit.Repository, error) {
 	return repo, nil
 }
 
+// withNativeRepo serializes use of cached *gogit.Repository values.
+// go-git's Repository is not safe for concurrent use; branch switch + history
+// reload otherwise race ListBranches / ListBranchHeads on the same handle.
+func withNativeRepo(path string, fn func(*gogit.Repository) error) error {
+	nativeRepoOpMu.Lock()
+	defer nativeRepoOpMu.Unlock()
+	repo, err := openNativeRepo(path)
+	if err != nil {
+		return err
+	}
+	return fn(repo)
+}
+
+func withNativeRepoResult[T any](path string, fn func(*gogit.Repository) (T, error)) (T, error) {
+	var zero T
+	nativeRepoOpMu.Lock()
+	defer nativeRepoOpMu.Unlock()
+	repo, err := openNativeRepo(path)
+	if err != nil {
+		return zero, err
+	}
+	return fn(repo)
+}
+
 type nativeRepoCacheEntry struct {
 	repo     *gogit.Repository
 	expireAt time.Time
@@ -242,6 +260,7 @@ const (
 
 var (
 	nativeRepoMu    sync.Mutex
+	nativeRepoOpMu  sync.Mutex
 	nativeRepoCache = map[string]*nativeRepoCacheEntry{}
 )
 
@@ -258,137 +277,132 @@ func clearNativeRepoCacheLocked() {
 }
 
 func nativeWorktreeRoot(path string) (string, error) {
-	repo, err := openNativeRepo(path)
-	if err != nil {
-		return "", err
-	}
-	wt, err := repo.Worktree()
-	if err != nil {
-		return "", err
-	}
-	type rootFS interface {
-		Root() string
-	}
-	fs, ok := wt.Filesystem.(rootFS)
-	if !ok {
-		return "", errors.New("worktree filesystem has no Root()")
-	}
-	return filepath.Clean(fs.Root()), nil
+	return withNativeRepoResult(path, func(repo *gogit.Repository) (string, error) {
+		wt, err := repo.Worktree()
+		if err != nil {
+			return "", err
+		}
+		type rootFS interface {
+			Root() string
+		}
+		fs, ok := wt.Filesystem.(rootFS)
+		if !ok {
+			return "", errors.New("worktree filesystem has no Root()")
+		}
+		return filepath.Clean(fs.Root()), nil
+	})
 }
 
 func nativeCurrentBranch(dir string) (string, error) {
-	repo, err := openNativeRepo(dir)
-	if err != nil {
-		return "", err
-	}
-	ref, err := repo.Head()
-	if err != nil {
-		return "", err
-	}
-	if ref.Name().IsBranch() {
-		return ref.Name().Short(), nil
-	}
-	return "HEAD", nil
+	return withNativeRepoResult(dir, func(repo *gogit.Repository) (string, error) {
+		ref, err := repo.Head()
+		if err != nil {
+			return "", err
+		}
+		if ref.Name().IsBranch() {
+			return ref.Name().Short(), nil
+		}
+		return "HEAD", nil
+	})
 }
 
 func nativeListBranchesMeta(repoPath string) ([]BranchEntry, error) {
-	repo, err := openNativeRepo(repoPath)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg, err := repo.Config()
-	if err != nil {
-		return nil, err
-	}
-
-	headName := ""
-	if head, err := repo.Head(); err == nil && head.Name().IsBranch() {
-		headName = head.Name().Short()
-	}
-
-	refs, err := repo.References()
-	if err != nil {
-		return nil, err
-	}
-
-	entries := make([]BranchEntry, 0)
-	err = refs.ForEach(func(ref *plumbing.Reference) error {
-		name := ref.Name()
-		switch {
-		case name.IsBranch():
-			short := name.Short()
-			if short == "" {
-				return nil
-			}
-			upstream := ""
-			if b := cfg.Branches[short]; b != nil && b.Remote != "" && b.Merge != "" {
-				mergeShort := strings.TrimPrefix(b.Merge.String(), "refs/heads/")
-				if mergeShort != "" {
-					upstream = b.Remote + "/" + mergeShort
-				}
-			}
-			entries = append(entries, BranchEntry{
-				Name:        short,
-				IsCurrent:   short == headName,
-				IsRemote:    false,
-				HasUpstream: upstream != "",
-			})
-		case name.IsRemote():
-			short := name.Short()
-			if short == "" || strings.HasSuffix(short, "/HEAD") {
-				return nil
-			}
-			entries = append(entries, BranchEntry{
-				Name:      short,
-				IsCurrent: false,
-				IsRemote:  true,
-			})
+	return withNativeRepoResult(repoPath, func(repo *gogit.Repository) ([]BranchEntry, error) {
+		cfg, err := repo.Config()
+		if err != nil {
+			return nil, err
 		}
-		return nil
+
+		headName := ""
+		if head, err := repo.Head(); err == nil && head.Name().IsBranch() {
+			headName = head.Name().Short()
+		}
+
+		refs, err := repo.References()
+		if err != nil {
+			return nil, err
+		}
+
+		entries := make([]BranchEntry, 0)
+		err = refs.ForEach(func(ref *plumbing.Reference) error {
+			name := ref.Name()
+			switch {
+			case name.IsBranch():
+				short := name.Short()
+				if short == "" {
+					return nil
+				}
+				upstream := ""
+				if b := cfg.Branches[short]; b != nil && b.Remote != "" && b.Merge != "" {
+					mergeShort := strings.TrimPrefix(b.Merge.String(), "refs/heads/")
+					if mergeShort != "" {
+						upstream = b.Remote + "/" + mergeShort
+					}
+				}
+				entries = append(entries, BranchEntry{
+					Name:        short,
+					IsCurrent:   short == headName,
+					IsRemote:    false,
+					HasUpstream: upstream != "",
+				})
+			case name.IsRemote():
+				short := name.Short()
+				if short == "" || strings.HasSuffix(short, "/HEAD") {
+					return nil
+				}
+				entries = append(entries, BranchEntry{
+					Name:      short,
+					IsCurrent: false,
+					IsRemote:  true,
+				})
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return entries, nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	return entries, nil
 }
 
 func nativeCountAheadBehind(repoPath, branch string) (ahead, behind int, err error) {
-	repo, err := openNativeRepo(repoPath)
-	if err != nil {
-		return 0, 0, err
+	type result struct {
+		ahead  int
+		behind int
 	}
+	out, err := withNativeRepoResult(repoPath, func(repo *gogit.Repository) (result, error) {
+		cfg, err := repo.Config()
+		if err != nil {
+			return result{}, err
+		}
+		b := cfg.Branches[branch]
+		if b == nil || b.Remote == "" || b.Merge == "" {
+			return result{}, fmt.Errorf("no upstream configured for branch %q", branch)
+		}
 
-	cfg, err := repo.Config()
-	if err != nil {
-		return 0, 0, err
-	}
-	b := cfg.Branches[branch]
-	if b == nil || b.Remote == "" || b.Merge == "" {
-		return 0, 0, fmt.Errorf("no upstream configured for branch %q", branch)
-	}
+		localRef, err := repo.Reference(plumbing.NewBranchReferenceName(branch), true)
+		if err != nil {
+			return result{}, err
+		}
 
-	localRef, err := repo.Reference(plumbing.NewBranchReferenceName(branch), true)
-	if err != nil {
-		return 0, 0, err
-	}
+		mergeShort := strings.TrimPrefix(b.Merge.String(), "refs/heads/")
+		remoteRef, err := repo.Reference(plumbing.NewRemoteReferenceName(b.Remote, mergeShort), true)
+		if err != nil {
+			return result{}, err
+		}
 
-	mergeShort := strings.TrimPrefix(b.Merge.String(), "refs/heads/")
-	remoteRef, err := repo.Reference(plumbing.NewRemoteReferenceName(b.Remote, mergeShort), true)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	// left = upstream-only (behind), right = branch-only (ahead)
-	behind, err = countExclusiveCommits(repo, remoteRef.Hash(), localRef.Hash())
-	if err != nil {
-		return 0, 0, err
-	}
-	ahead, err = countExclusiveCommits(repo, localRef.Hash(), remoteRef.Hash())
-	if err != nil {
-		return 0, 0, err
-	}
-	return ahead, behind, nil
+		// left = upstream-only (behind), right = branch-only (ahead)
+		behind, err := countExclusiveCommits(repo, remoteRef.Hash(), localRef.Hash())
+		if err != nil {
+			return result{}, err
+		}
+		ahead, err := countExclusiveCommits(repo, localRef.Hash(), remoteRef.Hash())
+		if err != nil {
+			return result{}, err
+		}
+		return result{ahead: ahead, behind: behind}, nil
+	})
+	return out.ahead, out.behind, err
 }
 
 // countExclusiveCommits returns commits reachable from include but not from exclude
@@ -427,46 +441,43 @@ func countExclusiveCommits(repo *gogit.Repository, include, exclude plumbing.Has
 }
 
 func nativeListBranchHeads(worktreePath string) ([]BranchHead, error) {
-	repo, err := openNativeRepo(worktreePath)
-	if err != nil {
-		return nil, err
-	}
-
-	refs, err := repo.References()
-	if err != nil {
-		return nil, err
-	}
-
-	heads := make([]BranchHead, 0)
-	err = refs.ForEach(func(ref *plumbing.Reference) error {
-		name := ref.Name()
-		if !name.IsBranch() && !name.IsRemote() && !name.IsTag() {
-			return nil
-		}
-		short := name.Short()
-		if short == "" || strings.HasSuffix(short, "/HEAD") {
-			return nil
+	return withNativeRepoResult(worktreePath, func(repo *gogit.Repository) ([]BranchHead, error) {
+		refs, err := repo.References()
+		if err != nil {
+			return nil, err
 		}
 
-		sha, err := peelToCommitSHA(repo, ref)
-		if err != nil || sha == "" {
-			return nil
-		}
+		heads := make([]BranchHead, 0)
+		err = refs.ForEach(func(ref *plumbing.Reference) error {
+			name := ref.Name()
+			if !name.IsBranch() && !name.IsRemote() && !name.IsTag() {
+				return nil
+			}
+			short := name.Short()
+			if short == "" || strings.HasSuffix(short, "/HEAD") {
+				return nil
+			}
 
-		heads = append(heads, BranchHead{
-			Name:     short,
-			IsRemote: name.IsRemote(),
-			IsTag:    name.IsTag(),
-			Commit: BranchHeadCommit{
-				SHA: sha,
-			},
+			sha, err := peelToCommitSHA(repo, ref)
+			if err != nil || sha == "" {
+				return nil
+			}
+
+			heads = append(heads, BranchHead{
+				Name:     short,
+				IsRemote: name.IsRemote(),
+				IsTag:    name.IsTag(),
+				Commit: BranchHeadCommit{
+					SHA: sha,
+				},
+			})
+			return nil
 		})
-		return nil
+		if err != nil {
+			return nil, err
+		}
+		return heads, nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	return heads, nil
 }
 
 func peelToCommitSHA(repo *gogit.Repository, ref *plumbing.Reference) (string, error) {
